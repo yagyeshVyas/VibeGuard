@@ -1,0 +1,55 @@
+{
+  "name": "vibeguard",
+  "version": "0.1.0",
+  "description": "Catch and fix the common security problems AI coding tools leave behind. Honest scope: secrets, injection, misconfig — not a guarantee of safety.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "vibeguard": "bin/cli.js",
+    "vibeguard-mcp": "src/mcp-server.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "hooks",
+    "ci",
+    "ci-templates",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node test/run.js",
+    "scan": "node bin/cli.js scan",
+    "lint": "eslint src/ bin/ --ignore-pattern node_modules",
+    "coverage": "c8 node test/run.js",
+    "prepublishOnly": "node test/run.js"
+  },
+  "keywords": [
+    "security",
+    "sast",
+    "secrets",
+    "sarif",
+    "mcp",
+    "claude",
+    "cursor",
+    "vibe-coding",
+    "pre-commit"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "acorn": "^8.17.0",
+    "acorn-typescript": "^1.4.13",
+    "acorn-walk": "^8.3.5"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3",
+    "eslint": "^9.39.5"
+  }
+}

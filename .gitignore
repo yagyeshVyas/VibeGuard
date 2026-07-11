@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+build/
+coverage/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# VibeGuard
+.vibeguard-baseline.json
+.vibeguard-cache.json
+.vibeguardrc.json
+.mcp.json.vibeguard-bak
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test project (bundled vulnerable sample)
+test-project/
+
+# Generated docs (rebuild with node generate-doc.js)
+VibeGuard-Technical-Documentation.docx
+generate-doc.js

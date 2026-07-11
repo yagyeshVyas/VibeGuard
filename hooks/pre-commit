@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+#
+# VibeGuard pre-commit hook.
+# Blocks the commit ONLY when a CRITICAL issue is found (secrets, exposed .env,
+# private keys). High/medium/low issues are reported but do not block, so the
+# hook stays out of your way for lower-severity noise.
+#
+# Install:  vibeguard install-hook        (from your repo root)
+# Bypass:   git commit --no-verify        (use sparingly, and know why)
+
+# Resolve the runner: prefer a locally installed vibeguard, else npx.
+if command -v vibeguard >/dev/null 2>&1; then
+  RUN="vibeguard"
+elif [ -f "node_modules/.bin/vibeguard" ]; then
+  RUN="node_modules/.bin/vibeguard"
+else
+  RUN="npx --no-install vibeguard"
+fi
+
+# --precommit makes the CLI exit non-zero ONLY on CRITICAL findings.
+$RUN scan . --precommit
+STATUS=$?
+
+if [ "$STATUS" -eq 2 ]; then
+  echo ""
+  echo "VibeGuard: commit blocked — CRITICAL security issue(s) found above."
+  echo "Fix them, or bypass intentionally with: git commit --no-verify"
+  exit 1
+fi
+
+exit 0
