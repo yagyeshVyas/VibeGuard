@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:\\Program Files\\nodejs\\node.exe\" \"D:\\vibe guard\\bin\\cli.js\" hook-post-edit"
+          }
+        ]
+      }
+    ]
+  }
+}

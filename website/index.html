@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VibeGuard — Free Security Scanner for AI-Coded Apps</title>
+<style>
+  :root { --bg: #0a0a0a; --fg: #e5e5e5; --accent: #3b82f6; --green: #22c55e; --red: #ef4444; --yellow: #eab308; --card: #1a1a1a; --border: #333; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; }
+  .hero { text-align: center; padding: 80px 20px 60px; }
+  .hero h1 { font-size: 56px; font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; background: linear-gradient(135deg, #3b82f6, #22c55e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { font-size: 22px; color: #999; max-width: 600px; margin: 0 auto 32px; }
+  .hero .install { font-family: monospace; font-size: 16px; background: var(--card); padding: 16px 24px; border-radius: 8px; border: 1px solid var(--border); display: inline-block; cursor: pointer; }
+  .hero .install:hover { border-color: var(--accent); }
+  .badges { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
+  .badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; background: var(--card); border: 1px solid var(--border); }
+  .badge.green { border-color: var(--green); color: var(--green); }
+  .badge.blue { border-color: var(--accent); color: var(--accent); }
+  .features { max-width: 1000px; margin: 0 auto; padding: 40px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+  .feature { background: var(--card); padding: 24px; border-radius: 12px; border: 1px solid var(--border); }
+  .feature h3 { font-size: 18px; margin-bottom: 8px; }
+  .feature p { color: #999; font-size: 14px; }
+  .feature .icon { font-size: 28px; margin-bottom: 12px; }
+  .stats { text-align: center; padding: 40px 20px; }
+  .stats-grid { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
+  .stat { text-align: center; }
+  .stat .num { font-size: 48px; font-weight: 800; color: var(--accent); }
+  .stat .label { font-size: 14px; color: #999; text-transform: uppercase; }
+  .playground { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+  .playground h2 { text-align: center; font-size: 32px; margin-bottom: 24px; }
+  .editor { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .editor textarea { width: 100%; min-height: 200px; background: transparent; color: var(--fg); border: none; padding: 16px; font-family: monospace; font-size: 14px; resize: vertical; outline: none; }
+  .editor-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .btn { padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { opacity: 0.9; }
+  .results { padding: 16px; }
+  .result-item { padding: 12px; margin-bottom: 8px; border-radius: 8px; border-left: 4px solid; background: rgba(255,255,255,0.03); }
+  .result-item.critical { border-color: var(--red); }
+  .result-item.high { border-color: #f97316; }
+  .result-item.medium { border-color: var(--yellow); }
+  .result-item.low { border-color: var(--accent); }
+  .result-item .sev { font-weight: 700; text-transform: uppercase; font-size: 12px; }
+  .result-item .rule { font-family: monospace; font-size: 13px; color: #999; }
+  .result-item .msg { font-size: 14px; margin-top: 4px; }
+  .result-item .fix { font-size: 13px; color: var(--green); margin-top: 4px; }
+  .clients { max-width: 800px; margin: 40px auto; padding: 20px; text-align: center; }
+  .client-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; }
+  .client { padding: 12px 20px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); font-size: 14px; }
+  footer { text-align: center; padding: 40px 20px; color: #666; font-size: 14px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .copy-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--green); color: white; padding: 12px 24px; border-radius: 8px; opacity: 0; transition: opacity 0.3s; }
+  .copy-toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>VibeGuard</h1>
+  <p>Free, zero-dependency security scanner for AI-coded apps. Catches secrets, injection, misconfig — before they ship.</p>
+  <div class="install" onclick="copyInstall()">npx -y vibeguard install</div>
+  <div class="badges">
+    <span class="badge green">100% Free</span>
+    <span class="badge green">Zero Dependencies</span>
+    <span class="badge blue">224 Rules</span>
+    <span class="badge blue">40 MCP Tools</span>
+    <span class="badge">11 AI Clients</span>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stats-grid">
+    <div class="stat"><div class="num">224</div><div class="label">Rules</div></div>
+    <div class="stat"><div class="num">40</div><div class="label">MCP Tools</div></div>
+    <div class="stat"><div class="num">22</div><div class="label">CLI Commands</div></div>
+    <div class="stat"><div class="num">11</div><div class="label">AI Clients</div></div>
+    <div class="stat"><div class="num">0</div><div class="label">Dependencies</div></div>
+    <div class="stat"><div class="num">$0</div><div class="label">Cost</div></div>
+  </div>
+</div>
+
+<div class="features">
+  <div class="feature">
+    <div class="icon">🔒</div>
+    <h3>Secret Detection</h3>
+    <p>15+ secret types: OpenAI, Stripe, GitHub, Slack, GitLab, Twilio, SendGrid, Mailgun, Telegram, npm, Resend, and more. Plus entropy-based detection for unknown secrets.</p>
+  </div>
+  <div class="feature">
+    <div class="icon">🧠</div>
+    <h3>AI Security</h3>
+    <p>Prompt injection detection, MCP tool analysis, agent guardrails, LLM output sink analysis, and secure_prompt analysis BEFORE code is generated.</p>
+  </div>
+  <div class="feature">
+    <div class="icon">🔍</div>
+    <h3>Code Analysis</h3>
+    <p>SQL injection, XSS, command injection, path traversal, prototype pollution, ReDoS, XXE, CRLF. AST-based taint analysis with acorn (optional).</p>
+  </div>
+  <div class="feature">
+    <div class="icon">🔗</div>
+    <h3>Cross-File Taint</h3>
+    <p>Import/export graph taint tracking. Follows user input across modules to find injection paths that single-file analysis misses.</p>
+  </div>
+  <div class="feature">
+    <div class="icon">📦</div>
+    <h3>Supply Chain</h3>
+    <p>CVE intel via OSV.dev, slopsquat detection (hallucinated packages), typosquat detection, postinstall script analysis, dependency confusion.</p>
+  </div>
+  <div class="feature">
+    <div class="icon">🏥</div>
+    <h3>Compliance</h3>
+    <p>SOC 2, PCI-DSS, HIPAA, GDPR, ISO 27001, EU AI Act. Maps findings to control IDs with one command.</p>
+  </div>
+  <div class="feature">
+    <div class="icon">🤖</div>
+    <h3>MCP Server</h3>
+    <p>40 MCP tools for Claude Code, Cursor, Windsurf, Codex, Antigravity, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider.</p>
+  </div>
+  <div class="feature">
+    <div class="icon">⚡</div>
+    <h3>Real-Time Hook</h3>
+    <p>PostToolUse hook auto-scans files after AI edits. Instant feedback in Claude Code — no manual scan needed.</p>
+  </div>
+  <div class="feature">
+    <div class="icon">🛠️</div>
+    <h3>Auto-Fix + Verify</h3>
+    <p>12 auto-fixable rules with snapshot + rollback. Verify mode shows resolved/remaining/new issues. Full audit trail.</p>
+  </div>
+</div>
+
+<div class="playground">
+  <h2>Try It — Code Security Playground</h2>
+  <div class="editor">
+    <div class="editor-bar">
+      <span style="color:#999;font-size:14px;">Paste code to scan:</span>
+      <button class="btn btn-primary" onclick="scanCode()">Scan Code</button>
+    </div>
+    <textarea id="code" placeholder="// Paste your code here...
+const apiKey = 'sk-proj-abc123def456ghi789';
+eval(userInput);
+const query = 'SELECT * FROM users WHERE id = ' + req.body.id;"></textarea>
+    <div id="results" class="results" style="display:none;"></div>
+  </div>
+</div>
+
+<div class="clients">
+  <h2>One Command — All AI Clients</h2>
+  <p style="color:#999;">vibeguard install auto-detects and wires MCP into every client you have:</p>
+  <div class="client-grid">
+    <div class="client">Claude Code</div>
+    <div class="client">Cursor</div>
+    <div class="client">Windsurf</div>
+    <div class="client">Codex CLI</div>
+    <div class="client">Antigravity</div>
+    <div class="client">Gemini CLI</div>
+    <div class="client">Continue</div>
+    <div class="client">Cline</div>
+    <div class="client">Roo Code</div>
+    <div class="client">OpenHands</div>
+    <div class="client">Aider</div>
+  </div>
+</div>
+
+<footer>
+  <p>VibeGuard — Free, open-source, zero dependencies.</p>
+  <p style="margin-top:8px;"><a href="https://github.com/vibeguard/vibeguard">GitHub</a> · <a href="#" onclick="copyInstall();return false;">npx -y vibeguard install</a></p>
+</footer>
+
+<div class="copy-toast" id="toast">Copied to clipboard!</div>
+
+<script>
+function copyInstall() {
+  navigator.clipboard.writeText('npx -y vibeguard install');
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// Client-side mini-scanner for the playground (subset of rules)
+const RULES = [
+  { id: 'secret.openai-key', re: /sk-proj-[A-Za-z0-9_-]{20,}/, sev: 'critical', msg: 'OpenAI API key exposed', fix: 'Move to process.env.OPENAI_API_KEY' },
+  { id: 'secret.openai-key-old', re: /sk-[A-Za-z0-9]{48}/, sev: 'critical', msg: 'OpenAI API key (legacy format)', fix: 'Move to process.env.OPENAI_API_KEY' },
+  { id: 'secret.stripe-key', re: /sk_live_[A-Za-z0-9]{16,}/, sev: 'critical', msg: 'Stripe secret key exposed', fix: 'Move to process.env.STRIPE_SECRET_KEY' },
+  { id: 'secret.github-token', re: /gh[pousr]_[A-Za-z0-9]{36}/, sev: 'critical', msg: 'GitHub token exposed', fix: 'Move to process.env.GITHUB_TOKEN' },
+  { id: 'secret.anthropic-key', re: /sk-ant-[A-Za-z0-9_-]{50,}/, sev: 'critical', msg: 'Anthropic API key exposed', fix: 'Move to process.env.ANTHROPIC_API_KEY' },
+  { id: 'injection.eval', re: /\beval\s*\(/, sev: 'high', msg: 'eval() — code injection risk', fix: 'Avoid eval(). Use JSON.parse() or a safe parser.' },
+  { id: 'injection.sql-concat', re: /(?:SELECT|INSERT|UPDATE|DELETE)\s+.*?\+\s*(?:req\.|user|input|request)/i, sev: 'high', msg: 'SQL string concatenation — SQL injection', fix: 'Use parameterized queries: db.query("SELECT ... WHERE id = ?", [id])' },
+  { id: 'injection.command', re: /(?:exec|spawn|execSync)\s*\(\s*[^)]*(?:req\.|user|input)/i, sev: 'critical', msg: 'Command injection — user input passed to exec()', fix: 'Use execFile() with validated arguments, never exec() with user input.' },
+  { id: 'xss.innerHTML', re: /innerHTML\s*=\s*[^;]*(?:req\.|user|input|request)/i, sev: 'high', msg: 'innerHTML with user data — XSS', fix: 'Use textContent or sanitize with DOMPurify.' },
+  { id: 'crypto.tls-reject', re: /rejectUnauthorized\s*:\s*false/, sev: 'high', msg: 'TLS verification disabled — MITM risk', fix: 'Remove rejectUnauthorized: false. Verify certificates.' },
+  { id: 'auth.hardcoded-token', re: /(?:password|secret|token|apikey|api_key)\s*[:=]\s*['"][^'"]{8,}['"]/i, sev: 'high', msg: 'Hardcoded secret', fix: 'Use environment variables: process.env.SECRET' },
+  { id: 'config.cors-wildcard', re: /origin\s*:\s*['"]\*['"]/, sev: 'medium', msg: 'CORS wildcard origin', fix: 'Set origin to an allowlist of your domains.' },
+  { id: 'error.detail-to-client', re: /res\.(?:json|send)\s*\(\s*\{[^}]*(?:error|err|stack|trace)/i, sev: 'medium', msg: 'Error details sent to client', fix: 'Send a generic error; log full details server-side.' },
+  { id: 'web.missing-hsts', re: /Strict-Transport-Security/, sev: 'medium', msg: 'HSTS header check', fix: 'Add Strict-Transport-Security header' },
+];
+
+function scanCode() {
+  const code = document.getElementById('code').value;
+  const results = document.getElementById('results');
+  const lines = code.split('\n');
+  const findings = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (const rule of RULES) {
+      if (rule.re.test(line)) {
+        findings.push({ ...rule, line: i + 1, snippet: line.trim().slice(0, 100) });
+      }
+    }
+  }
+
+  if (findings.length === 0) {
+    results.innerHTML = '<div style="color:#22c55e;text-align:center;padding:20px;">No issues found — clean code!</div>';
+  } else {
+    results.innerHTML = findings.map(f =>
+      `<div class="result-item ${f.sev}">
+        <span class="sev" style="color:${f.sev === 'critical' ? '#ef4444' : f.sev === 'high' ? '#f97316' : f.sev === 'medium' ? '#eab308' : '#3b82f6'}">${f.sev}</span>
+        <span class="rule"> ${f.id} · line ${f.line}</span>
+        <div class="msg">${f.msg}</div>
+        <div class="fix">fix: ${f.fix}</div>
+      </div>`
+    ).join('');
+  }
+  results.style.display = 'block';
+}
+</script>
+
+</body>
+</html>

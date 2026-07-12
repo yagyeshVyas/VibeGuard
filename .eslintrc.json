@@ -1,0 +1,24 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+  "extends": ["eslint:recommended"],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-prototype-builtins": "warn",
+    "no-control-regex": "off",
+    "no-useless-escape": "off",
+    "no-empty": ["error", { "allowEmptyCatch": true }],
+    "prefer-const": "warn",
+    "no-var": "warn",
+    "eqeqeq": ["warn", "smart"],
+    "no-eval": "off",
+    "no-new-func": "off"
+  },
+  "ignorePatterns": ["node_modules/", "test-project/", "coverage/", "dist/"]
+}

@@ -1,0 +1,425 @@
+# VibeGuard
+
+Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever.
+
+<a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=flat-square" alt="npm version" /></a>
+<a href="https://github.com/yagyeshVyas/VibeGuard/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license" /></a>
+
+```
+$ npx @yagyeshvyas/vibeguard scan
+
+VibeGuard security scan
+./my-app
+
+CRITICAL  api/route.ts:3  [secret.openai-key]
+  OpenAI API key hardcoded in server code
+  fix: Move to environment variable.
+
+HIGH      db/query.ts:5   [taint.sql-injection]
+  User input flows into SQL query via template literal (dataflow-confirmed)
+  fix: Use parameterized queries / prepared statements.
+
+HIGH      app/page.jsx:8  [taint.xss-dom]
+  User input from URLSearchParams reaches innerHTML — DOM XSS
+  fix: Use textContent instead of innerHTML. Sanitize with DOMPurify if needed.
+
+Grade D  (12 files)  1 critical  3 high  2 medium  1 low
+
+Run vibeguard fix to auto-fix 4 issues
+```
+
+---
+
+## Quick Start
+
+```bash
+npx @yagyeshvyas/vibeguard scan
+```
+
+Or one-command full protection (daemon + hooks + shell guard):
+
+```bash
+npx @yagyeshvyas/vibeguard auto          # full protection on
+npx @yagyeshvyas/vibeguard auto --stop    # turn it off
+```
+
+### Wire into Claude Code
+
+```bash
+claude mcp add vibeguard -- npx @yagyeshvyas/vibeguard mcp
+```
+
+### Wire into Cursor / Windsurf
+
+Add to your MCP config:
+```json
+{ "mcpServers": { "vibeguard": { "command": "npx", "args": ["@yagyeshvyas/vibeguard", "mcp"] } } }
+```
+
+---
+
+## What It Catches
+
+**Leaked Stripe key in client code**
+```js
+const key = "sk_live_51H8x...";  // anyone with devtools can issue refunds
+```
+VibeGuard flags 50+ secret types — OpenAI, AWS, GitHub, Stripe, Slack, Firebase — and tells you to move them to `process.env`.
+
+**Supabase database open to the world**
+```sql
+create table posts ( ... );  -- no RLS — anyone can read/write all rows
+```
+Detects missing RLS, fake RLS policies (`USING (true)`), and service-role keys in client components.
+
+**SQL injection via template literal**
+```js
+db.query(`SELECT * FROM users WHERE id = ${req.body.id}`);
+```
+AST taint analysis traces `req.body.id` through template literals to `query()` — confirmed dataflow, not a regex guess.
+
+**Prompt injection in system prompt**
+```js
+{ role: "system", content: "You are " + req.body.prompt }
+```
+Catches user input injected into the system role — the root cause of most prompt injection attacks.
+
+**`dangerouslySetInnerHTML` with request data**
+```jsx
+<div dangerouslySetInnerHTML={{__html: req.body.html}} />
+```
+Flags XSS sinks across React, Vue (`v-html`), Angular (`innerHTML`), and raw `innerHTML` / `outerHTML` / `insertAdjacentHTML`.
+
+**AI agent loop without iteration cap**
+```js
+while (true) { await agent.step(); }
+```
+Detects uncapped agent loops — infinite API spend, resource exhaustion.
+
+**Hardcoded JWT secret**
+```js
+jwt.sign(payload, "mysecret123");  // token forgery
+```
+Catches hardcoded session secrets, JWT keys, and credentials in config files, Dockerfiles, and Kubernetes secrets.
+
+**Shell command from LLM output**
+```js
+const completion = await openai.chat.completions.create({...});
+exec(completion.choices[0].message.content);  // RCE via prompt injection
+```
+Only scanner that detects LLM output reaching `exec`, `eval`, SQL queries, and DOM sinks.
+
+---
+
+## `vibeguard auto` — One Command Full Protection
+
+```bash
+vibeguard auto          # activates everything
+vibeguard auto --status  # see what's active
+vibeguard auto --stop    # reverse everything, restore backups
+```
+
+| Layer | What it does |
+|-------|-------------|
+| Daemon | Watches files, auto-scans on every change (300ms debounce) |
+| Pre-commit hook | Blocks git commits on critical findings |
+| Post-edit hook | Auto-scans files after AI agent edits them |
+| Shell guard | Blocks dangerous commands (`rm -rf`, `sudo`, `curl\|sh`) before execution |
+
+All state in `.vibeguard/auto.json`. Idempotent — safe to run twice. `--stop` restores everything byte-for-byte.
+
+Flags: `--ci` (pipeline mode, exit non-zero on critical), `--fix` (apply safe auto-fixes), `--no-shell`, `--strict`.
+
+---
+
+## Confidence + Inline Suppression
+
+Every finding has a confidence level:
+
+| Confidence | Meaning |
+|------------|---------|
+| `high` | Dataflow-confirmed — input traced to sink via AST |
+| `medium` | Multi-signal regex with validation logic |
+| `low` | Bare regex match — heuristic hint |
+
+```bash
+vibeguard scan --min-confidence medium   # hide low-confidence hints (default)
+vibeguard scan --all                     # show everything
+```
+
+Suppress inline with a reason:
+
+```js
+const key = "sk_live_..."; // vibeguard-ignore[secret.stripe-live-key]: test fixture
+```
+
+---
+
+## Benchmark
+
+Measured against a curated corpus of 121 files (90 vuln + 31 clean). Not a vanity number.
+
+<!-- BENCHMARK:START -->
+<!-- Auto-generated by `npm run benchmark` — do not edit manually -->
+
+## Summary
+
+| Category | TP | FP | FN | Precision | Recall | F1 |
+|----------|----|----|----|-----------|--------|----|
+| injection | 43 | 5 | 6 | 89.6% | 87.8% | 88.7% |
+| secrets | 19 | 7 | 2 | 73.1% | 90.5% | 80.9% |
+| xss | 16 | 0 | 1 | 100.0% | 94.1% | 97.0% |
+| path-traversal | 9 | 1 | 1 | 90.0% | 90.0% | 90.0% |
+| ai-safety | 8 | 2 | 6 | 80.0% | 57.1% | 66.7% |
+| **OVERALL** | **95** | **15** | **16** | **86.4%** | **85.6%** | **86.0%** |
+
+## Per-Category Details
+
+### injection
+
+| File | Rule ID | Verdict |
+|------|---------|---------|
+| sql-concat.js | `code.sql-injection` | TP |
+| sql-concat.js | `taint.sql-injection` | TP |
+| sql-concat2.js | `code.sql-injection` | TP |
+| sql-concat2.js | `taint.sql-injection` | TP |
+| sql-concat3.js | `code.sql-injection` | TP |
+| sql-template.js | `db.sql-template-literal` | TP |
+| sql-template.js | `taint.sql-injection` | FN |
+| sql-template2.js | `db.sql-template-literal` | FN |
+| sql-template2.js | `taint.sql-injection` | TP |
+| sql-template3.js | `db.sql-template-literal` | TP |
+| sql-template3.js | `taint.sql-injection` | FN |
+| sql-raw-rb.js | `code.sql-injection` | TP |
+| sql-raw2.js | `db.sql-template-literal` | TP |
+| sql-knex.js | `code.sql-injection` | TP |
+| sql-knex.js | `mikroorm.identifier-from-request` | FP |
+| sql-sequelize.js | `code.sql-injection` | TP |
+| sql-fstring.py | `py.sql-injection` | TP |
+| sql-fstring2.py | `py.sql-injection` | TP |
+| sql-py-concat.py | `py.sql-injection` | FN |
+| sql-sprintf.go | `go.sql-fmt-sprintf` | TP |
+| sql-sprintf.go | `go.sql-injection` | FP |
+| sql-sprintf2.go | `go.sql-fmt-sprintf` | TP |
+| sql-sprintf2.go | `go.sql-injection` | FP |
+| sql-kotlin.kt | `kotlin.sql-injection` | TP |
+| sql-csharp.cs | `csharp.sql-injection` | TP |
+| cmd-concat.js | `taint.command-injection` | TP |
+| cmd-concat.js | `ast.command-injection` | TP |
+| cmd-template.js | `taint.command-injection` | TP |
+| cmd-template.js | `ast.command-injection` | TP |
+| cmd-concat2.js | `taint.command-injection` | TP |
+| cmd-concat2.js | `ast.command-injection` | TP |
+| cmd-spawn.js | `taint.command-injection` | FN |
+| cmd-py.py | `py.os-system` | TP |
+| cmd-py2.py | `py.subprocess-shell-true` | TP |
+| cmd-py3.py | `py.os-system` | TP |
+| cmd-go.go | `go.command-injection` | TP |
+| eval-input.js | `ast.eval-dynamic` | TP |
+| eval-template.js | `ast.eval-dynamic` | TP |
+| eval-template.js | `taint.code-injection` | FP |
+| eval-new-function.js | `ast.function-constructor` | TP |
+| eval-new-function.js | `ast.mass-assignment` | FP |
+| nosql.js | `ast.nosql-injection` | TP |
+| nosql2.js | `ast.nosql-injection` | TP |
+| nosql3.js | `ast.nosql-injection` | TP |
+| nosql-where.js | `ast.nosql-injection` | TP |
+| proto-poll.js | `injection.prototype-pollution` | TP |
+| proto-poll.js | `ast.mass-assignment` | TP |
+| proto-poll2.js | `injection.prototype-pollution` | TP |
+| proto-poll3.js | `injection.prototype-pollution` | TP |
+| ssrf.js | `ast.ssrf` | TP |
+| ssrf2.js | `ast.ssrf` | FN |
+| ssrf2.js | `taint.ssrf` | TP |
+| open-redirect.js | `web.open-redirect` | TP |
+| open-redirect2.js | `taint.open-redirect` | TP |
+
+### secrets
+
+| File | Rule ID | Verdict |
+|------|---------|---------|
+| openai-key.js | `secret.openai-key` | TP |
+| openai-key2.js | `secret.anthropic-key` | TP |
+| github-token.js | `secret.github-token` | TP |
+| github-token2.js | `secret.github-token` | TP |
+| github-token2.js | `secret.high-entropy` | FP |
+| stripe-key.js | `secret.stripe-live-key` | TP |
+| stripe-key.js | `secret.generic-credential` | TP |
+| stripe-key.js | `stripe.key-in-client` | FP |
+| stripe-restricted.js | `secret.stripe-restricted-key` | TP |
+| slack-token.js | `secret.slack-token` | TP |
+| gitlab-token.js | `secret.gitlab-token` | TP |
+| sendgrid-key.js | `secret.sendgrid-key` | TP |
+| npm-token.js | `secret.npm-token` | TP |
+| npm-token.js | `secret.high-entropy` | FP |
+| gcp-key.js | `secret.gcp-api-key` | FN |
+| private-key.js | `secret.private-key` | TP |
+| aws-key.js | `secret.aws-access-key` | TP |
+| mailgun-key.js | `secret.mailgun-key` | TP |
+| mailgun-key.js | `secret.high-entropy` | FP |
+| telegram-token.js | `secret.telegram-bot-token` | FN |
+| resend-key.js | `secret.resend-key` | TP |
+| conn-string.js | `secret.conn-string-password` | TP |
+| conn-string.js | `secret.connection-string` | FP |
+| generic-secret.js | `secret.generic-credential` | TP |
+| docker-build-arg.js | `secret.docker-build-arg` | TP |
+| docker-build-arg.js | `ai.key-in-url` | FP |
+| env-secret.js | `secret.aws-secret-in-env` | TP |
+| env-secret.js | `secret.high-entropy` | FP |
+
+### xss
+
+| File | Rule ID | Verdict |
+|------|---------|---------|
+| reflected-xss.js | `xss.reflected-response` | TP |
+| reflected-xss.js | `taint.xss-reflected` | TP |
+| reflected-xss2.js | `xss.reflected-response` | TP |
+| reflected-xss2.js | `taint.xss-reflected` | TP |
+| reflected-xss3.js | `xss.reflected-response` | TP |
+| reflected-xss3.js | `taint.xss-reflected` | TP |
+| reflected-xss4.js | `xss.reflected-response` | TP |
+| reflected-xss4.js | `taint.xss-reflected` | TP |
+| innerhtml.js | `injection.xss-angular-innerHTML` | TP |
+| innerhtml.js | `taint.xss-dom` | TP |
+| innerhtml2.js | `injection.xss-innerhtml-direct` | TP |
+| innerhtml2.js | `taint.xss-dom` | TP |
+| dangerously-html.jsx | `react.dangerous-html` | TP |
+| dangerously-html2.jsx | `react.dangerous-html` | TP |
+| dangerously-html2.jsx | `ai.llm-output-dom` | TP |
+| vue-v-html.js | `injection.xss-vue-v-html` | FN |
+| eval-llm-output.js | `ai.llm-output-dom` | TP |
+
+### path-traversal
+
+| File | Rule ID | Verdict |
+|------|---------|---------|
+| read-concat.js | `taint.path-traversal` | TP |
+| sendfile.js | `taint.path-traversal` | TP |
+| read-template.js | `taint.path-traversal` | TP |
+| read-template.js | `ai.tool-broad-file-access` | TP |
+| write-concat.js | `taint.path-traversal` | TP |
+| unlink-concat.js | `taint.path-traversal` | TP |
+| create-read-stream.js | `taint.path-traversal` | TP |
+| append-file.js | `taint.path-traversal` | TP |
+| path-join-template.js | `taint.path-traversal` | FN |
+| path-join-template.js | `upload.filename-path-traversal` | TP |
+| allowlist.js | `taint.path-traversal` | FP |
+
+### ai-safety
+
+| File | Rule ID | Verdict |
+|------|---------|---------|
+| user-in-system-prompt.js | `ai.user-input-in-system-prompt` | TP |
+| llm-output-exec.js | `ai.llm-output-exec` | TP |
+| llm-output-exec.js | `taint.command-injection` | TP |
+| llm-output-exec.js | `ai.llm-output-shell` | FP |
+| llm-output-exec.js | `ast.command-injection` | FP |
+| agent-loop-no-cap.js | `ai.agent-loop-no-cap` | TP |
+| model-id-user-input.js | `ai.model-id-injection` | TP |
+| tool-result-injection.js | `ai.tool-result-injection` | FN |
+| agent-memory-poison.js | `ai.memory-poisoning` | FN |
+| tool-poisoning.js | `ai.tool-poisoning` | TP |
+| tool-poisoning.js | `ai.mcp-description-injection-deep` | TP |
+| prompt-extraction.js | `ai.prompt-extraction` | FN |
+| llm-output-dom.js | `ai.llm-output-dom` | TP |
+| agent-deploy.js | `ai.agent-can-deploy` | FN |
+| agent-secrets.js | `ai.agent-can-access-secrets` | FN |
+| model-id-template.js | `ai.model-id-injection` | FN |
+
+## Methodology
+
+- **True Positive (TP)**: Expected rule fires on a vuln file.
+- **False Positive (FP)**: Any finding on a clean file, or an unexpected rule on a vuln file.
+- **False Negative (FN)**: Expected rule that did not fire on a vuln file.
+- **Precision** = TP / (TP + FP)
+- **Recall** = TP / (TP + FN)
+- **F1** = 2 * (Precision * Recall) / (Precision + Recall)
+
+Generated: 2026-07-12T18:25:03.049Z
+
+<!-- BENCHMARK:END -->
+
+---
+
+## Commands
+
+```bash
+vibeguard scan [dir]              # scan a project (auto-detects framework)
+vibeguard scan --fix              # scan + apply safe auto-fixes
+vibeguard scan --all              # show all findings including low-confidence
+vibeguard auto [dir]              # full protection (daemon + hooks + shell guard)
+vibeguard auto --stop             # turn off, restore backups
+vibeguard fix [dir]               # auto-fix 43 rule types
+vibeguard pre-deploy [dir]        # 13-gate deployment check
+vibeguard mcp                     # MCP server (for AI client integration)
+vibeguard guard "command"         # check a shell command before running it
+vibeguard install-hook           # git pre-commit hook (blocks on critical)
+vibeguard install-hook-post      # PostToolUse hook (auto-scan AI edits)
+```
+
+---
+
+## Privacy
+
+VibeGuard runs entirely on your machine. No telemetry, no analytics, no network calls by default.
+
+| Command | Network? |
+|---------|---------|
+| `scan`, `fix`, `auto`, `mcp`, `install` | Never |
+| `cve` (package name lookup) | Opt-in, OSV.dev only |
+| `url` (header scan) | Opt-in, URL you provide |
+
+The runtime interceptor adds guardrails that make data exfiltration significantly harder — it wraps `fetch`, `http.request`, `child_process.exec`, and `fs.readFileSync` to block outbound secrets, PII, and sensitive file access. It is not a sandbox escape prevention layer.
+
+---
+
+## Honest Scope
+
+VibeGuard catches the mechanical security holes that AI coding tools leave behind. It does **not**:
+
+- Prove your app is safe or leak-proof
+- Track personal data end-to-end through your app
+- Judge business logic flaws
+- Replace a real security review for anything touching money, auth, or personal data
+
+It raises the floor fast — catching the holes that AI tools create by default. The benchmark numbers above are honest: 86.0% F1 means it misses ~14% of real issues and produces some false positives. Run `npm run benchmark` to reproduce. Read the per-category details in `test/benchmark/benchmark-results.md` before relying on it.
+
+---
+
+## Languages
+
+JavaScript, TypeScript, Python, Go, Java, Ruby, PHP, C#, Rust, Kotlin, Swift, Bash, SQL, YAML. Language-specific rules are gated by file extension — Go rules don't fire on `.js` files.
+
+---
+
+## CI/CD
+
+```bash
+vibeguard auto --ci                # non-interactive, exit non-zero on critical
+vibeguard init-ci                  # generate GitHub Actions workflow
+vibeguard scan --output sarif      # SARIF output for GitHub Code Scanning
+```
+
+Templates included for GitLab CI, Jenkins, CircleCI, Azure Pipelines.
+
+---
+
+## Development
+
+```bash
+npm install
+npm test          # 342 tests
+npm run benchmark # precision/recall/F1
+npm run counts    # verify rule/tool counts match source
+npm run lint      # 0 errors
+```
+
+---
+
+## License
+
+MIT. Free forever. No ads. No tracking. No data collection.
+
+---
+
+<p><sub>Built by <a href="https://github.com/yagyeshVyas">Yagyesh Vyas</a>. Found a bug? <a href="https://github.com/yagyeshVyas/VibeGuard/issues">Open an issue</a>.</sub></p>

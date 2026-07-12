@@ -1,0 +1,41 @@
+name: VibeGuard
+
+# Runs VibeGuard on every push and pull request. Fails the job when a CRITICAL
+# issue is found, and uploads a SARIF report to GitHub code scanning so findings
+# show up inline on the PR.
+#
+# Scope reminder: VibeGuard catches high-frequency, well-defined issues (secrets,
+# injection, misconfig). It is not a full security review.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write  # required to upload SARIF
+
+jobs:
+  vibeguard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Produce a SARIF report for GitHub code scanning (does not fail the job).
+      - name: VibeGuard scan (SARIF)
+        run: npx -y vibeguard scan . --sarif --no-deps > vibeguard.sarif || true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: vibeguard.sarif
+
+      # Gate the build: fail only on CRITICAL findings.
+      - name: VibeGuard gate (block on CRITICAL)
+        run: npx -y vibeguard scan . --precommit

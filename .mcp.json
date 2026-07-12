@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "vibeguard": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "vibeguard",
+        "mcp"
+      ]
+    }
+  }
+}

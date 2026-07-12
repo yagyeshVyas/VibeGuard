@@ -1,0 +1,8 @@
+{
+  "reporter": ["text", "lcov", "html"],
+  "report-dir": "coverage",
+  "lines": 70,
+  "functions": 65,
+  "branches": 60,
+  "statements": 70
+}

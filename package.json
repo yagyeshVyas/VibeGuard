@@ -1,0 +1,97 @@
+{
+  "name": "@yagyeshvyas/vibeguard",
+  "version": "1.0.0",
+  "description": "Offline security scanner for AI-generated code. 699 rules, 75 MCP tools, AST taint analysis, shell guard. Zero telemetry, zero dependencies.",
+  "license": "MIT",
+  "type": "commonjs",
+  "author": "Yagyesh Vyas <https://www.linkedin.com/in/yagyeshvyas/>",
+  "homepage": "https://github.com/yagyeshVyas/VibeGuard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yagyeshVyas/VibeGuard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yagyeshVyas/VibeGuard/issues"
+  },
+  "bin": {
+    "vibeguard": "bin/cli.js",
+    "vibeguard-mcp": "src/mcp-server.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "hooks",
+    "ci",
+    "ci-templates",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "node test/run.js",
+    "scan": "node bin/cli.js scan",
+    "lint": "eslint src/ bin/ --ignore-pattern node_modules",
+    "coverage": "c8 node test/run.js",
+    "counts": "node scripts/counts.js",
+    "benchmark": "node test/benchmark/run.js",
+    "postinstall": "node scripts/postinstall.js",
+    "prepublishOnly": "node test/run.js && npm run lint"
+  },
+  "keywords": [
+    "security",
+    "scanner",
+    "sast",
+    "vibe-coding",
+    "ai-code",
+    "mcp",
+    "secrets",
+    "prompt-injection",
+    "static-analysis",
+    "sarif",
+    "claude",
+    "cursor",
+    "windsurf",
+    "codex",
+    "vibecoding",
+    "ai-security",
+    "jailbreak",
+    "privacy",
+    "pii",
+    "firewall",
+    "sandbox",
+    "supply-chain",
+    "compliance",
+    "gdpr",
+    "soc2",
+    "pre-commit",
+    "linter",
+    "vulnerability",
+    "xss",
+    "sql-injection",
+    "supabase",
+    "firebase",
+    "react",
+    "nextjs",
+    "typescript",
+    "python",
+    "go",
+    "rust"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "acorn": "^8.17.0",
+    "acorn-typescript": "^1.4.13",
+    "acorn-walk": "^8.3.5"
+  },
+  "devDependencies": {
+    "c8": "^10.1.3",
+    "eslint": "^9.39.5"
+  }
+}

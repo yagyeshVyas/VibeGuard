@@ -1,0 +1,352 @@
+{
+  "injection": {
+    "vuln": {
+      "sql-concat.js": [
+        "code.sql-injection",
+        "taint.sql-injection"
+      ],
+      "sql-concat2.js": [
+        "code.sql-injection",
+        "taint.sql-injection"
+      ],
+      "sql-concat3.js": [
+        "code.sql-injection"
+      ],
+      "sql-template.js": [
+        "db.sql-template-literal",
+        "taint.sql-injection"
+      ],
+      "sql-template2.js": [
+        "db.sql-template-literal",
+        "taint.sql-injection"
+      ],
+      "sql-template3.js": [
+        "db.sql-template-literal",
+        "taint.sql-injection"
+      ],
+      "sql-raw-rb.js": [
+        "code.sql-injection"
+      ],
+      "sql-raw2.js": [
+        "db.sql-template-literal"
+      ],
+      "sql-knex.js": [
+        "code.sql-injection"
+      ],
+      "sql-sequelize.js": [
+        "code.sql-injection"
+      ],
+      "sql-fstring.py": [
+        "py.sql-injection"
+      ],
+      "sql-fstring2.py": [
+        "py.sql-injection"
+      ],
+      "sql-py-concat.py": [
+        "py.sql-injection"
+      ],
+      "sql-sprintf.go": [
+        "go.sql-fmt-sprintf"
+      ],
+      "sql-sprintf2.go": [
+        "go.sql-fmt-sprintf"
+      ],
+      "sql-kotlin.kt": [
+        "kotlin.sql-injection"
+      ],
+      "sql-csharp.cs": [
+        "csharp.sql-injection"
+      ],
+      "cmd-concat.js": [
+        "taint.command-injection",
+        "ast.command-injection"
+      ],
+      "cmd-template.js": [
+        "taint.command-injection",
+        "ast.command-injection"
+      ],
+      "cmd-concat2.js": [
+        "taint.command-injection",
+        "ast.command-injection"
+      ],
+      "cmd-spawn.js": [
+        "taint.command-injection"
+      ],
+      "cmd-py.py": [
+        "py.os-system"
+      ],
+      "cmd-py2.py": [
+        "py.subprocess-shell-true"
+      ],
+      "cmd-py3.py": [
+        "py.os-system"
+      ],
+      "cmd-go.go": [
+        "go.command-injection"
+      ],
+      "eval-input.js": [
+        "ast.eval-dynamic"
+      ],
+      "eval-template.js": [
+        "ast.eval-dynamic"
+      ],
+      "eval-new-function.js": [
+        "ast.function-constructor"
+      ],
+      "nosql.js": [
+        "ast.nosql-injection"
+      ],
+      "nosql2.js": [
+        "ast.nosql-injection"
+      ],
+      "nosql3.js": [
+        "ast.nosql-injection"
+      ],
+      "nosql-where.js": [
+        "ast.nosql-injection"
+      ],
+      "proto-poll.js": [
+        "injection.prototype-pollution",
+        "ast.mass-assignment"
+      ],
+      "proto-poll2.js": [
+        "injection.prototype-pollution"
+      ],
+      "proto-poll3.js": [
+        "injection.prototype-pollution"
+      ],
+      "ssrf.js": [
+        "ast.ssrf"
+      ],
+      "ssrf2.js": [
+        "ast.ssrf",
+        "taint.ssrf"
+      ],
+      "open-redirect.js": [
+        "web.open-redirect"
+      ],
+      "open-redirect2.js": [
+        "taint.open-redirect"
+      ]
+    },
+    "clean": {
+      "sql-parameterized.js": [],
+      "sql-py-safe.py": [],
+      "cmd-array.js": [],
+      "cmd-py-safe.py": [],
+      "json-parse.js": [],
+      "eval-safe.js": [],
+      "nosql-safe.js": [],
+      "proto-safe.js": []
+    }
+  },
+  "secrets": {
+    "vuln": {
+      "openai-key.js": [
+        "secret.openai-key"
+      ],
+      "openai-key2.js": [
+        "secret.anthropic-key"
+      ],
+      "github-token.js": [
+        "secret.github-token"
+      ],
+      "github-token2.js": [
+        "secret.github-token"
+      ],
+      "stripe-key.js": [
+        "secret.stripe-live-key",
+        "secret.generic-credential"
+      ],
+      "stripe-restricted.js": [
+        "secret.stripe-restricted-key"
+      ],
+      "slack-token.js": [
+        "secret.slack-token"
+      ],
+      "gitlab-token.js": [
+        "secret.gitlab-token"
+      ],
+      "sendgrid-key.js": [
+        "secret.sendgrid-key"
+      ],
+      "npm-token.js": [
+        "secret.npm-token"
+      ],
+      "gcp-key.js": [
+        "secret.gcp-api-key"
+      ],
+      "private-key.js": [
+        "secret.private-key"
+      ],
+      "aws-key.js": [
+        "secret.aws-access-key"
+      ],
+      "mailgun-key.js": [
+        "secret.mailgun-key"
+      ],
+      "telegram-token.js": [
+        "secret.telegram-bot-token"
+      ],
+      "resend-key.js": [
+        "secret.resend-key"
+      ],
+      "conn-string.js": [
+        "secret.conn-string-password"
+      ],
+      "generic-secret.js": [
+        "secret.generic-credential"
+      ],
+      "docker-build-arg.js": [
+        "secret.docker-build-arg"
+      ],
+      "env-secret.js": [
+        "secret.aws-secret-in-env"
+      ]
+    },
+    "clean": {
+      "env-key.js": [],
+      "env-github.js": [],
+      "firebase-public.js": [],
+      "stripe-public.js": [],
+      "placeholder.js": [],
+      "env-stripe.js": [],
+      "env-aws.js": [],
+      "env-generic.js": []
+    }
+  },
+  "xss": {
+    "vuln": {
+      "reflected-xss.js": [
+        "xss.reflected-response",
+        "taint.xss-reflected"
+      ],
+      "reflected-xss2.js": [
+        "xss.reflected-response",
+        "taint.xss-reflected"
+      ],
+      "reflected-xss3.js": [
+        "xss.reflected-response",
+        "taint.xss-reflected"
+      ],
+      "reflected-xss4.js": [
+        "xss.reflected-response",
+        "taint.xss-reflected"
+      ],
+      "innerhtml.js": [
+        "injection.xss-angular-innerHTML",
+        "taint.xss-dom"
+      ],
+      "innerhtml2.js": [
+        "injection.xss-innerhtml-direct",
+        "taint.xss-dom"
+      ],
+      "dangerously-html.jsx": [
+        "react.dangerous-html"
+      ],
+      "dangerously-html2.jsx": [
+        "react.dangerous-html",
+        "ai.llm-output-dom"
+      ],
+      "vue-v-html.js": [
+        "injection.xss-vue-v-html"
+      ],
+      "eval-llm-output.js": [
+        "ai.llm-output-dom"
+      ]
+    },
+    "clean": {
+      "escaped.js": [],
+      "textcontent.js": [],
+      "json-response.js": [],
+      "safe-html.jsx": []
+    }
+  },
+  "path-traversal": {
+    "vuln": {
+      "read-concat.js": [
+        "taint.path-traversal"
+      ],
+      "sendfile.js": [
+        "taint.path-traversal"
+      ],
+      "read-template.js": [
+        "taint.path-traversal",
+        "ai.tool-broad-file-access"
+      ],
+      "write-concat.js": [
+        "taint.path-traversal"
+      ],
+      "unlink-concat.js": [
+        "taint.path-traversal"
+      ],
+      "create-read-stream.js": [
+        "taint.path-traversal"
+      ],
+      "append-file.js": [
+        "taint.path-traversal"
+      ],
+      "path-join-template.js": [
+        "taint.path-traversal",
+        "upload.filename-path-traversal"
+      ]
+    },
+    "clean": {
+      "basename.js": [],
+      "int-path.js": [],
+      "allowlist.js": [],
+      "safe-path-join.js": []
+    }
+  },
+  "ai-safety": {
+    "vuln": {
+      "user-in-system-prompt.js": [
+        "ai.user-input-in-system-prompt"
+      ],
+      "llm-output-exec.js": [
+        "ai.llm-output-exec",
+        "taint.command-injection"
+      ],
+      "agent-loop-no-cap.js": [
+        "ai.agent-loop-no-cap"
+      ],
+      "model-id-user-input.js": [
+        "ai.model-id-injection"
+      ],
+      "tool-result-injection.js": [
+        "ai.tool-result-injection"
+      ],
+      "agent-memory-poison.js": [
+        "ai.memory-poisoning"
+      ],
+      "tool-poisoning.js": [
+        "ai.tool-poisoning",
+        "ai.mcp-description-injection-deep"
+      ],
+      "prompt-extraction.js": [
+        "ai.prompt-extraction"
+      ],
+      "llm-output-dom.js": [
+        "ai.llm-output-dom"
+      ],
+      "agent-deploy.js": [
+        "ai.agent-can-deploy"
+      ],
+      "agent-secrets.js": [
+        "ai.agent-can-access-secrets"
+      ],
+      "model-id-template.js": [
+        "ai.model-id-injection"
+      ]
+    },
+    "clean": {
+      "safe-system-prompt.js": [],
+      "llm-output-json-parse.js": [],
+      "agent-loop-capped.js": [],
+      "model-id-hardcoded.js": [],
+      "tool-safe.js": [],
+      "prompt-safe.js": [],
+      "agent-safe-config.js": []
+    }
+  }
+}

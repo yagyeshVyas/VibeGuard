@@ -1,0 +1,38 @@
+name: Publish
+
+# Provenance: npm publish with --provenance requires:
+#   1. id-token: write permission (set below)
+#   2. npm package linked to GitHub repo in npm settings
+#   3. NPM_TOKEN secret in repo secrets
+#   4. npm CLI >= 9.5.0 (Node 22 ships it)
+#
+# Users: this is the MAINTAINER's token (yours), not the user's.
+# VibeGuard itself is 100% free — no API keys, no paid services.
+# The npm token is only used by the maintainer to publish the package.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm test
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
