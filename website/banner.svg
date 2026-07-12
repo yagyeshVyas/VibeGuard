@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="160" viewBox="0 0 480 160">
+  <defs>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6">
+        <animate attributeName="stop-color" values="#3B82F6;#22C55E;#3B82F6" dur="6s" repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" stop-color="#22C55E">
+        <animate attributeName="stop-color" values="#22C55E;#3B82F6;#22C55E" dur="6s" repeatCount="indefinite"/>
+      </stop>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Shield icon -->
+  <g transform="translate(40, 28)" filter="url(#glow)">
+    <path d="M50 4 L92 20 V54 C92 84 72 104 50 112 C28 104 8 84 8 54 V20 Z"
+          fill="none" stroke="url(#g1)" stroke-width="4" stroke-linejoin="round">
+      <animate attributeName="stroke-width" values="4;5;4" dur="3s" repeatCount="indefinite"/>
+    </path>
+    <!-- Shield checkmark -->
+    <path d="M32 56 L44 68 L70 38" fill="none" stroke="url(#g1)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <animate attributeName="stroke-dasharray" values="0 80;80 0" dur="2s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="170" y="68" font-family="-apple-system, system-ui, Segoe UI, sans-serif" font-size="44" font-weight="800" fill="#E5E5E5">
+    Vibe
+    <tspan fill="url(#g1)">
+      <animate attributeName="fill" values="#3B82F6;#22C55E;#3B82F6" dur="6s" repeatCount="indefinite"/>
+      Guard
+    </tspan>
+    <animate attributeName="opacity" values="0;1" dur="1s" fill="freeze"/>
+  </text>
+
+  <!-- Tagline -->
+  <text x="170" y="98" font-family="monospace" font-size="13" fill="#888">
+    <tspan>
+      <animate attributeName="opacity" values="0;1" dur="1s" begin="0.5s" fill="freeze"/>
+      security scanner for AI-coded apps
+    </tspan>
+  </text>
+
+  <!-- Stats line -->
+  <text x="170" y="124" font-family="monospace" font-size="12" fill="#555">
+    <tspan fill="#22C55E">699 rules</tspan>
+    <tspan fill="#333"> · </tspan>
+    <tspan fill="#3B82F6">76 MCP tools</tspan>
+    <tspan fill="#333"> · </tspan>
+    <tspan fill="#22C55E">0 dependencies</tspan>
+    <tspan fill="#333"> · </tspan>
+    <tspan fill="#3B82F6">100% offline</tspan>
+    <animate attributeName="opacity" values="0;1" dur="1s" begin="0.8s" fill="freeze"/>
+  </text>
+
+  <!-- Scanning line animation across shield -->
+  <rect x="40" y="28" width="92" height="2" fill="url(#g1)" opacity="0.6">
+    <animate attributeName="y" values="28;120;28" dur="3s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;0.6;0" dur="3s" repeatCount="indefinite"/>
+  </rect>
+</svg>

@@ -1,11 +1,40 @@
-# VibeGuard
+<div align="center">
 
-Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever.
+<!-- Animated logo / banner -->
+<img src="website/banner.svg" alt="VibeGuard" width="480" />
 
-<a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=flat-square" alt="npm version" /></a>
-<a href="https://github.com/yagyeshVyas/VibeGuard/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license" /></a>
+### Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever.
 
-![VibeGuard scan demo](website/demo.gif)
+<!-- Badges -->
+<p>
+  <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=flat-square&logo=npm&logoColor=white" alt="npm version" /></a>
+  <a href="https://github.com/yagyeshVyas/VibeGuard/actions"><img src="https://img.shields.io/github/actions/workflow/status/yagyeshVyas/VibeGuard/ci.yml?style=flat-square&logo=github&logoColor=white" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="MIT license" /></a>
+  <a href="https://github.com/yagyeshVyas/VibeGuard/stargazers"><img src="https://img.shields.io/github/stars/yagyeshVyas/VibeGuard?style=flat-square&logo=github&logoColor=white" alt="GitHub stars" /></a>
+  <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero dependencies" />
+  <img src="https://img.shields.io/badge/telemetry-0-brightgreen?style=flat-square" alt="zero telemetry" />
+  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" /></a>
+</p>
+
+<!-- Demo GIF -->
+<img src="website/demo.gif" alt="VibeGuard scan demo" width="640" />
+
+<br/>
+<sub>Captured against a test project with a planted <code>sk_live</code> Stripe key.</sub>
+
+---
+
+<!-- Quick install command -->
+<a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><code>npx @yagyeshvyas/vibeguard scan</code></a>
+
+[Features](#what-it-catches) &bull; [Quick Start](#quick-start) &bull; [Benchmark](#benchmark) &bull; [Commands](#commands) &bull; [Docs](https://github.com/yagyeshVyas/VibeGuard/wiki)
+
+</div>
+
+<!-- Anchor target for the badge link -->
+<a id="license"></a>
+
+---
 
 ```
 $ npx @yagyeshvyas/vibeguard scan
@@ -424,4 +453,21 @@ MIT. Free forever. No ads. No tracking. No data collection.
 
 ---
 
-<p><sub>Built by <a href="https://github.com/yagyeshVyas">Yagyesh Vyas</a>. Found a bug? <a href="https://github.com/yagyeshVyas/VibeGuard/issues">Open an issue</a>.</sub></p>
+<div align="center">
+
+## Built by Yagyesh Vyas
+
+<p>
+  <a href="https://github.com/yagyeshVyas"><img src="https://img.shields.io/badge/GitHub-yagyeshVyas-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" /></a>
+  <a href="https://www.linkedin.com/in/yagyeshvyas"><img src="https://img.shields.io/badge/LinkedIn-Yagyesh%20Vyas-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" /></a>
+  <a href="https://www.npmjs.com/~yagyeshvyas"><img src="https://img.shields.io/badge/npm-@yagyeshvyas-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" /></a>
+  <a href="https://github.com/yagyeshVyas/VibeGuard/stargazers"><img src="https://img.shields.io/badge/Star%20this%20repo-%E2%AD%90-yellow?style=for-the-badge" alt="Star this repo" /></a>
+</p>
+
+<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=18&pause=1500&color=3B82F6&center=true&vCenter=true&random=false&width=600&lines=Scan+your+AI+code+before+it+ships.;Zero+dependencies.+Zero+telemetry.+Zero+excuses.;Built+by+one+developer%2C+trusted+by+many." alt="Typing SVG" />
+
+Found a bug? [Open an issue](https://github.com/yagyeshVyas/VibeGuard/issues). &bull; Have a question? [Start a discussion](https://github.com/yagyeshVyas/VibeGuard/discussions).
+
+<sub>&copy; 2026 Yagyesh Vyas. Released under the MIT License.</sub>
+
+</div>
