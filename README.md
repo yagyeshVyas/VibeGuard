@@ -14,6 +14,7 @@
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero dependencies" />
   <img src="https://img.shields.io/badge/telemetry-0-brightgreen?style=flat-square" alt="zero telemetry" />
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" /></a>
+  <a href="https://vibe-guard-site-ivory.vercel.app/"><img src="https://img.shields.io/badge/website-live-brightgreen?style=flat-square&logo=vercel&logoColor=white" alt="Website" /></a>
 </p>
 
 <!-- Demo GIF -->
@@ -27,7 +28,7 @@
 <!-- Quick install command -->
 <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><code>npx @yagyeshvyas/vibeguard scan</code></a>
 
-[Features](#what-it-catches) &bull; [Quick Start](#quick-start) &bull; [Benchmark](#benchmark) &bull; [Commands](#commands) &bull; [Docs](https://github.com/yagyeshVyas/VibeGuard/wiki)
+[Features](#what-it-catches) &bull; [Quick Start](#quick-start) &bull; [Benchmark](#benchmark) &bull; [Commands](#commands) &bull; [Website](https://vibe-guard-site-ivory.vercel.app/) &bull; [Docs](https://github.com/yagyeshVyas/VibeGuard/wiki)
 
 </div>
 
@@ -461,6 +462,7 @@ MIT. Free forever. No ads. No tracking. No data collection.
   <a href="https://github.com/yagyeshVyas"><img src="https://img.shields.io/badge/GitHub-yagyeshVyas-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub" /></a>
   <a href="https://www.linkedin.com/in/yagyeshvyas"><img src="https://img.shields.io/badge/LinkedIn-Yagyesh%20Vyas-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" /></a>
   <a href="https://www.npmjs.com/~yagyeshvyas"><img src="https://img.shields.io/badge/npm-@yagyeshvyas-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" /></a>
+  <a href="https://vibe-guard-site-ivory.vercel.app/"><img src="https://img.shields.io/badge/Website-vibe--guard--site-ivory.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Website" /></a>
   <a href="https://github.com/yagyeshVyas/VibeGuard/stargazers"><img src="https://img.shields.io/badge/Star%20this%20repo-%E2%AD%90-yellow?style=for-the-badge" alt="Star this repo" /></a>
 </p>
 
