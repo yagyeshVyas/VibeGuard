@@ -9,12 +9,7 @@
 <p>
   <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=flat-square&logo=npm&logoColor=white" alt="npm version" /></a>
   <a href="https://github.com/yagyeshVyas/VibeGuard/actions"><img src="https://img.shields.io/github/actions/workflow/status/yagyeshVyas/VibeGuard/ci.yml?style=flat-square&logo=github&logoColor=white" alt="CI" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square&logo=opensourceinitiative&logoColor=white" alt="MIT license" /></a>
-  <a href="https://github.com/yagyeshVyas/VibeGuard/stargazers"><img src="https://img.shields.io/github/stars/yagyeshVyas/VibeGuard?style=flat-square&logo=github&logoColor=white" alt="GitHub stars" /></a>
-  <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero dependencies" />
-  <img src="https://img.shields.io/badge/telemetry-0-brightgreen?style=flat-square" alt="zero telemetry" />
-  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%3E%3D18-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js" /></a>
-  <a href="https://vibe-guard-site-ivory.vercel.app/"><img src="https://img.shields.io/badge/website-live-brightgreen?style=flat-square&logo=vercel&logoColor=white" alt="Website" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license" /></a>
 </p>
 
 <!-- Demo GIF -->
@@ -463,10 +458,7 @@ MIT. Free forever. No ads. No tracking. No data collection.
   <a href="https://www.linkedin.com/in/yagyeshvyas"><img src="https://img.shields.io/badge/LinkedIn-Yagyesh%20Vyas-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn" /></a>
   <a href="https://www.npmjs.com/~yagyeshvyas"><img src="https://img.shields.io/badge/npm-@yagyeshvyas-CB3837?style=for-the-badge&logo=npm&logoColor=white" alt="npm" /></a>
   <a href="https://vibe-guard-site-ivory.vercel.app/"><img src="https://img.shields.io/badge/Website-vibe--guard--site-ivory.vercel.app-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Website" /></a>
-  <a href="https://github.com/yagyeshVyas/VibeGuard/stargazers"><img src="https://img.shields.io/badge/Star%20this%20repo-%E2%AD%90-yellow?style=for-the-badge" alt="Star this repo" /></a>
 </p>
-
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=18&pause=1500&color=3B82F6&center=true&vCenter=true&random=false&width=600&lines=Scan+your+AI+code+before+it+ships.;Zero+dependencies.+Zero+telemetry.+Zero+excuses.;Built+by+one+developer%2C+trusted+by+many." alt="Typing SVG" />
 
 Found a bug? [Open an issue](https://github.com/yagyeshVyas/VibeGuard/issues). &bull; Have a question? [Start a discussion](https://github.com/yagyeshVyas/VibeGuard/discussions).
 
