@@ -5,6 +5,8 @@ Scan your AI-generated app for leaked keys, open databases, and injection holes 
 <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=flat-square" alt="npm version" /></a>
 <a href="https://github.com/yagyeshVyas/VibeGuard/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license" /></a>
 
+![VibeGuard scan demo](website/demo.gif)
+
 ```
 $ npx @yagyeshvyas/vibeguard scan
 
