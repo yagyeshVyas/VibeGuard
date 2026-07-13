@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- `vibeguard mcp-audit` — MCP server security audit (new `mcp_audit` MCP tool
+  too). Audits the MCP servers an agent is configured to trust
+  (`.mcp.json` / `.cursor/mcp.json` / `.vscode/mcp.json`) for tool poisoning
+  (prompt injection in server args/descriptions), unpinned auto-install
+  (`npx -y` rug-pull surface), remote-code / shell commands, hardcoded secrets
+  in `env`, over-broad filesystem grants, and **definition drift** — a server
+  whose config changed since you approved it (classic MCP rug-pull). 100%
+  offline: reads config only, never runs a server. Pins server-definition
+  hashes under `.vibeguard/mcp-pins.json`; `--pin` re-baselines after review.
 - `vibeguard scan --staged` — scan only git-staged files. Ideal for a
   pre-commit hook: fast and scoped to exactly what's being committed. Per-file
   only (cross-file analysis skipped, and the CLI says so).

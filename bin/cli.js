@@ -77,6 +77,7 @@ Advanced:
   vibeguard url <url>               Scan a live site's HTTP headers.
   vibeguard badge [dir]             Award badge SVG (zero critical+high).
   vibeguard init-ci [dir]           Write GitHub Actions workflow.
+  vibeguard mcp-audit [dir]         Audit configured MCP servers (injection, rug-pull, secrets). --pin to re-baseline.
   vibeguard compliance [dir]         Map findings to SOC2/PCI/HIPAA/GDPR.
   vibeguard cve [dir]               Query OSV.dev for dependency CVEs.
   vibeguard slopsquat [dir]          Check for hallucinated npm packages.
@@ -680,6 +681,25 @@ function cmdInitCi(dir) {
   return 0;
 }
 
+function cmdMcpAudit(dir, flags) {
+  const { auditMcp, renderMcpAudit } = require('../src/mcp-audit');
+  const result = auditMcp(dir, { pin: !!flags.pin });
+  if (flags.json) {
+    process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+  } else {
+    process.stdout.write(renderMcpAudit(result) + '\n');
+  }
+  if (!result.configFound) return 0;
+  // Fail on critical (blockable in CI), like the scan gate.
+  if (flags['fail-on']) {
+    const order = ['critical', 'high', 'medium', 'low'];
+    const t = order.indexOf(String(flags['fail-on']).toLowerCase());
+    const worst = result.findings.reduce((a, f) => Math.min(a, order.indexOf(f.severity)), 4);
+    return t !== -1 && worst <= t ? 1 : 0;
+  }
+  return result.counts.critical > 0 ? 1 : 0;
+}
+
 function cmdInstallHook(dir) {
   const root = path.resolve(dir);
   const gitDir = path.join(root, '.git');
@@ -824,6 +844,7 @@ async function main() {
     else if (cmd === 'history') code = cmdHistory(dir, flags);
     else if (cmd === 'badge') code = cmdBadge(dir, flags);
     else if (cmd === 'init-ci') code = cmdInitCi(dir);
+    else if (cmd === 'mcp-audit') code = cmdMcpAudit(dir, flags);
     else if (cmd === 'install') code = cmdInstall(flags);
     else if (cmd === 'rules') code = cmdRules(flags);
     else if (cmd === 'explain') code = cmdExplain(args._[1], flags);

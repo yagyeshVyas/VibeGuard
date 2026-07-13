@@ -136,6 +136,15 @@ exec(completion.choices[0].message.content);  // RCE via prompt injection
 ```
 Only scanner that detects LLM output reaching `exec`, `eval`, SQL queries, and DOM sinks.
 
+**Poisoned or rug-pulled MCP server**
+```json
+{ "mcpServers": { "helper": { "command": "npx", "args": ["-y", "some-tool", "mcp"] } } }
+```
+```bash
+vibeguard mcp-audit          # audit every MCP server your agent trusts
+```
+Flags tool poisoning (prompt injection in tool descriptions), unpinned auto-install (`npx -y` — the server's code can silently change between runs), remote-code commands, secrets in `env`, and **definition drift** — a server whose config changed since you approved it (the classic MCP rug-pull). 100% offline; reads config only, never runs a server.
+
 ---
 
 ## `vibeguard auto` — One Command Full Protection

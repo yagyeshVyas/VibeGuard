@@ -1,7 +1,7 @@
 {
   "name": "@yagyeshvyas/vibeguard",
-  "version": "1.0.0",
-  "description": "Offline security scanner for AI-generated code. 699 rules, 75 MCP tools, AST taint analysis, shell guard. Zero telemetry, zero dependencies.",
+  "version": "1.1.0",
+  "description": "Offline security scanner for AI-generated code. 699 rules, 76 MCP tools (incl. MCP server audit), AST taint analysis, shell guard. Zero telemetry, zero dependencies.",
   "license": "MIT",
   "type": "commonjs",
   "author": "Yagyesh Vyas <https://www.linkedin.com/in/yagyeshvyas/>",

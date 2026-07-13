@@ -120,6 +120,11 @@ const TOOLS = [
     inputSchema: DIR_SCHEMA,
   },
   {
+    name: 'mcp_audit',
+    description: 'Audit the MCP servers this project trusts (.mcp.json / .cursor / .vscode) for tool poisoning (prompt injection), unpinned auto-install / rug-pull, remote-code commands, secrets in env, and definition drift since last approval. 100% offline — reads config only, never runs a server.',
+    inputSchema: { type: 'object', properties: { dir: DIR_SCHEMA.properties.dir, pin: { type: 'boolean', description: 'Re-baseline server definition hashes after review.' } }, required: [] },
+  },
+  {
     name: 'audit_config',
     description: 'Cross-file config audit: checks .env, next.config, docker-compose, k8s, CI workflows for security misconfig.',
     inputSchema: DIR_SCHEMA,
@@ -630,6 +635,19 @@ async function handleReviewHotspots(args) {
     `\n\nReport concrete issues with file:line and a fix. Be honest about what you could not verify.`;
 
   return textResult(text);
+}
+
+async function handleMcpAudit(args) {
+  const dir = args.dir || process.cwd();
+  const { auditMcp } = require('./mcp-audit');
+  const result = auditMcp(dir, { pin: !!args.pin });
+  if (!result.configFound) {
+    return textResult('No MCP config found (.mcp.json / .cursor/mcp.json / .vscode/mcp.json).');
+  }
+  const c = result.counts;
+  const summary = `MCP audit: ${result.servers.length} server(s), ${c.critical} critical, ${c.high} high, ${c.medium} medium.` +
+    (result.drifted.length ? ` ⚠ definition drift on: ${result.drifted.join(', ')} (rug-pull risk — re-review).` : '');
+  return textResult(summary + '\n\n' + JSON.stringify(result, null, 2));
 }
 
 async function handleScanUrl(args) {
@@ -1752,6 +1770,7 @@ async function main() {
       else if (name === 'privacy_audit') result = await handlePrivacyAudit(args);
       else if (name === 'network_audit') result = await handleNetworkAudit(args);
       else if (name === 'ai_data_guard') result = await handleAIDataGuard(args);
+      else if (name === 'mcp_audit') result = await handleMcpAudit(args);
       else if (name === 'generate_privacy_policy') result = await handlePrivacyPolicy(args);
       else if (name === 'generate_csp') result = await handleCSP(args);
       else if (name === 'ai_firewall') result = await handleAIFirewall(args);
