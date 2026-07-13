@@ -47,9 +47,53 @@ function isExternalHost(host) {
   return true;
 }
 
+// Shannon entropy in bits/char — high for random secrets, low for words/ids.
+function shannonEntropy(s) {
+  const freq = Object.create(null);
+  for (const c of s) freq[c] = (freq[c] || 0) + 1;
+  let e = 0;
+  for (const k in freq) { const p = freq[k] / s.length; e -= p * Math.log2(p); }
+  return e;
+}
+
+// A value that is structured, not a secret — don't treat these as unknown keys.
+function looksStructured(v) {
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) return true; // UUID
+  if (/^[0-9a-f]+$/i.test(v) && [32, 40, 64].includes(v.length)) return true; // md5/sha1/sha256 hash
+  if (/^\d+$/.test(v)) return true; // pure number / id
+  return false;
+}
+
+// A field NAMED like a credential carrying a high-entropy value = a secret, even
+// if it matches no known vendor pattern. Precise: the secret-ish NAME plus real
+// entropy avoids flagging random hashes/ids that aren't labelled secrets.
+// High-confidence credential field names only. Deliberately excludes ambiguous
+// names (token, bearer, session, auth) that are commonly legitimate auth values
+// sent to APIs — those would false-positive and break real traffic. Known vendor
+// key formats (sk_live_, ghp_, …) are still caught by SECRET_PATTERNS regardless
+// of field name.
+const NAMED_SECRET_RE =
+  /["']?([\w-]*(?:api[_-]?key|secret|private[_-]?key|access[_-]?key|password|passwd|credential)[\w-]*)["']?\s*[:=]\s*["']?([A-Za-z0-9+/=_.\-]{12,})["']?/gi;
+
+function findNamedSecrets(text) {
+  const out = [];
+  let m;
+  NAMED_SECRET_RE.lastIndex = 0;
+  while ((m = NAMED_SECRET_RE.exec(text)) !== null) {
+    const name = m[1];
+    const val = m[2];
+    if (looksStructured(val)) continue;
+    // Env-var references / placeholders are not real values.
+    if (/^(?:process\.env|import\.meta|os\.environ|\$\{|xxx|changeme|your[_-]?)/i.test(val)) continue;
+    if (shannonEntropy(val) < 3.2) continue; // low entropy → likely not a secret
+    out.push(name);
+  }
+  return [...new Set(out)];
+}
+
 // Find secrets + PII in any outbound string.
 function scanForLeaks(text) {
-  const out = { secrets: [], pii: [] };
+  const out = { secrets: [], pii: [], namedSecrets: [] };
   if (!text || typeof text !== 'string') return out;
   for (const { re, type } of SECRET_PATTERNS) {
     if (re.test(text)) out.secrets.push(type);
@@ -57,6 +101,7 @@ function scanForLeaks(text) {
   out.secrets = [...new Set(out.secrets)];
   const pii = detectPII(text, {});
   out.pii = pii.types || [];
+  out.namedSecrets = findNamedSecrets(text);
   return out;
 }
 
@@ -76,9 +121,12 @@ function inspectAction(action = {}, policy = {}) {
     // External = off this machine AND not on the caller's explicit allowlist.
     const external = isExternalHost(host) && !trusted.has(host);
     if (!external) return;
-    const { secrets, pii } = scanForLeaks(text);
+    const { secrets, pii, namedSecrets } = scanForLeaks(text);
     if (secrets.length) {
       add('block', 'secret-exfiltration', `${secrets.join(', ')} would be sent to ${destLabel}`);
+    }
+    if (namedSecrets.length) {
+      add('block', 'named-secret-exfiltration', `credential field(s) ${namedSecrets.join(', ')} (high-entropy value) would be sent to ${destLabel}`);
     }
     if (pii.length) {
       add(piiMode, 'pii-exfiltration', `personal data (${pii.join(', ')}) would be sent to ${destLabel}`);
@@ -122,9 +170,10 @@ function inspectAction(action = {}, policy = {}) {
     }
     case 'prompt':
     case 'llm': {
-      const { secrets, pii } = scanForLeaks(String(action.content || ''));
+      const { secrets, pii, namedSecrets } = scanForLeaks(String(action.content || ''));
       const provider = action.provider || 'an LLM provider';
       if (secrets.length) add('block', 'secret-to-llm', `${secrets.join(', ')} in text sent to ${provider}`);
+      if (namedSecrets.length) add('block', 'named-secret-to-llm', `credential field(s) ${namedSecrets.join(', ')} in text sent to ${provider}`);
       if (pii.length) add(piiMode, 'pii-to-llm', `personal data (${pii.join(', ')}) sent to ${provider} — redact first`);
       break;
     }
@@ -168,4 +217,4 @@ function sanitizeOutbound(text) {
   return out;
 }
 
-module.exports = { inspectAction, scanForLeaks, sanitizeOutbound, isExternalHost, hostOf };
+module.exports = { inspectAction, scanForLeaks, sanitizeOutbound, isExternalHost, hostOf, findNamedSecrets, shannonEntropy };

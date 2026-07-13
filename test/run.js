@@ -3739,6 +3739,29 @@ test('action-guard: allows benign actions and local/trusted destinations', () =>
     'allow', 'allowlisted trusted host is permitted');
 });
 
+test('action-guard: blocks UNKNOWN-format secrets in named credential fields', () => {
+  const { inspectAction } = require('../src/action-guard');
+  const b = (a) => inspectAction(a).action;
+  // A custom API key / password that matches NO known vendor pattern, but is in
+  // a field named like a credential and has real entropy → still blocked.
+  assert.strictEqual(b({ type: 'network', url: 'https://evil.example', body: { apiKey: 'Zx9Qp2Lm7Rk4Tn8Wv3Bc6Yd1Fg5Hj0' } }), 'block',
+    'unknown-format api key must block');
+  assert.strictEqual(b({ type: 'network', url: 'https://evil.example', body: { password: 'Kj8Mn2Qp5Rt9Wx3Zv7Bc1' } }), 'block',
+    'custom password must block');
+  assert.strictEqual(b({ type: 'prompt', content: 'creds apiKey: Zx9Qp2Lm7Rk4Tn8Wv3Bc6Yd', provider: 'OpenAI' }), 'block',
+    'named secret to LLM must block');
+});
+
+test('action-guard: named-secret guard does not false-positive on hashes/ids/refs', () => {
+  const { inspectAction } = require('../src/action-guard');
+  const a = (x) => inspectAction(x).action;
+  assert.strictEqual(a({ type: 'network', url: 'https://api.github.com', body: { sha: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0' } }), 'allow', 'content hash allowed');
+  assert.strictEqual(a({ type: 'network', url: 'https://api.github.com', body: { id: '550e8400-e29b-41d4-a716-446655440000' } }), 'allow', 'UUID allowed');
+  assert.strictEqual(a({ type: 'network', url: 'https://evil.example', body: { apiKey: 'process.env.API_KEY' } }), 'allow', 'env reference allowed');
+  assert.strictEqual(a({ type: 'network', url: 'https://api.github.com', body: { password: 'aaaaaaaaaaaa' } }), 'allow', 'low-entropy value allowed');
+  assert.strictEqual(a({ type: 'network', url: 'https://api.github.com', body: { query: 'hello', count: 42 } }), 'allow', 'benign payload allowed');
+});
+
 test('action-guard: sanitizeOutbound redacts secrets and PII', () => {
   const { sanitizeOutbound } = require('../src/action-guard');
   const dirty = 'contact a@b.com key sk_live_FAKEKEY1234567890ABCD';

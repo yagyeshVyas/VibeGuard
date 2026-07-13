@@ -100,6 +100,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   read after activation. Now calls the original. Regression test added.
 
 ### Changed
+- Agent Action Firewall now blocks UNKNOWN-format secrets, not just known vendor
+  patterns. An outbound field named like a credential (`apiKey`, `secret`,
+  `password`, `client_secret`, `private_key`, `access_key`, …) carrying a
+  high-entropy value is blocked from leaving to an external host — so a custom
+  API key or session secret that matches no known regex can't exfiltrate either.
+  Precise by design: the credential NAME plus real entropy avoids false
+  positives on content hashes, UUIDs, ids, env-var references, and low-entropy
+  placeholders (all verified). Ambiguous names (token/bearer/session) are
+  intentionally excluded to avoid breaking legitimate auth traffic.
 - Runtime interceptor now delegates to the unified Agent Action Firewall
   (`action-guard.inspectAction`). Every wrapped `fetch` / `http` / `exec` /
   `execSync` call is checked with the hardened, shared logic — so obfuscated
