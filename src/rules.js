@@ -85,9 +85,62 @@ function makeFinding(rule, opts) {
   };
 }
 
+// Compiling a fresh global RegExp per call was the scanner's hot path — with
+// hundreds of rules run against every line it meant millions of RegExp
+// recompilations (≈64% of total scan time). Memoize the global-flag clone per
+// source regex so each rule's regex is compiled once, not once per line.
+// Extract a lowercase literal substring that MUST appear in any line the regex
+// can match, so the scanner can cheaply `line.includes(lit)` and skip the rule
+// entirely when it's absent. Provably safe (never causes a false negative):
+//   - bails on alternation (`|`) — a literal in one branch isn't mandatory;
+//   - only trusts depth-0 literals (outside any group, which could be optional);
+//   - drops any char made optional by `?`, `*`, or `{0,...}`.
+// Lowercasing is safe for case-sensitive rules too: it can only make the filter
+// *less* aggressive (never skip a line the real regex would have matched).
+function requiredLiteral(source) {
+  if (source.includes('|')) return null;
+  let best = '';
+  let cur = '';
+  let depth = 0;
+  for (let i = 0; i < source.length; i++) {
+    const c = source[i];
+    if (c === '\\') { cur = ''; i++; continue; } // escape → separator
+    if (c === '(') { depth++; cur = ''; continue; }
+    if (c === ')') { depth--; cur = ''; continue; }
+    if (c === '[') { // char class → skip to matching ]
+      cur = '';
+      i++;
+      while (i < source.length && source[i] !== ']') { if (source[i] === '\\') i++; i++; }
+      continue;
+    }
+    if (depth > 0) { cur = ''; continue; }
+    if (/[a-zA-Z0-9]/.test(c)) {
+      const next = source[i + 1];
+      if (next === '?' || next === '*') { cur = ''; continue; } // optional char
+      if (next === '{' && /^\{0\b/.test(source.slice(i + 1))) { cur = ''; continue; }
+      cur += c.toLowerCase();
+      if (cur.length > best.length) best = cur;
+    } else {
+      cur = '';
+    }
+  }
+  return best.length >= 4 ? best : null;
+}
+
+const GLOBAL_RE_CACHE = new WeakMap();
+function globalOf(re) {
+  let g = GLOBAL_RE_CACHE.get(re);
+  if (!g) {
+    g = re.flags.includes('g') ? re : new RegExp(re.source, re.flags + 'g');
+    GLOBAL_RE_CACHE.set(re, g);
+  }
+  return g;
+}
+
 // Scan a single line with a global regex, yielding one match object per hit.
 function* matchAll(re, line) {
-  const g = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
+  const g = globalOf(re);
+  g.lastIndex = 0; // reset — cached instances are reused across lines
   let m;
   while ((m = g.exec(line)) !== null) {
     yield { index: m.index, match: m[0], groups: m };
@@ -1443,6 +1496,7 @@ module.exports = {
   piiRules,
   makeFinding,
   matchAll,
+  requiredLiteral,
   isCommentLine,
   looksLikePlaceholder,
   isPublicBaaSKey,

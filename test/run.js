@@ -3534,6 +3534,38 @@ test('clean scan reports zero degraded files', () => {
   assert.strictEqual(r.diagnostics.degradedFileCount, 0, 'clean file should not be degraded');
 });
 
+// --- Performance-safety regressions ----------------------------------------
+// requiredLiteral must never return a literal that could cause a false negative:
+// bail on alternation, ignore optional chars, only trust depth-0 literals.
+test('requiredLiteral: safe extraction (no false-negative literals)', () => {
+  const { requiredLiteral } = require('../src/rules');
+  assert.strictEqual(requiredLiteral('foo|bar'), null, 'alternation must bail');
+  // literal INSIDE an optional group must be ignored; the depth-0 literal after it is used.
+  assert.strictEqual(requiredLiteral('(?:sk_live_)?abcd'), 'abcd', 'group literal ignored, depth-0 literal kept');
+  assert.strictEqual(requiredLiteral('(?:foo)?bar'), null, 'only literal is inside a group → none mandatory (bar too short)');
+  assert.strictEqual(requiredLiteral('\\binnerHTML\\b'), 'innerhtml', 'depth-0 literal extracted, lowercased');
+  assert.strictEqual(requiredLiteral('a?bcdef'), 'bcdef', 'optional leading char dropped');
+  assert.strictEqual(requiredLiteral('[A-Z0-9]{16}'), null, 'pure char-class has no literal');
+});
+
+// The prefilter + regex memoization must keep the scanner fast. Generous bound
+// (200ms/file) so it is not CI-flaky but still catches catastrophic regressions
+// like reintroducing per-line RegExp compilation.
+test('perf guard: scanner throughput stays reasonable', () => {
+  const { scan } = require('../src/scanner');
+  const files = {};
+  for (let i = 0; i < 20; i++) {
+    files[`f${i}.js`] = Array.from({ length: 60 }, (_, n) =>
+      `const v${n} = doThing(${n}); app.get('/r${n}', (req, res) => res.send(req.query.x));`
+    ).join('\n');
+  }
+  const dir = tmpProject(files);
+  const t = Date.now();
+  const r = scan(dir, { deps: false });
+  const perFile = (Date.now() - t) / r.scannedFiles;
+  assert(perFile < 200, `scanner too slow: ${perFile.toFixed(0)}ms/file (possible perf regression)`);
+});
+
 // --- Shell-guard multi-assignment / evasion regression ---------------------
 test('shell-guard: multi-variable assignment evasion is blocked', () => {
   const { checkCommand } = require('../src/shell-guard');

@@ -40,6 +40,19 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   Both `shell-hook.sh` and `shell-hook.ps1` now try multiple module paths
   and never block when VibeGuard can't load.
 
+### Performance
+- Scanner ~50% faster (108ms → 54ms/file on the repo's own source). Three
+  behavior-preserving changes, verified identical findings + unchanged benchmark
+  (95 TP / 15 FP / 16 FN):
+  1. Memoize the global-flag regex per rule — the hot path was recompiling a
+     fresh `RegExp` per rule *per line* (~64% of scan time).
+  2. Hoist the `fileFilter` check out of the per-line loop (it depends only on
+     the path) and cache the compiled filter.
+  3. Provably-safe literal prefilter: skip a rule when a mandatory literal from
+     its regex is absent from the line, avoiding the regex entirely. Never
+     introduces a false negative (bails on alternation, ignores optional/grouped
+     literals). Guarded by unit tests + a throughput regression test.
+
 ### Changed
 - Shell guard normalizer hardened. Now substitutes ALL variable assignments
   (previously only the first, a real bypass: `A=rm; B=-rf; $A $B /`), handles

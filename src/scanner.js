@@ -21,6 +21,7 @@ const {
   crossFileRules,
   makeFinding,
   matchAll,
+  requiredLiteral,
   isCommentLine,
 } = rules;
 
@@ -146,16 +147,35 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
   };
   let findings = [];
   const lines = content.split(/\r?\n/);
+
+  // fileFilter depends only on the path, not the line — compute the applicable
+  // rule set ONCE per file instead of re-testing (and recompiling) a fileFilter
+  // regex on every line. Compiled fileFilters are cached on the rule object.
+  const activeRules = [];
+  for (const rule of lineRules) {
+    if (rule.fileFilter) {
+      let ff = rule._ffRe;
+      if (!ff) {
+        ff = typeof rule.fileFilter === 'string' ? new RegExp(rule.fileFilter) : rule.fileFilter;
+        rule._ffRe = ff;
+      }
+      if (!ff.test(relPath)) continue;
+    }
+    // Precompute a mandatory literal once per rule (cached). '' = none extractable.
+    if (rule._lit === undefined) rule._lit = requiredLiteral(rule.re.source) || '';
+    activeRules.push(rule);
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (line.length > 4000) continue; // minified blob line — skip.
     const commented = isCommentLine(line);
-    for (const rule of lineRules) {
+    const lineLower = line.toLowerCase();
+    for (const rule of activeRules) {
       if (rule.skipComments && commented) continue;
-      if (rule.fileFilter) {
-        const ff = typeof rule.fileFilter === 'string' ? new RegExp(rule.fileFilter) : rule.fileFilter;
-        if (!ff.test(relPath)) continue;
-      }
+      // Cheap literal prefilter: if the rule's mandatory literal isn't on this
+      // line, the regex cannot match — skip it without running the regex.
+      if (rule._lit && !lineLower.includes(rule._lit)) continue;
       for (const hit of matchAll(rule.re, line)) {
         if (rule.skipInString && isInsideString(line, hit.index)) continue;
         if (rule.filter && !rule.filter(line, hit, lines)) continue;
