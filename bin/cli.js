@@ -125,6 +125,7 @@ Options:
   --deep                      Fold in semgrep/gitleaks/bandit.
   --changed                   Incremental: only rescan files changed since last scan (per-file; skips cross-file analysis).
   --strict                    Fail (exit 3) if any file scanned degraded.
+  --no-suppress               Ignore inline vibeguard-ignore comments + heuristic FP filter (CI trust mode).
   --fail-on <level>           Exit non-zero at/above severity.
   --no-summary                Suppress summary line.
   --show-suppressed           Include inline-suppressed findings.
@@ -205,6 +206,7 @@ function cmdScan(dir, flags) {
     deps: flags.deps !== false && !flags['no-deps'],
     deep: !!flags.deep,
     changed: !!flags.changed,
+    noSuppress: !!flags['no-suppress'],
   });
 
   // Incremental mode note: report how much work was skipped, and be explicit

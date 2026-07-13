@@ -663,11 +663,18 @@ function scan(dir, opts = {}) {
     }
   }
 
-  findings = applyInlineSuppressions(findings, contents);
-  const { applyInlineSuppressionsWithCount } = require('./suppress');
-  const supResult = applyInlineSuppressionsWithCount(findings, contents);
-  findings = supResult.kept;
-  const suppressedFindings = supResult.suppressed;
+  // --no-suppress (opts.noSuppress): report everything, ignoring inline
+  // `vibeguard-ignore` comments and the heuristic FP filter. Config policy
+  // (ignoreRules/ignorePaths) is deliberate, versioned, and kept. This gives CI
+  // a trust mode that a careless/hostile inline comment in a PR cannot silence.
+  let suppressedFindings = [];
+  if (!opts.noSuppress) {
+    findings = applyInlineSuppressions(findings, contents);
+    const { applyInlineSuppressionsWithCount } = require('./suppress');
+    const supResult = applyInlineSuppressionsWithCount(findings, contents);
+    findings = supResult.kept;
+    suppressedFindings = supResult.suppressed;
+  }
   findings = applyConfigFilters(findings, config);
 
   // Merge plugin rules
@@ -704,17 +711,19 @@ function scan(dir, opts = {}) {
 
   findings = dedupeFindings(findings);
 
-  // Context-aware false positive suppression
-  try {
-    const { suppressFindings } = require('./suppress');
-    findings = findings.filter((f) => {
-      const matching = contents.find((c) => c.rel === f.file);
-      if (matching) {
-        return suppressFindings([f], matching.content, f.file).length > 0;
-      }
-      return true;
-    });
-  } catch { /* suppression is best-effort */ }
+  // Context-aware false positive suppression (skipped under --no-suppress).
+  if (!opts.noSuppress) {
+    try {
+      const { suppressFindings } = require('./suppress');
+      findings = findings.filter((f) => {
+        const matching = contents.find((c) => c.rel === f.file);
+        if (matching) {
+          return suppressFindings([f], matching.content, f.file).length > 0;
+        }
+        return true;
+      });
+    } catch { /* suppression is best-effort */ }
+  }
 
   findings = sortFindings(findings);
   for (const f of findings) f.fingerprint = fingerprintOf(f);

@@ -192,6 +192,13 @@ function analyzePythonTaint(content, lines, relPath) {
         if (!varName) continue;
         const linesBetween = lines.slice(src.line - 1, sink.line).join('\n');
         if (linesBetween.includes(varName)) {
+          const sinkLine = lines[sink.line - 1] || '';
+          // Parameterized SQL is safe: cursor.execute("... %s ...", (params,)).
+          // A placeholder + a second argument = the driver escapes the value.
+          if (sink.type === 'sql' && isParameterizedExecute(sinkLine)) continue;
+          // Inline-sanitized at the sink: eval(int(data)), os.system(shlex.quote(x)),
+          // subprocess.run(shlex.split(x)) — the tainted value is neutralized.
+          if (isSanitizedAtSink(sinkLine, varName)) continue;
           findings.push({
             ruleId: 'py.taint-flow',
             file: relPath,
@@ -212,6 +219,33 @@ function analyzePythonTaint(content, lines, relPath) {
   }
 
   return findings;
+}
+
+// Parameterized DB call: a placeholder in the query AND a second argument to
+// execute() = the driver binds/escapes the value, so it is NOT SQL injection.
+function isParameterizedExecute(line) {
+  if (!/\.execute\s*\(/.test(line)) return false;
+  const hasPlaceholder = /%s|%\(|%d|\?|:\w+/.test(line);
+  const hasSecondArg = /\.execute\s*\([^)]*?,\s*[([{\w'"]/.test(line);
+  return hasPlaceholder && hasSecondArg;
+}
+
+// Python sanitizers that neutralize a tainted value. If the tainted var appears
+// wrapped in one of these on the sink line, the flow is considered safe.
+const PY_SANITIZER_FNS = [
+  'int', 'float', 'bool', 'decimal.Decimal',
+  'shlex.quote', 'pipes.quote', 'shlex.split',
+  'html.escape', 'markupsafe.escape', 'escape', 'bleach.clean',
+  'urllib.parse.quote', 'urllib.parse.quote_plus', 're.escape',
+];
+function isSanitizedAtSink(sinkLine, varName) {
+  const v = varName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  for (const fn of PY_SANITIZER_FNS) {
+    const f = fn.replace(/\./g, '\\.');
+    // e.g. int(<var>) / shlex.quote(<var>) directly wrapping the tainted var
+    if (new RegExp('\\b' + f + '\\s*\\(\\s*' + v + '\\b').test(sinkLine)) return true;
+  }
+  return false;
 }
 
 function extractVarName(line) {

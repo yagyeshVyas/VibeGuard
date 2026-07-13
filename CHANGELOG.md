@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- `vibeguard scan --no-suppress` — CI trust mode. Ignores inline
+  `vibeguard-ignore` comments and the heuristic false-positive filter so a
+  careless or hostile inline comment in a PR cannot silence a gate. Deliberate
+  project config (ignoreRules/ignorePaths) is still honored.
 - Fail-loud coverage tracking. Every analysis pass (taint, python-taint, AST,
   file-rules) that errors is now recorded instead of silently swallowed. Scan
   results carry `engine` (`ast` | `regex-only`) and `diagnostics`
@@ -62,6 +66,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
      literals). Guarded by unit tests + a throughput regression test.
 
 ### Changed
+- Python taint analysis: fewer false positives. Parameterized SQL
+  (`cursor.execute("... %s ...", (params,))`) and inline-sanitized sinks
+  (`eval(int(x))`, `os.system(shlex.quote(x))`) are no longer flagged. Unsafe
+  string-concatenation / f-string flows still fire.
 - Shell guard normalizer hardened. Now substitutes ALL variable assignments
   (previously only the first, a real bypass: `A=rm; B=-rf; $A $B /`), handles
   `$IFS` word-splitting and `/usr/bin/rm`, and iterates to a fixpoint so layered

@@ -3566,6 +3566,33 @@ test('perf guard: scanner throughput stays reasonable', () => {
   assert(perFile < 200, `scanner too slow: ${perFile.toFixed(0)}ms/file (possible perf regression)`);
 });
 
+// --- Python taint FP hardening ---------------------------------------------
+test('Python taint: still fires on unsafe flows (no recall regression)', () => {
+  const { analyzePythonTaint } = require('../src/engine');
+  const fire = (code) => {
+    const lines = code.split('\n');
+    return analyzePythonTaint(code, lines, 'app.py').some(f => f.ruleId === 'py.taint-flow');
+  };
+  assert(fire('data = request.form.get("x")\neval(data)\n'), 'eval(data) must fire');
+  assert(fire('uid = request.args.get("id")\ncursor.execute("SELECT * FROM u WHERE id=" + uid)\n'),
+    'string-concatenated SQL must fire');
+  assert(fire('cmd = request.args.get("c")\nos.system(cmd)\n'), 'os.system(tainted) must fire');
+});
+
+test('Python taint: no false positive on parameterized SQL or sanitized sinks', () => {
+  const { analyzePythonTaint } = require('../src/engine');
+  const fires = (code) => {
+    const lines = code.split('\n');
+    return analyzePythonTaint(code, lines, 'app.py').some(f => f.ruleId === 'py.taint-flow');
+  };
+  assert(!fires('uid = request.args.get("id")\ncursor.execute("SELECT * FROM u WHERE id=%s", (uid,))\n'),
+    'parameterized execute must NOT fire');
+  assert(!fires('n = request.args.get("n")\nos.system(shlex.quote(n))\n'),
+    'shlex.quote-sanitized sink must NOT fire');
+  assert(!fires('x = request.args.get("x")\neval(int(x))\n'),
+    'int()-sanitized sink must NOT fire');
+});
+
 // --- Incremental scan ------------------------------------------------------
 test('incremental scan: cold scans all, warm scans none, edit rescans one', () => {
   const dir = tmpProject({
