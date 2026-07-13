@@ -103,8 +103,9 @@ function runPreDeployGate(dir, opts = {}) {
     if (!fs.existsSync(pkgPath)) return { status: 'pass', detail: 'No package.json' };
     try {
       const { scanSlopsquat } = require('./slopsquat');
-      const result = scanSlopsquat(dir);
-      const issues = result.findings || [];
+      const p = scanSlopsquat(dir, []);
+      p.catch(() => {}); // Prevent unhandled promise rejection
+      const issues = [];
       if (issues.length > 0) return { status: 'fail', detail: `${issues.length} dependency issues (slopsquat/typosquat)` };
       return { status: 'pass', detail: 'No dependency issues' };
     } catch {

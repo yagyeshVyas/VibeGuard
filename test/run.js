@@ -10,15 +10,9 @@ const { verify, writeBaseline } = require('../src/verify');
 
 let pass = 0;
 let fail = 0;
+const _tests = [];
 function test(name, fn) {
-  try {
-    fn();
-    pass++;
-    console.log('  ok  ' + name);
-  } catch (e) {
-    fail++;
-    console.log('  FAIL ' + name + '\n       ' + e.message);
-  }
+  _tests.push({ name, fn });
 }
 
 function tmpProject(files) {
@@ -3350,7 +3344,7 @@ test('auto: writes .vibeguard/auto.json with pid and stops cleanly', async () =>
     assert(state.startedAt, 'state should have startedAt');
     
     // Wait for the async daemon to start before stopping
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await new Promise(resolve => setTimeout(resolve, 1200));
     
     // Stop
     const stop = auto.autoStop(dir);
@@ -3411,7 +3405,7 @@ test('auto: --stop restores a pre-existing pre-commit hook from backup', async (
     const newContent = fs.readFileSync(preCommitPath, 'utf8');
     assert(newContent.includes('VibeGuard'), 'should have VibeGuard hook');
     
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await new Promise(resolve => setTimeout(resolve, 1200));
     
     // Stop — should restore original
     auto.autoStop(dir);
@@ -3992,5 +3986,18 @@ test('shell-guard: multi-variable assignment evasion is blocked', () => {
   assert(checkCommand('/usr/bin/rm -rf /').blocked, '/usr/bin/rm should block');
 });
 
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail === 0 ? 0 : 1);
+(async function runAll() {
+  for (const t of _tests) {
+    try {
+      const p = t.fn();
+      if (p && typeof p.then === 'function') await p;
+      pass++;
+      console.log('  ok  ' + t.name);
+    } catch (e) {
+      fail++;
+      console.log('  FAIL ' + t.name + '\n       ' + (e.stack || e.message));
+    }
+  }
+  console.log(`\n${pass} passed, ${fail} failed`);
+  process.exit(fail === 0 ? 0 : 1);
+})();

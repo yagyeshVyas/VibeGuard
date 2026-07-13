@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -114,6 +114,10 @@ Advanced:
   vibeguard audit-trail <action>    Tamper-proof audit trail.
   vibeguard redact "<text>"         Redact PII from text.
   vibeguard detect-pii "<text>"     List PII in text.
+  vibeguard sbom [dir]              Generate CycloneDX 1.5 SBOM from lockfile + imports.
+  vibeguard reachability [dir]      Check which CVE-vulnerable deps are actually imported.
+  vibeguard container-scan <image>  Scan container image with trivy (if installed).
+  vibeguard license [dir]           Check package licenses against allowlist.
 
 Options:
   --json                      JSON output.
@@ -822,7 +826,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -953,6 +957,10 @@ async function main() {
     else if (cmd === 'pre-deploy') code = cmdPreDeploy(dir, flags);
     else if (cmd === 'redact') code = cmdRedact(args, flags);
     else if (cmd === 'detect-pii') code = cmdDetectPII(args, flags);
+    else if (cmd === 'sbom') code = cmdSBOM(dir, flags);
+    else if (cmd === 'reachability') code = await cmdReachability(dir, flags);
+    else if (cmd === 'container-scan') code = await cmdContainerScan(args, flags);
+    else if (cmd === 'license') code = await cmdLicense(dir, flags);
     else if (cmd === 'guard') code = cmdGuard(args, flags);
     else if (cmd === 'install-shell-hook') code = cmdInstallShellHook(flags);
     else if (cmd === 'uninstall-shell-hook') code = cmdUninstallShellHook(flags);
@@ -1857,6 +1865,197 @@ function cmdDetectPII(args, flags) {
   }
   process.stdout.write(`\n${C.dim}Scrub it: pipe the same text through 'vibeguard redact'.${C.reset}\n`);
   return 1;
+}
+
+function cmdSBOM(dir, flags) {
+  const { generateSBOM } = require('../src/sbom');
+  const bom = generateSBOM(dir);
+  if (flags.json || flags.output === 'json') {
+    process.stdout.write(JSON.stringify(bom, null, 2) + '\n');
+    return 0;
+  }
+  process.stdout.write(`${C.bold}VibeGuard SBOM — CycloneDX 1.5${C.reset}\n`);
+  process.stdout.write(`${C.dim}${'─'.repeat(60)}${C.reset}\n\n`);
+  process.stdout.write(`  Format:     ${bom.bomFormat} ${bom.specVersion}\n`);
+  process.stdout.write(`  Serial:     ${bom.serialNumber}\n`);
+  process.stdout.write(`  Generated:  ${bom.metadata.timestamp}\n`);
+  if (bom.metadata.component) {
+    process.stdout.write(`  Project:    ${bom.metadata.component.name}@${bom.metadata.component.version}\n`);
+  }
+  process.stdout.write(`  Components: ${bom.components.length}\n\n`);
+  const imported = bom.components.filter(c => c.properties && c.properties.some(p => p.name === 'vibeguard:imported' && p.value === 'true'));
+  process.stdout.write(`  ${C.green}Imported in code: ${imported.length}${C.reset}  ${C.dim}(${bom.components.length - imported.length} transitive/not imported)${C.reset}\n\n`);
+  if (flags['show-all'] || imported.length <= 20) {
+    process.stdout.write(`${C.bold}Components${C.reset}\n`);
+    for (const c of bom.components) {
+      const isImported = c.properties && c.properties.some(p => p.name === 'vibeguard:imported' && p.value === 'true');
+      const mark = isImported ? C.green + '●' : C.dim + '○';
+      const lic = c.licenses ? c.licenses[0].license.id : C.dim + 'no license' + C.reset;
+      process.stdout.write(`  ${mark}${C.reset} ${c.name.padEnd(30)} ${c.version.padEnd(12)} ${C.dim}${lic}${C.reset}\n`);
+    }
+  } else {
+    process.stdout.write(`${C.dim}Use --show-all to list all ${bom.components.length} components.${C.reset}\n`);
+  }
+  return 0;
+}
+
+async function cmdReachability(dir, flags) {
+  const { buildImportGraph } = require('../src/sbom');
+  const { scanCVEs } = require('../src/cve-intel');
+  const importGraph = buildImportGraph(dir);
+  let cveFindings = [];
+  try {
+    const cveRes = await scanCVEs(dir);
+    cveFindings = cveRes.findings || [];
+  } catch (e) {
+    process.stderr.write(`CVE scan failed: ${e.message}\n`);
+    return 2;
+  }
+  const reachable = [];
+  const unreachable = [];
+  for (const f of cveFindings) {
+    const pkgMatch = f.message && f.message.match(/([@a-z0-9/-]+)\s/);
+    const pkgName = pkgMatch ? pkgMatch[1] : '';
+    if (pkgName && importGraph[pkgName]) {
+      reachable.push({ ...f, reachable: true, importedBy: importGraph[pkgName] });
+    } else {
+      unreachable.push({ ...f, reachable: false });
+    }
+  }
+  if (flags.json) {
+    process.stdout.write(JSON.stringify({ summary: { total: cveFindings.length, reachable: reachable.length, unreachable: unreachable.length }, reachable, unreachable }, null, 2) + '\n');
+    return reachable.length > 0 ? 1 : 0;
+  }
+  process.stdout.write(`${C.bold}VibeGuard Dependency Reachability${C.reset}\n`);
+  process.stdout.write(`${C.dim}${'─'.repeat(60)}${C.reset}\n\n`);
+  process.stdout.write(`  Total CVEs:       ${cveFindings.length}\n`);
+  process.stdout.write(`  ${C.red}Reachable:        ${reachable.length}${C.reset}  ${C.dim}(imported in your code — fix these first)${C.reset}\n`);
+  process.stdout.write(`  ${C.dim}Unreachable:      ${unreachable.length}${C.reset}  ${C.dim}(transitive only — lower priority)${C.reset}\n\n`);
+  if (reachable.length > 0) {
+    process.stdout.write(`${C.red}${C.bold}Reachable vulnerabilities (fix first):${C.reset}\n`);
+    for (const f of reachable) {
+      process.stdout.write(`  ${C.red}[${f.severity}]${C.reset} ${f.title}\n    ${C.dim}Imported by: ${f.importedBy.join(', ')}${C.reset}\n    ${C.green}fix:${C.reset} ${f.fix}\n\n`);
+    }
+  }
+  if (unreachable.length > 0 && flags['show-all']) {
+    process.stdout.write(`${C.dim}Unreachable (transitive only):${C.reset}\n`);
+    for (const f of unreachable) {
+      process.stdout.write(`  ${C.dim}[${f.severity}]${C.reset} ${C.dim}${f.title}${C.reset}\n`);
+    }
+  }
+  return reachable.length > 0 ? 1 : 0;
+}
+
+async function cmdContainerScan(args, flags) {
+  const image = args._[1];
+  if (!image) {
+    process.stderr.write('Usage: vibeguard container-scan <image>\n');
+    process.stderr.write('Example: vibeguard container-scan myapp:latest\n');
+    return 2;
+  }
+  const { execFileSync } = require('child_process');
+  process.stdout.write(`${C.bold}VibeGuard Container Scan${C.reset}\n`);
+  process.stdout.write(`${C.dim}Image: ${image}${C.reset}\n`);
+  process.stdout.write(`${C.dim}${'─'.repeat(60)}${C.reset}\n\n`);
+  try {
+    const output = execFileSync('trivy', ['image', '--format', 'json', '--quiet', image], {
+      timeout: 120000,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const result = JSON.parse(output);
+    const vulns = (result.Results || []).flatMap(r => (r.Vulnerabilities || []).map(v => ({
+      cve: v.VulnerabilityID,
+      package: v.PkgName,
+      severity: v.Severity,
+      installed: v.InstalledVersion,
+      fixed: v.FixedVersion,
+      title: v.Title,
+    })));
+    if (flags.json) {
+      process.stdout.write(JSON.stringify({ image, summary: { vulnerabilities: vulns.length, critical: vulns.filter(v => v.severity === 'CRITICAL').length, high: vulns.filter(v => v.severity === 'HIGH').length }, vulnerabilities: vulns }, null, 2) + '\n');
+      return vulns.length > 0 ? 1 : 0;
+    }
+    const crit = vulns.filter(v => v.severity === 'CRITICAL');
+    const high = vulns.filter(v => v.severity === 'HIGH');
+    const med = vulns.filter(v => v.severity === 'MEDIUM');
+    const low = vulns.filter(v => v.severity === 'LOW');
+    process.stdout.write(`  ${C.red}CRITICAL: ${crit.length}${C.reset}  ${C.red}HIGH: ${high.length}${C.reset}  ${C.yellow}MEDIUM: ${med.length}${C.reset}  ${C.dim}LOW: ${low.length}${C.reset}\n\n`);
+    if (vulns.length === 0) {
+      process.stdout.write(`${C.green}No vulnerabilities found.${C.reset}\n`);
+      return 0;
+    }
+    for (const v of vulns) {
+      const sc = v.severity === 'CRITICAL' ? C.red : v.severity === 'HIGH' ? C.red : v.severity === 'MEDIUM' ? C.yellow : C.dim;
+      process.stdout.write(`  ${sc}[${v.severity}]${C.reset} ${v.cve}  ${C.bold}${v.package}${C.reset} ${v.installed} → ${C.green}${v.fixed || 'no fix'}${C.reset}\n    ${C.dim}${v.title}${C.reset}\n`);
+    }
+    return crit.length > 0 ? 1 : 0;
+  } catch (err) {
+    if (err.code === 'ENOENT' || (err.message && err.message.includes('not found'))) {
+      process.stderr.write(`${C.red}trivy is not installed.${C.reset}\n`);
+      process.stderr.write(`${C.dim}Install from https://trivy.dev or: brew install trivy (macOS) / choco install trivy (Windows)${C.reset}\n`);
+      return 2;
+    }
+    if (err.killed) {
+      process.stderr.write(`${C.red}trivy scan timed out (120s).${C.reset}\n`);
+      return 2;
+    }
+    process.stderr.write(`${C.red}trivy scan failed: ${err.message}${C.reset}\n`);
+    return 2;
+  }
+}
+
+async function cmdLicense(dir, flags) {
+  const fs = require('fs');
+  const path = require('path');
+  const pkgPath = path.join(dir, 'package.json');
+  if (!fs.existsSync(pkgPath)) {
+    process.stderr.write(`No package.json found in ${dir}\n`);
+    return 2;
+  }
+  const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) };
+  const ALLOWED = ['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'Unlicensed', 'CC0-1.0', 'Python-2.0'];
+  const customAllow = flags.allow ? String(flags.allow).split(',').map(s => s.trim()) : [];
+  const fullAllow = [...ALLOWED, ...customAllow];
+  const compliant = [];
+  const nonCompliant = [];
+  for (const [name, version] of Object.entries(allDeps)) {
+    let depPkg = null;
+    try {
+      depPkg = JSON.parse(fs.readFileSync(path.join(dir, 'node_modules', name, 'package.json'), 'utf8'));
+    } catch {
+      nonCompliant.push({ name, version, license: 'unknown', reason: 'package.json not found (run npm install first)' });
+      continue;
+    }
+    const lic = depPkg.license || 'unknown';
+    const licStr = typeof lic === 'string' ? lic : (lic && lic.type) || 'unknown';
+    if (fullAllow.includes(licStr)) {
+      compliant.push({ name, version, license: licStr });
+    } else {
+      nonCompliant.push({ name, version, license: licStr, reason: 'license not in allowlist' });
+    }
+  }
+  if (flags.json) {
+    process.stdout.write(JSON.stringify({ summary: { total: Object.keys(allDeps).length, compliant: compliant.length, nonCompliant: nonCompliant.length }, allowlist: fullAllow, compliant, nonCompliant }, null, 2) + '\n');
+    return nonCompliant.length > 0 ? 1 : 0;
+  }
+  process.stdout.write(`${C.bold}VibeGuard License Compliance${C.reset}\n`);
+  process.stdout.write(`${C.dim}${'─'.repeat(60)}${C.reset}\n\n`);
+  process.stdout.write(`  Total dependencies: ${Object.keys(allDeps).length}\n`);
+  process.stdout.write(`  ${C.green}Compliant:          ${compliant.length}${C.reset}\n`);
+  process.stdout.write(`  ${C.red}Non-compliant:      ${nonCompliant.length}${C.reset}\n`);
+  process.stdout.write(`  ${C.dim}Allowlist:          ${fullAllow.join(', ')}${C.reset}\n\n`);
+  if (nonCompliant.length > 0) {
+    process.stdout.write(`${C.red}${C.bold}Non-compliant licenses:${C.reset}\n`);
+    for (const nc of nonCompliant) {
+      process.stdout.write(`  ${C.red}[${nc.license}]${C.reset} ${C.bold}${nc.name}${C.reset}@${nc.version}  ${C.dim}${nc.reason}${C.reset}\n`);
+    }
+    process.stdout.write(`\n${C.dim}Use --allow GPL-3.0 to add licenses to the allowlist.${C.reset}\n`);
+  } else {
+    process.stdout.write(`${C.green}All dependencies use compliant licenses.${C.reset}\n`);
+  }
+  return nonCompliant.length > 0 ? 1 : 0;
 }
 
 function cmdDashboard(dir, flags) {
