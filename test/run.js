@@ -3660,6 +3660,50 @@ test('staged scan: only scans git-staged files', () => {
   assert(r.findings.some(f => f.ruleId === 'secret.stripe-live-key'), 'staged secret is caught');
 });
 
+// --- Interceptor ↔ action-guard wiring -------------------------------------
+test('interceptor: wired action-guard blocks obfuscated commands the old check missed', () => {
+  const icp = require('../src/interceptor');
+  // Sanity: the interceptor's naive inline check does NOT catch $IFS obfuscation.
+  assert(icp.checkCommand('rm$IFS-rf$IFS/tmp/x').allowed, 'inline check misses $IFS (baseline)');
+
+  // Run the actual runtime interception in a clean child process (the interceptor
+  // wraps process globals, so an isolated process avoids cross-test contamination).
+  const { execFileSync } = require('child_process');
+  const srcDir = path.join(__dirname, '..', 'src').replace(/\\/g, '/');
+  const script = `
+    const icp = require('${srcDir}/interceptor');
+    icp.activate({ logBlocked: false });
+    const cp = require('child_process');
+    try {
+      cp.execSync('rm$IFS-rf$IFS/tmp/__vibeguard_nonexistent_probe__');
+      console.log('RAN');
+    } catch (e) {
+      console.log(/VibeGuard/.test(e.message) ? 'BLOCKED' : 'OTHER:' + e.message.slice(0, 40));
+    }
+  `;
+  const out = execFileSync(process.execPath, ['-e', script], { encoding: 'utf8' }).trim();
+  assert.strictEqual(out, 'BLOCKED', 'wired action-guard must block $IFS-obfuscated rm -rf at runtime');
+});
+
+test('interceptor: wrapped readFileSync does not self-recurse (regression)', () => {
+  // Reading a benign, uncached file after activation must return content, not
+  // stack-overflow (the wrapper used to call fs.readFileSync instead of the
+  // saved original).
+  const { execFileSync } = require('child_process');
+  const srcDir = path.join(__dirname, '..', 'src').replace(/\\/g, '/');
+  const script = `
+    const fs = require('fs'), os = require('os'), p = require('path');
+    const f = p.join(os.tmpdir(), 'vg_read_' + Date.now() + '.txt');
+    fs.writeFileSync(f, 'hello-vibeguard');
+    require('${srcDir}/interceptor').activate({ logBlocked: false });
+    try { console.log(fs.readFileSync(f, 'utf8') === 'hello-vibeguard' ? 'OK' : 'WRONG'); }
+    catch (e) { console.log('THREW:' + e.message.slice(0, 40)); }
+    fs.unlinkSync(f);
+  `;
+  const out = execFileSync(process.execPath, ['-e', script], { encoding: 'utf8' }).trim();
+  assert.strictEqual(out, 'OK', 'benign file read after activation must not recurse/throw');
+});
+
 // --- Agent action firewall (nothing leaks) ---------------------------------
 test('action-guard: blocks secret + PII exfiltration to external hosts', () => {
   const { inspectAction } = require('../src/action-guard');

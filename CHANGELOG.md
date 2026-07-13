@@ -94,7 +94,20 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
      introduces a false negative (bails on alternation, ignores optional/grouped
      literals). Guarded by unit tests + a throughput regression test.
 
+### Fixed
+- Interceptor: wrapped `fs.readFileSync` called itself instead of the saved
+  original, causing infinite recursion / stack overflow on any uncached file
+  read after activation. Now calls the original. Regression test added.
+
 ### Changed
+- Runtime interceptor now delegates to the unified Agent Action Firewall
+  (`action-guard.inspectAction`). Every wrapped `fetch` / `http` / `exec` /
+  `execSync` call is checked with the hardened, shared logic — so obfuscated
+  commands (base64, `$IFS`, variable indirection) and secrets embedded in a
+  request URL are now blocked at runtime, which the interceptor's old naive
+  `.includes()` check missed. `CONFIG.allowDomains` are honored as trusted
+  destinations. Protection is automatic once the interceptor is active — no
+  per-call `guard_action` needed.
 - Python taint analysis rewritten as single-pass taint propagation (still pure
   JS — no external parser, keeps VibeGuard zero-dependency and offline). Tracks
   tainted variables through intermediate assignments (`q = "..." + data` →

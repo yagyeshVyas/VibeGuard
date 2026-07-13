@@ -26,6 +26,10 @@
  */
 
 const { detectPII, redactText } = require('./pii');
+// Eager-require the unified action firewall at load time so the runtime hot path
+// never has to require() inside a window where fs is already wrapped.
+let _actionGuard = null;
+try { _actionGuard = require('./action-guard'); } catch { _actionGuard = null; }
 
 // ─── Configuration ──────────────────────────────────────────────────────
 
@@ -75,6 +79,20 @@ function logRedact(type, detail) {
 
 function logAllow(type, detail) {
   stats.allowed++;
+}
+
+// Delegate to the unified Agent Action Firewall (src/action-guard.js) for the
+// hardened, shared exfiltration logic: anti-evasion shell checks, secret-in-URL,
+// external-host awareness, and the allowlist. Lazy-required and fail-open on
+// error so a guard bug never takes down the wrapped runtime. CONFIG.allowDomains
+// are treated as trusted destinations.
+function runActionGuard(action) {
+  if (!_actionGuard) return { blocked: false, action: 'allow', violations: [] };
+  try {
+    return _actionGuard.inspectAction(action, { trustedHosts: CONFIG.allowDomains });
+  } catch {
+    return { blocked: false, action: 'allow', violations: [] };
+  }
 }
 
 // ─── Check Functions ────────────────────────────────────────────────────
@@ -214,6 +232,17 @@ function activate(opts = {}) {
         }
       }
 
+      // Second layer: unified action firewall (catches secrets in the URL
+      // itself, and applies external-host awareness the inline check lacks).
+      const ag = runActionGuard({ type: 'network', url, body });
+      if (ag.blocked) {
+        logBlock('fetch_exfil', `${url}: ${ag.reason}`);
+        return new Response(JSON.stringify({ error: 'Blocked by VibeGuard', reason: ag.reason }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       logAllow('fetch', url);
       return originalFetch.call(this, input, init);
     };
@@ -253,11 +282,13 @@ function activate(opts = {}) {
     interceptors.exec = exec;
     require('child_process').exec = function(cmd, opts, callback) {
       const cmdCheck = checkCommand(cmd);
-      if (!cmdCheck.allowed) {
-        logBlock('exec_command', cmdCheck.reason);
+      const ag = runActionGuard({ type: 'shell', command: cmd });
+      if (!cmdCheck.allowed || ag.blocked) {
+        const reason = !cmdCheck.allowed ? cmdCheck.reason : ag.reason;
+        logBlock('exec_command', reason);
         if (typeof opts === 'function') { callback = opts; opts = null; }
         if (callback) {
-          process.nextTick(() => callback(new Error(`VibeGuard: ${cmdCheck.reason}`), '', ''));
+          process.nextTick(() => callback(new Error(`VibeGuard: ${reason}`), '', ''));
           return;
         }
         return;
@@ -269,9 +300,11 @@ function activate(opts = {}) {
     interceptors.execSync = execSync;
     require('child_process').execSync = function(cmd, opts) {
       const cmdCheck = checkCommand(cmd);
-      if (!cmdCheck.allowed) {
-        logBlock('execSync_command', cmdCheck.reason);
-        throw new Error(`VibeGuard: ${cmdCheck.reason}`);
+      const ag = runActionGuard({ type: 'shell', command: cmd });
+      if (!cmdCheck.allowed || ag.blocked) {
+        const reason = !cmdCheck.allowed ? cmdCheck.reason : ag.reason;
+        logBlock('execSync_command', reason);
+        throw new Error(`VibeGuard: ${reason}`);
       }
       return execSync.call(this, cmd, opts);
     };
@@ -287,7 +320,9 @@ function activate(opts = {}) {
         logBlock('readFileSync_path', pathCheck.reason);
         throw new Error(`VibeGuard: ${pathCheck.reason}`);
       }
-      return fs.readFileSync.call(this, p, ...args);
+      // Call the ORIGINAL, not the wrapper — calling fs.readFileSync here would
+      // recurse into this same function (infinite recursion / stack overflow).
+      return interceptors.readFileSync.call(this, p, ...args);
     };
   }
 
