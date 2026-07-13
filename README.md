@@ -509,6 +509,12 @@ VibeGuard catches the mechanical security holes that AI coding tools leave behin
 
 It raises the floor fast — catching the holes that AI tools create by default. The benchmark numbers above are honest: 86.0% F1 means it misses ~14% of real issues and produces some false positives. Run `npm run benchmark` to reproduce. Read the per-category details in `test/benchmark/benchmark-results.md` before relying on it.
 
+### Honest limits (so the claims stay true)
+
+- **Guard, not a sandbox** — stops accidents, agent mistakes, and the common exfil/tamper paths; not a determined attacker with arbitrary local code execution who rewrites both a module and its manifest.
+- **Runtime enforcement is Node-scoped** — non-Node child runtimes making their own network calls bypass the wrappers (static agent-scan / guard-action still cover them).
+- **Integrity ≠ full chain of trust** — detects source tampering; npm provenance is the real anchor.
+
 ---
 
 ## Languages
