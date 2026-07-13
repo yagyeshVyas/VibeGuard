@@ -123,6 +123,8 @@ Options:
   --new-only                  Report only findings not in baseline.
   --no-deps                   Skip dependency audit.
   --deep                      Fold in semgrep/gitleaks/bandit.
+  --changed                   Incremental: only rescan files changed since last scan (per-file; skips cross-file analysis).
+  --strict                    Fail (exit 3) if any file scanned degraded.
   --fail-on <level>           Exit non-zero at/above severity.
   --no-summary                Suppress summary line.
   --show-suppressed           Include inline-suppressed findings.
@@ -202,7 +204,18 @@ function cmdScan(dir, flags) {
   const result = scan(dir, {
     deps: flags.deps !== false && !flags['no-deps'],
     deep: !!flags.deep,
+    changed: !!flags.changed,
   });
+
+  // Incremental mode note: report how much work was skipped, and be explicit
+  // that cross-file analysis is not run (per-file only).
+  if (flags.changed && result.incremental && !flags.json && !flags.sarif) {
+    const inc = result.incremental;
+    process.stderr.write(
+      `${C.dim}incremental: scanned ${inc.scanned}/${inc.total} changed file(s), ${inc.cached} unchanged skipped ` +
+        `(cross-file analysis skipped — run a full scan for that)${C.reset}\n`
+    );
+  }
 
   // Engine-mode + coverage transparency. Never let a degraded scan look clean.
   if (!flags.json && !flags.sarif) {

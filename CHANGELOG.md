@@ -41,6 +41,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and never block when VibeGuard can't load.
 
 ### Performance
+- Incremental scanning: `vibeguard scan --changed` only rescans files whose
+  content changed since the last scan (SHA-256 hash cache under
+  `.vibeguard/cache`). Warm re-scan of an unchanged tree drops from ~600ms to
+  ~5ms in local testing (~100×+). Per-file only — cross-file taint/rules are
+  skipped in this mode and the CLI says so; run a full scan for those. Intended
+  for pre-commit and watch loops.
+- Fixed: the scanner no longer walks its own `.vibeguard/` cache/baseline
+  artifacts (added to the skip-dirs list).
 - Scanner ~50% faster (108ms → 54ms/file on the repo's own source). Three
   behavior-preserving changes, verified identical findings + unchanged benchmark
   (95 TP / 15 FP / 16 FN):

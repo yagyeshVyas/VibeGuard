@@ -44,6 +44,7 @@ function loadConfig(root) {
 const SKIP_DIRS = new Set([
   'node_modules',
   '.git',
+  '.vibeguard', // our own cache/baseline artifacts — never scan them
   'dist',
   'build',
   '.next',
@@ -543,7 +544,22 @@ function scan(dir, opts = {}) {
   const config = loadConfig(root);
   rules.configure(config);
 
-  const files = walk(root, [], null);
+  const allFiles = walk(root, [], null);
+
+  // Incremental mode: only scan files whose content changed since the last scan
+  // (SHA-256 hash cache under .vibeguard/cache). First run has an empty cache so
+  // everything is "changed" (full scan, populates cache); later runs are near
+  // instant. Cross-file analysis needs ALL files, so it is skipped here — this
+  // mode is per-file (line/AST/taint), intended for pre-commit / watch loops.
+  let files = allFiles;
+  let incremental = null;
+  if (opts.changed) {
+    const { getChangedFiles } = require('./engine');
+    const res = getChangedFiles(root, allFiles);
+    files = res.changed;
+    incremental = { total: res.total, scanned: res.changed.length, cached: res.cached };
+  }
+
   let findings = [];
   const contents = []; // {rel, content, lines} for cross-file analysis
   const trees = new Map(); // rel -> parsed AST (one parse per file, shared)
@@ -583,6 +599,10 @@ function scan(dir, opts = {}) {
     contents.push({ rel, content, lines: content.split(/\r?\n/) });
   }
 
+  // Cross-file passes need the WHOLE project in `contents`. In incremental mode
+  // we only loaded changed files, so skip them (they would produce wrong results
+  // from a partial view) — this is the documented tradeoff of `--changed`.
+  if (!incremental) {
   // Cross-file taint: request data flowing across module boundaries into a sink.
   try {
     const { analyzeCrossFile } = require('./crosstaint');
@@ -612,6 +632,7 @@ function scan(dir, opts = {}) {
       );
     }
   }
+  } // end !incremental cross-file block
 
   findings = findings.concat(projectScan(root));
 
@@ -725,6 +746,7 @@ function scan(dir, opts = {}) {
     externalInfo,
     engine,
     diagnostics,
+    incremental, // null on a full scan; {total, scanned, cached} with --changed
     generatedAt: new Date().toISOString(),
   };
 }

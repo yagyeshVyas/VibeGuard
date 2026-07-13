@@ -3566,6 +3566,39 @@ test('perf guard: scanner throughput stays reasonable', () => {
   assert(perFile < 200, `scanner too slow: ${perFile.toFixed(0)}ms/file (possible perf regression)`);
 });
 
+// --- Incremental scan ------------------------------------------------------
+test('incremental scan: cold scans all, warm scans none, edit rescans one', () => {
+  const dir = tmpProject({
+    'a.js': 'const x = 1;\n',
+    'b.js': 'const y = 2;\n',
+    'c.js': 'const z = 3;\n',
+  });
+  const cold = scan(dir, { deps: false, changed: true });
+  assert(cold.incremental, 'incremental info present');
+  assert.strictEqual(cold.incremental.scanned, 3, 'cold scans all files');
+
+  const warm = scan(dir, { deps: false, changed: true });
+  assert.strictEqual(warm.incremental.scanned, 0, 'warm scans nothing when unchanged');
+  assert.strictEqual(warm.incremental.cached, 3, 'warm reports all cached');
+
+  fs.appendFileSync(path.join(dir, 'b.js'), '\nconst y2 = 3;\n');
+  const edited = scan(dir, { deps: false, changed: true });
+  assert.strictEqual(edited.incremental.scanned, 1, 'only the edited file is rescanned');
+});
+
+test('incremental scan: never scans its own .vibeguard cache artifacts', () => {
+  const dir = tmpProject({ 'a.js': 'const x = 1;\n' });
+  scan(dir, { deps: false, changed: true }); // writes .vibeguard/cache
+  const warm = scan(dir, { deps: false, changed: true });
+  assert.strictEqual(warm.incremental.total, 1, 'cache dir must not be counted as a source file');
+});
+
+test('full scan is unaffected by incremental option default', () => {
+  const dir = tmpProject({ 'a.js': 'const x = 1;\n' });
+  const r = scan(dir, { deps: false });
+  assert.strictEqual(r.incremental, null, 'full scan has null incremental');
+});
+
 // --- Shell-guard multi-assignment / evasion regression ---------------------
 test('shell-guard: multi-variable assignment evasion is blocked', () => {
   const { checkCommand } = require('../src/shell-guard');
