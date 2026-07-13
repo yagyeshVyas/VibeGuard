@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -79,6 +79,7 @@ Advanced:
   vibeguard init-ci [dir]           Write GitHub Actions workflow.
   vibeguard mcp-audit [dir]         Audit configured MCP servers (injection, rug-pull, secrets). --pin to re-baseline.
   vibeguard agent-scan [dir]        AI Agent Security Posture: one grade across MCP, data leakage, LLM-output sinks, prompt injection, agent capability.
+  vibeguard guard-action <action>   Action firewall: block secret/PII exfiltration before it runs. Pass a shell command or JSON action. --trust host1,host2.
   vibeguard compliance [dir]         Map findings to SOC2/PCI/HIPAA/GDPR.
   vibeguard cve [dir]               Query OSV.dev for dependency CVEs.
   vibeguard slopsquat [dir]          Check for hallucinated npm packages.
@@ -682,6 +683,33 @@ function cmdInitCi(dir) {
   return 0;
 }
 
+function cmdGuardAction(input, flags) {
+  const { inspectAction } = require('../src/action-guard');
+  // Accept a JSON action ('{"type":"network",...}') or, for convenience, a bare
+  // shell command string.
+  let action;
+  const raw = (input || '').trim();
+  if (raw.startsWith('{')) {
+    try { action = JSON.parse(raw); } catch { process.stderr.write('Invalid JSON action.\n'); return 2; }
+  } else if (raw) {
+    action = { type: 'shell', command: raw };
+  } else {
+    process.stderr.write('Usage: vibeguard guard-action \'<json-action>\' | "<shell command>"\n');
+    return 2;
+  }
+  const trustedHosts = flags.trust ? String(flags.trust).split(',') : [];
+  const verdict = inspectAction(action, { trustedHosts });
+  if (flags.json) {
+    process.stdout.write(JSON.stringify(verdict, null, 2) + '\n');
+  } else {
+    const C2 = { red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', dim: '\x1b[2m', reset: '\x1b[0m' };
+    const tag = verdict.blocked ? `${C2.red}BLOCKED${C2.reset}` : verdict.action === 'warn' ? `${C2.yellow}WARN${C2.reset}` : `${C2.green}ALLOW${C2.reset}`;
+    process.stdout.write(`${tag} ${verdict.reason || 'no leak or dangerous action detected'}\n`);
+    for (const v of verdict.violations) process.stdout.write(`  ${C2.dim}${v.level}: ${v.kind} — ${v.detail}${C2.reset}\n`);
+  }
+  return verdict.blocked ? 1 : 0;
+}
+
 function cmdAgentScan(dir, flags) {
   const { agentScan, renderAgentScan } = require('../src/agent-scan');
   const result = agentScan(dir, { pin: !!flags.pin });
@@ -794,7 +822,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -865,6 +893,7 @@ async function main() {
     else if (cmd === 'init-ci') code = cmdInitCi(dir);
     else if (cmd === 'mcp-audit') code = cmdMcpAudit(dir, flags);
     else if (cmd === 'agent-scan') code = cmdAgentScan(dir, flags);
+    else if (cmd === 'guard-action') code = cmdGuardAction(args._[1], flags);
     else if (cmd === 'install') code = cmdInstall(flags);
     else if (cmd === 'rules') code = cmdRules(flags);
     else if (cmd === 'explain') code = cmdExplain(args._[1], flags);

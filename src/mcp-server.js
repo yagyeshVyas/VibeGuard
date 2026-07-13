@@ -120,6 +120,27 @@ const TOOLS = [
     inputSchema: DIR_SCHEMA,
   },
   {
+    name: 'guard_action',
+    description: 'Agent action firewall — inspect an action BEFORE running it and block secret/PII exfiltration, dangerous commands, or sending sensitive data to an untrusted host. Call this before any shell command, network request, file write, LLM prompt, or MCP tool call. Returns allow | warn | block. Nothing leaves the machine that would leak an API key or personal data.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['shell', 'network', 'file-write', 'prompt', 'mcp', 'generic'], description: 'The kind of action.' },
+        command: { type: 'string', description: 'For type=shell: the command line.' },
+        url: { type: 'string', description: 'For type=network: the request URL.' },
+        method: { type: 'string' },
+        body: { description: 'For type=network: the request body (string or object).' },
+        path: { type: 'string', description: 'For type=file-write: the destination path.' },
+        content: { type: 'string', description: 'For file-write/prompt/generic: the content.' },
+        provider: { type: 'string', description: 'For type=prompt: the LLM provider name.' },
+        tool: { type: 'string', description: 'For type=mcp: the tool name.' },
+        args: { description: 'For type=mcp: the tool arguments.' },
+        trustedHosts: { type: 'array', items: { type: 'string' }, description: 'Hosts allowed to receive sensitive data.' },
+      },
+      required: ['type'],
+    },
+  },
+  {
     name: 'agent_scan',
     description: 'AI Agent Security Posture — one graded verdict across every agent-era risk: MCP server trust, PII/secret leakage to LLM providers, LLM output reaching exec/eval/SQL/DOM, prompt injection, agent capability/loop safety, and hallucinated dependencies. Use this to answer "is my AI-agent setup safe?" Offline; aggregates VibeGuard\'s agent checks.',
     inputSchema: { type: 'object', properties: { dir: DIR_SCHEMA.properties.dir }, required: [] },
@@ -640,6 +661,17 @@ async function handleReviewHotspots(args) {
     `\n\nReport concrete issues with file:line and a fix. Be honest about what you could not verify.`;
 
   return textResult(text);
+}
+
+async function handleGuardAction(args) {
+  const { inspectAction } = require('./action-guard');
+  const verdict = inspectAction(args, { trustedHosts: args.trustedHosts });
+  const head = verdict.blocked
+    ? `🛑 BLOCKED — ${verdict.reason}`
+    : verdict.action === 'warn'
+      ? `⚠ WARN — ${verdict.reason}`
+      : '✓ ALLOW — no secret/PII exfiltration or dangerous action detected.';
+  return textResult(head + '\n\n' + JSON.stringify(verdict, null, 2));
 }
 
 async function handleAgentScan(args) {
@@ -1789,6 +1821,7 @@ async function main() {
       else if (name === 'ai_data_guard') result = await handleAIDataGuard(args);
       else if (name === 'mcp_audit') result = await handleMcpAudit(args);
       else if (name === 'agent_scan') result = await handleAgentScan(args);
+      else if (name === 'guard_action') result = await handleGuardAction(args);
       else if (name === 'generate_privacy_policy') result = await handlePrivacyPolicy(args);
       else if (name === 'generate_csp') result = await handleCSP(args);
       else if (name === 'ai_firewall') result = await handleAIFirewall(args);

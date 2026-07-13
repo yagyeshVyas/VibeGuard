@@ -6,6 +6,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Agent Action Firewall — `vibeguard guard-action` + `guard_action` MCP tool +
+  `src/action-guard.js` (`inspectAction`). Real-time "nothing leaks" guard:
+  inspect any agent action (shell / network / file-write / prompt / MCP call)
+  BEFORE it runs and block secret or personal-data exfiltration. Hard rule — an
+  API key or PII (email, SSN, credit card, phone) never leaves to an external
+  host: secrets blocked unconditionally, PII blocked (or warn), local/allowlisted
+  hosts permitted. Also blocks cloud-metadata credential theft, secrets written
+  to web-served paths, and secrets in LLM prompts. `sanitizeOutbound()` redacts
+  instead of dropping. 100% offline, fail-closed on the block path. A guard, not
+  a sandbox.
 - `vibeguard agent-scan` — AI Agent Security Posture (new `agent_scan` MCP tool
   too). One graded verdict — "is my AI-agent setup safe?" — aggregating every
   agent-era check into threat categories: MCP-server trust, PII/secret leakage
