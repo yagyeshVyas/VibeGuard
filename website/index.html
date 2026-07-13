@@ -4,200 +4,1036 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VibeGuard — Free Security Scanner for AI-Coded Apps</title>
+<meta name="description" content="Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever. 699 rules, 76 MCP tools, zero dependencies.">
+<meta property="og:title" content="VibeGuard — Free Security Scanner for AI-Coded Apps">
+<meta property="og:description" content="699 rules, 76 MCP tools, 13-layer defense, zero-trust sandbox. Runs locally, never sends data anywhere.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://vibe-guard-site-ivory.vercel.app/">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
 <style>
-  :root { --bg: #0a0a0a; --fg: #e5e5e5; --accent: #3b82f6; --green: #22c55e; --red: #ef4444; --yellow: #eab308; --card: #1a1a1a; --border: #333; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; }
-  .hero { text-align: center; padding: 80px 20px 60px; }
-  .hero h1 { font-size: 56px; font-weight: 800; letter-spacing: -1px; margin-bottom: 16px; background: linear-gradient(135deg, #3b82f6, #22c55e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-  .hero p { font-size: 22px; color: #999; max-width: 600px; margin: 0 auto 32px; }
-  .hero .install { font-family: monospace; font-size: 16px; background: var(--card); padding: 16px 24px; border-radius: 8px; border: 1px solid var(--border); display: inline-block; cursor: pointer; }
-  .hero .install:hover { border-color: var(--accent); }
-  .badges { display: flex; gap: 12px; justify-content: center; margin: 24px 0; flex-wrap: wrap; }
-  .badge { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; background: var(--card); border: 1px solid var(--border); }
-  .badge.green { border-color: var(--green); color: var(--green); }
-  .badge.blue { border-color: var(--accent); color: var(--accent); }
-  .features { max-width: 1000px; margin: 0 auto; padding: 40px 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
-  .feature { background: var(--card); padding: 24px; border-radius: 12px; border: 1px solid var(--border); }
-  .feature h3 { font-size: 18px; margin-bottom: 8px; }
-  .feature p { color: #999; font-size: 14px; }
-  .feature .icon { font-size: 28px; margin-bottom: 12px; }
-  .stats { text-align: center; padding: 40px 20px; }
-  .stats-grid { display: flex; gap: 40px; justify-content: center; flex-wrap: wrap; }
-  .stat { text-align: center; }
-  .stat .num { font-size: 48px; font-weight: 800; color: var(--accent); }
-  .stat .label { font-size: 14px; color: #999; text-transform: uppercase; }
-  .playground { max-width: 900px; margin: 40px auto; padding: 0 20px; }
-  .playground h2 { text-align: center; font-size: 32px; margin-bottom: 24px; }
-  .editor { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-  .editor textarea { width: 100%; min-height: 200px; background: transparent; color: var(--fg); border: none; padding: 16px; font-family: monospace; font-size: 14px; resize: vertical; outline: none; }
-  .editor-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
-  .btn { padding: 8px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; }
-  .btn-primary { background: var(--accent); color: white; }
-  .btn-primary:hover { opacity: 0.9; }
-  .results { padding: 16px; }
-  .result-item { padding: 12px; margin-bottom: 8px; border-radius: 8px; border-left: 4px solid; background: rgba(255,255,255,0.03); }
-  .result-item.critical { border-color: var(--red); }
-  .result-item.high { border-color: #f97316; }
-  .result-item.medium { border-color: var(--yellow); }
-  .result-item.low { border-color: var(--accent); }
-  .result-item .sev { font-weight: 700; text-transform: uppercase; font-size: 12px; }
-  .result-item .rule { font-family: monospace; font-size: 13px; color: #999; }
-  .result-item .msg { font-size: 14px; margin-top: 4px; }
-  .result-item .fix { font-size: 13px; color: var(--green); margin-top: 4px; }
-  .clients { max-width: 800px; margin: 40px auto; padding: 20px; text-align: center; }
-  .client-grid { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 16px; }
-  .client { padding: 12px 20px; border-radius: 8px; background: var(--card); border: 1px solid var(--border); font-size: 14px; }
-  footer { text-align: center; padding: 40px 20px; color: #666; font-size: 14px; }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .copy-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--green); color: white; padding: 12px 24px; border-radius: 8px; opacity: 0; transition: opacity 0.3s; }
-  .copy-toast.show { opacity: 1; }
+/* ═══════════════════════════════════════════════════════════════
+   VibeGuard — Cinematic Website
+   Techniques: 6-layer parallax, scrub timeline, clip-path reveals,
+   word-by-word scroll lighting, perspective zoom, cascading cards,
+   split converge text, elastic drop, reactive marquee, float loops
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg: #06070a;
+  --bg-1: #0a0c14;
+  --bg-2: #0e1118;
+  --card: #12151e;
+  --border: #1e2230;
+  --fg: #e4e7ef;
+  --dim: #6b7080;
+  --dimmer: #3a3f4d;
+  --blue: #3b82f6;
+  --green: #22c55e;
+  --red: #ef4444;
+  --orange: #f97316;
+  --yellow: #eab308;
+  --teal: #06b6d4;
+  --purple: #8b5cf6;
+  --blue-glow: rgba(59,130,246,0.15);
+  --green-glow: rgba(34,197,94,0.15);
+
+  /* Depth factors */
+  --d0: 0.10; --d1: 0.25; --d2: 0.50; --d3: 0.80; --d4: 1.00; --d5: 1.20;
+  --scroll-y: 0;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:auto; }
+body {
+  font-family:'Inter',-apple-system,system-ui,sans-serif;
+  background:var(--bg); color:var(--fg); line-height:1.6;
+  overflow-x:hidden;
+}
+a { color:var(--blue); text-decoration:none; }
+a:hover { text-decoration:underline; }
+
+/* ── Scroll Progress Bar ─────────────────────────────────────── */
+.scroll-progress {
+  position:fixed; top:0; left:0; height:3px; width:0%;
+  background:linear-gradient(90deg,var(--blue),var(--green),var(--teal));
+  z-index:9999; transition:width 0.1s;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────── */
+nav {
+  position:fixed; top:0; left:0; right:0; z-index:1000;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:16px 32px; backdrop-filter:blur(12px);
+  background:rgba(6,7,10,0.7); border-bottom:1px solid var(--border);
+  transition:padding 0.3s;
+}
+nav.scrolled { padding:10px 32px; }
+nav .logo { display:flex; align-items:center; gap:8px; font-weight:800; font-size:18px; }
+nav .logo .shield {
+  width:24px; height:28px; background:linear-gradient(135deg,var(--blue),var(--green));
+  clip-path:polygon(50% 0,100% 20%,100% 60%,50% 100%,0 60%,0 20%);
+  position:relative;
+}
+nav .logo .shield::after {
+  content:''; position:absolute; left:50%; top:55%;
+  width:8px; height:4px; border-left:2px solid #fff; border-bottom:2px solid #fff;
+  transform:translate(-50%,-50%) rotate(-45deg);
+}
+nav .links { display:flex; gap:28px; align-items:center; }
+nav .links a { color:var(--dim); font-size:14px; font-weight:500; }
+nav .links a:hover { color:var(--fg); text-decoration:none; }
+nav .cta-mini {
+  padding:8px 18px; border-radius:8px; font-size:13px; font-weight:600;
+  background:linear-gradient(135deg,var(--blue),var(--green)); color:#fff;
+  border:none; cursor:pointer; transition:transform 0.2s,box-shadow 0.2s;
+}
+nav .cta-mini:hover { transform:scale(1.05); box-shadow:0 4px 20px var(--blue-glow); text-decoration:none; }
+
+/* ── Scene System ────────────────────────────────────────────── */
+.scene { position:relative; overflow:hidden; }
+.scene-inner { position:relative; }
+
+/* ── Depth Layers ─────────────────────────────────────────────── */
+.layer { position:absolute; inset:0; will-change:transform; transform-origin:center; }
+.depth-0 { filter:blur(8px); opacity:0.7; z-index:0; }
+.depth-1 { filter:blur(4px); mix-blend-mode:screen; z-index:1; }
+.depth-2 { z-index:2; }
+.depth-3 { filter:drop-shadow(0 20px 60px rgba(0,0,0,0.5)); z-index:3; }
+.depth-4 { z-index:4; }
+.depth-5 { z-index:5; }
+
+/* ── Floating Loops ──────────────────────────────────────────── */
+@keyframes float-y { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-18px)} }
+@keyframes float-orbit {
+  0%{transform:translate(0,0) rotate(0)} 25%{transform:translate(8px,-12px) rotate(2deg)}
+  50%{transform:translate(0,-20px) rotate(0)} 75%{transform:translate(-8px,-12px) rotate(-2deg)}
+  100%{transform:translate(0,0) rotate(0)}
+}
+@keyframes float-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+@keyframes float-rotate {
+  0%,100%{transform:translateY(0) rotate(0)} 33%{transform:translateY(-12px) rotate(2deg)}
+  66%{transform:translateY(-6px) rotate(-1deg)}
+}
+.float-loop { animation:float-y 10s ease-in-out infinite; }
+.float-orbit { animation:float-orbit 8s ease-in-out infinite; }
+.float-breathe { animation:float-breathe 12s ease-in-out infinite; }
+
+/* ── Glow Blobs ──────────────────────────────────────────────── */
+.glow-blob {
+  position:absolute; border-radius:50%; filter:blur(80px); opacity:0.4;
+  mix-blend-mode:screen; animation:float-breathe 12s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HERO SECTION
+   ═══════════════════════════════════════════════════════════════ */
+.hero { min-height:100vh; display:flex; align-items:center; justify-content:center; }
+
+/* Depth 0: Grid background */
+.grid-bg {
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(59,130,246,0.06) 1px,transparent 1px);
+  background-size:50px 50px; mask-image:radial-gradient(ellipse 80% 60% at center,#000 0%,transparent 100%);
+}
+
+/* Depth 1: Glow */
+.hero-glow-1 { width:600px; height:600px; background:radial-gradient(circle,var(--blue) 0%,transparent 70%); top:20%; left:10%; }
+.hero-glow-2 { width:500px; height:500px; background:radial-gradient(circle,var(--green) 0%,transparent 70%); bottom:10%; right:10%; animation-delay:-6s; }
+
+/* Depth 3: Shield */
+.hero-shield-wrap {
+  position:relative; display:flex; align-items:center; justify-content:center;
+}
+.hero-shield {
+  width:clamp(180px,28vw,280px); height:clamp(200px,32vw,320px);
+  background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(34,197,94,0.15));
+  border:2px solid rgba(59,130,246,0.3);
+  clip-path:polygon(50% 0,100% 18%,100% 55%,50% 100%,0 55%,0 18%);
+  position:relative; display:flex; align-items:center; justify-content:center;
+  animation:float-breathe 6s ease-in-out infinite;
+}
+.hero-shield::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(135deg,rgba(59,130,246,0.05),rgba(34,197,94,0.05));
+  clip-path:polygon(50% 0,100% 18%,100% 55%,50% 100%,0 55%,0 18%);
+}
+.hero-shield .scan-line {
+  position:absolute; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,transparent,var(--blue),transparent);
+  animation:scan 3s linear infinite;
+}
+@keyframes scan { 0%{top:0; opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{top:100%; opacity:0} }
+.hero-shield .checkmark {
+  position:relative; z-index:2; width:50px; height:50px;
+}
+.hero-shield .checkmark svg { width:100%; height:100%; }
+
+/* Depth 4: Text */
+.hero-content { text-align:center; position:relative; z-index:10; padding:0 24px; }
+.hero-content h1 {
+  font-size:clamp(48px,8vw,96px); font-weight:900; line-height:1.05; letter-spacing:-0.03em;
+  margin-bottom:16px;
+}
+.hero-content h1 .gradient {
+  background:linear-gradient(135deg,var(--blue),var(--green));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+.hero-content p {
+  font-size:clamp(16px,2.5vw,22px); color:var(--dim); max-width:560px; margin:0 auto 36px;
+}
+.hero-install {
+  display:inline-flex; align-items:center; gap:12px;
+  font-family:'Fira Code',monospace; font-size:15px;
+  background:var(--card); border:1px solid var(--border); border-radius:10px;
+  padding:14px 24px; cursor:pointer; transition:border-color 0.3s,box-shadow 0.3s;
+}
+.hero-install:hover { border-color:var(--blue); box-shadow:0 0 30px var(--blue-glow); }
+.hero-install .copy-icon { color:var(--dim); font-size:13px; }
+.hero-install:hover .copy-icon { color:var(--blue); }
+.hero-badges {
+  display:flex; gap:12px; justify-content:center; margin-top:28px; flex-wrap:wrap;
+}
+.hero-badge {
+  padding:6px 14px; border-radius:20px; font-size:13px; font-weight:600;
+  background:var(--card); border:1px solid var(--border); color:var(--dim);
+}
+.hero-badge.green { border-color:rgba(34,197,94,0.3); color:var(--green); }
+.hero-badge.blue { border-color:rgba(59,130,246,0.3); color:var(--blue); }
+
+/* Depth 5: Particles */
+.particle {
+  position:absolute; width:4px; height:4px; border-radius:50%;
+  background:var(--blue); opacity:0.4; animation:float-y 6s ease-in-out infinite;
+}
+.particle:nth-child(2) { background:var(--green); animation-delay:-2s; }
+.particle:nth-child(3) { background:var(--teal); animation-delay:-4s; }
+.particle:nth-child(4) { background:var(--purple); animation-delay:-1s; width:3px; height:3px; }
+.particle:nth-child(5) { background:var(--blue); animation-delay:-3s; width:2px; height:2px; }
+
+/* Scroll indicator */
+.scroll-indicator {
+  position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+  text-align:center; color:var(--dim); font-size:13px;
+  animation:float-y 2s ease-in-out infinite;
+}
+.scroll-indicator .arrow { display:block; margin-top:4px; font-size:20px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION TITLES (shared)
+   ═══════════════════════════════════════════════════════════════ */
+.section-title {
+  font-size:clamp(32px,5vw,56px); font-weight:800; letter-spacing:-0.02em; line-height:1.1;
+  text-align:center; margin-bottom:16px;
+}
+.section-sub {
+  text-align:center; color:var(--dim); font-size:clamp(15px,2vw,19px); max-width:600px; margin:0 auto 60px;
+}
+
+/* Word-by-word scroll lighting */
+.scroll-lit-text .word {
+  display:inline-block; color:rgba(228,231,239,0.12); transition:color 0.15s;
+}
+.scroll-lit-text .word.lit { color:var(--fg); }
+
+/* ═══════════════════════════════════════════════════════════════
+   STATS SECTION
+   ═══════════════════════════════════════════════════════════════ */
+.stats { padding:120px 24px; background:var(--bg-1); position:relative; }
+.stats-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:40px;
+  max-width:1000px; margin:0 auto;
+}
+.stat-item { text-align:center; position:relative; }
+.stat-num {
+  font-size:clamp(40px,6vw,64px); font-weight:900; line-height:1;
+  background:linear-gradient(135deg,var(--blue),var(--green));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+.stat-label { font-size:13px; color:var(--dim); text-transform:uppercase; letter-spacing:0.1em; margin-top:8px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   FEATURES SECTION — Cascading Card Stack
+   ═══════════════════════════════════════════════════════════════ */
+.features { padding:120px 24px; position:relative; }
+.features-grid {
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:24px;
+  max-width:1200px; margin:0 auto;
+}
+.feature-card {
+  background:var(--card); border:1px solid var(--border); border-radius:16px;
+  padding:32px; transition:transform 0.3s,border-color 0.3s,box-shadow 0.3s;
+  position:relative; overflow:hidden;
+}
+.feature-card::before {
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:var(--accent-color,var(--blue)); opacity:0; transition:opacity 0.3s;
+}
+.feature-card:hover { transform:translateY(-6px); border-color:var(--accent-color,var(--blue)); box-shadow:0 20px 40px rgba(0,0,0,0.3); }
+.feature-card:hover::before { opacity:1; }
+.feature-card .icon {
+  width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  font-size:24px; background:rgba(59,130,246,0.1); margin-bottom:16px;
+  border:1px solid var(--border);
+}
+.feature-card h3 { font-size:18px; font-weight:700; margin-bottom:8px; }
+.feature-card p { color:var(--dim); font-size:14px; line-height:1.6; }
+
+/* ═══════════════════════════════════════════════════════════════
+   DEMO SECTION — Live Terminal
+   ═══════════════════════════════════════════════════════════════ */
+.demo { padding:120px 24px; background:var(--bg-1); position:relative; }
+.terminal {
+  max-width:800px; margin:0 auto; background:#0a0c14; border:1px solid var(--border);
+  border-radius:12px; overflow:hidden; box-shadow:0 30px 60px rgba(0,0,0,0.4);
+}
+.terminal-bar {
+  display:flex; align-items:center; gap:8px; padding:12px 16px;
+  background:#12151e; border-bottom:1px solid var(--border);
+}
+.terminal-dot { width:12px; height:12px; border-radius:50%; }
+.terminal-dot.r { background:#ed6a5e; } .terminal-dot.y { background:#f5bf4f; } .terminal-dot.g { background:#06c554; }
+.terminal-title { margin-left:12px; color:var(--dim); font-size:13px; font-family:'Fira Code',monospace; }
+.terminal-body { padding:24px; font-family:'Fira Code',monospace; font-size:13px; line-height:1.7; min-height:400px; }
+.terminal-line { margin-bottom:4px; }
+.terminal-line .prompt { color:var(--green); }
+.terminal-line .cmd { color:var(--fg); }
+.terminal-line .out { color:var(--dim); }
+.terminal-line .critical { color:var(--red); font-weight:700; }
+.terminal-line .high { color:var(--orange); font-weight:700; }
+.terminal-line .rule { color:var(--blue); }
+.terminal-line .fix { color:var(--green); }
+.terminal-line .grade { color:var(--red); font-weight:800; }
+.terminal-cursor {
+  display:inline-block; width:8px; height:16px; background:var(--fg); margin-left:2px;
+  animation:blink 1s steps(1) infinite; vertical-align:text-bottom;
+}
+@keyframes blink { 50%{opacity:0} }
+
+/* ═══════════════════════════════════════════════════════════════
+   PLAYGROUND SECTION
+   ═══════════════════════════════════════════════════════════════ */
+.playground { padding:120px 24px; position:relative; }
+.pg-editor {
+  max-width:900px; margin:0 auto; background:var(--card); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden;
+}
+.pg-bar {
+  display:flex; justify-content:space-between; align-items:center; padding:14px 20px;
+  border-bottom:1px solid var(--border); background:var(--bg-2);
+}
+.pg-bar span { color:var(--dim); font-size:14px; }
+.pg-btn {
+  padding:8px 24px; border-radius:8px; font-weight:700; font-size:14px; cursor:pointer;
+  border:none; color:#fff; background:linear-gradient(135deg,var(--blue),var(--green));
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.pg-btn:hover { transform:scale(1.05); box-shadow:0 4px 20px var(--blue-glow); }
+.pg-textarea {
+  width:100%; min-height:180px; background:transparent; color:var(--fg); border:none;
+  padding:20px; font-family:'Fira Code',monospace; font-size:14px; resize:vertical; outline:none;
+  line-height:1.6;
+}
+.pg-results { padding:20px; }
+.pg-result {
+  padding:14px; margin-bottom:10px; border-radius:8px; border-left:4px solid;
+  background:rgba(255,255,255,0.02);
+}
+.pg-result.critical { border-color:var(--red); }
+.pg-result.high { border-color:var(--orange); }
+.pg-result.medium { border-color:var(--yellow); }
+.pg-result.low { border-color:var(--blue); }
+.pg-result .sev { font-weight:700; text-transform:uppercase; font-size:12px; }
+.pg-result .rule { font-family:'Fira Code',monospace; font-size:12px; color:var(--dim); }
+.pg-result .msg { font-size:14px; margin-top:4px; }
+.pg-result .fix { font-size:13px; color:var(--green); margin-top:4px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   WHAT IT CATCHES — Pinned Scroll Narrative
+   ═══════════════════════════════════════════════════════════════ */
+.catches { padding:120px 24px; background:var(--bg-1); }
+.catch-item {
+  max-width:700px; margin:0 auto 60px; padding:32px; background:var(--card);
+  border:1px solid var(--border); border-radius:16px; position:relative; overflow:hidden;
+}
+.catch-item .catch-label {
+  display:inline-block; padding:4px 12px; border-radius:6px; font-size:12px; font-weight:700;
+  text-transform:uppercase; margin-bottom:12px;
+}
+.catch-item .catch-label.critical { background:rgba(239,68,68,0.15); color:var(--red); }
+.catch-item .catch-label.high { background:rgba(249,115,22,0.15); color:var(--orange); }
+.catch-item .catch-label.ai { background:rgba(139,92,246,0.15); color:var(--purple); }
+.catch-item h3 { font-size:20px; margin-bottom:12px; }
+.catch-item .code-block {
+  font-family:'Fira Code',monospace; font-size:13px; background:var(--bg);
+  padding:16px; border-radius:8px; border:1px solid var(--border); margin:12px 0;
+  overflow-x:auto; color:var(--fg);
+}
+.catch-item .code-block .key { color:var(--red); }
+.catch-item .code-block .str { color:var(--green); }
+.catch-item .code-block .fn { color:var(--blue); }
+.catch-item p { color:var(--dim); font-size:15px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   AI CLIENTS SECTION
+   ═══════════════════════════════════════════════════════════════ */
+.clients { padding:120px 24px; text-align:center; }
+.client-grid {
+  display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:800px; margin:0 auto;
+}
+.client-card {
+  padding:16px 28px; border-radius:10px; background:var(--card); border:1px solid var(--border);
+  font-size:15px; font-weight:600; transition:transform 0.2s,border-color 0.2s;
+}
+.client-card:hover { transform:translateY(-4px); border-color:var(--blue); }
+
+/* ═══════════════════════════════════════════════════════════════
+   CTA SECTION — Perspective Zoom
+   ═══════════════════════════════════════════════════════════════ */
+.cta-section {
+  padding:140px 24px; text-align:center; position:relative; overflow:hidden;
+  background:var(--bg-1);
+}
+.cta-section .glow {
+  position:absolute; width:800px; height:800px; border-radius:50%;
+  background:radial-gradient(circle,var(--blue-glow) 0%,transparent 70%);
+  top:50%; left:50%; transform:translate(-50%,-50%); filter:blur(40px); pointer-events:none;
+}
+.cta-section h2 {
+  font-size:clamp(36px,6vw,64px); font-weight:900; margin-bottom:20px; position:relative;
+}
+.cta-section p { color:var(--dim); font-size:18px; margin-bottom:36px; position:relative; }
+.cta-btn-big {
+  display:inline-block; padding:18px 48px; border-radius:12px; font-size:18px; font-weight:700;
+  background:linear-gradient(135deg,var(--blue),var(--green)); color:#fff;
+  transition:transform 0.3s,box-shadow 0.3s; position:relative;
+}
+.cta-btn-big:hover { transform:scale(1.05); box-shadow:0 10px 40px var(--blue-glow); text-decoration:none; }
+
+/* ═══════════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════════ */
+footer {
+  padding:60px 24px 40px; text-align:center; border-top:1px solid var(--border);
+}
+footer .footer-links {
+  display:flex; gap:16px; justify-content:center; margin-bottom:20px; flex-wrap:wrap;
+}
+footer .footer-links a {
+  padding:10px 20px; border-radius:10px; font-size:14px; font-weight:600;
+  border:1px solid var(--border); background:var(--card); transition:border-color 0.2s;
+}
+footer .footer-links a:hover { text-decoration:none; border-color:var(--blue); }
+footer p { color:var(--dim); font-size:14px; margin-bottom:8px; }
+footer .copyright { color:var(--dimmer); font-size:13px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   MARQUEE
+   ═══════════════════════════════════════════════════════════════ */
+.marquee { overflow:hidden; white-space:nowrap; padding:20px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--bg-1); }
+.marquee-track { display:inline-flex; gap:3rem; animation:marquee 30s linear infinite; }
+.marquee-item { font-size:clamp(1.5rem,4vw,3rem); font-weight:800; color:var(--dimmer); letter-spacing:-0.02em; }
+.marquee-item .accent { color:var(--blue); }
+.marquee-item .accent2 { color:var(--green); }
+@keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width:768px) {
+  nav { padding:12px 16px; }
+  nav .links { display:none; }
+  nav .links a { font-size:13px; }
+  .features-grid { grid-template-columns:1fr; }
+  .hero-shield { width:160px; height:180px; }
+}
+@media (pointer:coarse) {
+  .glow-blob, .particle { display:none; }
+  .float-loop, .float-orbit, .float-breathe { animation:none; }
+}
+
+/* ── Reduced Motion ──────────────────────────────────────────── */
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after {
+    animation-duration:0.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}
 </style>
 </head>
 <body>
 
-<div class="hero">
-  <h1>VibeGuard</h1>
-  <p>Free, zero-dependency security scanner for AI-coded apps. Catches secrets, injection, misconfig — before they ship.</p>
-  <div class="install" onclick="copyInstall()">npx -y vibeguard install</div>
-  <div class="badges">
-    <span class="badge green">100% Free</span>
-    <span class="badge green">Zero Dependencies</span>
-    <span class="badge blue">224 Rules</span>
-    <span class="badge blue">40 MCP Tools</span>
-    <span class="badge">11 AI Clients</span>
-  </div>
-</div>
+<!-- Scroll Progress -->
+<div class="scroll-progress" id="scrollProgress"></div>
 
-<div class="stats">
-  <div class="stats-grid">
-    <div class="stat"><div class="num">224</div><div class="label">Rules</div></div>
-    <div class="stat"><div class="num">40</div><div class="label">MCP Tools</div></div>
-    <div class="stat"><div class="num">22</div><div class="label">CLI Commands</div></div>
-    <div class="stat"><div class="num">11</div><div class="label">AI Clients</div></div>
-    <div class="stat"><div class="num">0</div><div class="label">Dependencies</div></div>
-    <div class="stat"><div class="num">$0</div><div class="label">Cost</div></div>
+<!-- Nav -->
+<nav id="nav">
+  <div class="logo">
+    <div class="shield"></div>
+    <span>VibeGuard</span>
   </div>
-</div>
+  <div class="links">
+    <a href="#features">Features</a>
+    <a href="#demo">Demo</a>
+    <a href="#playground">Playground</a>
+    <a href="#catches">What It Catches</a>
+    <a href="https://github.com/yagyeshVyas/VibeGuard">GitHub</a>
+    <a href="https://github.com/yagyeshVyas/VibeGuard#quick-start"><button class="cta-mini">Get Started</button></a>
+  </div>
+</nav>
 
-<div class="features">
-  <div class="feature">
-    <div class="icon">🔒</div>
-    <h3>Secret Detection</h3>
-    <p>15+ secret types: OpenAI, Stripe, GitHub, Slack, GitLab, Twilio, SendGrid, Mailgun, Telegram, npm, Resend, and more. Plus entropy-based detection for unknown secrets.</p>
-  </div>
-  <div class="feature">
-    <div class="icon">🧠</div>
-    <h3>AI Security</h3>
-    <p>Prompt injection detection, MCP tool analysis, agent guardrails, LLM output sink analysis, and secure_prompt analysis BEFORE code is generated.</p>
-  </div>
-  <div class="feature">
-    <div class="icon">🔍</div>
-    <h3>Code Analysis</h3>
-    <p>SQL injection, XSS, command injection, path traversal, prototype pollution, ReDoS, XXE, CRLF. AST-based taint analysis with acorn (optional).</p>
-  </div>
-  <div class="feature">
-    <div class="icon">🔗</div>
-    <h3>Cross-File Taint</h3>
-    <p>Import/export graph taint tracking. Follows user input across modules to find injection paths that single-file analysis misses.</p>
-  </div>
-  <div class="feature">
-    <div class="icon">📦</div>
-    <h3>Supply Chain</h3>
-    <p>CVE intel via OSV.dev, slopsquat detection (hallucinated packages), typosquat detection, postinstall script analysis, dependency confusion.</p>
-  </div>
-  <div class="feature">
-    <div class="icon">🏥</div>
-    <h3>Compliance</h3>
-    <p>SOC 2, PCI-DSS, HIPAA, GDPR, ISO 27001, EU AI Act. Maps findings to control IDs with one command.</p>
-  </div>
-  <div class="feature">
-    <div class="icon">🤖</div>
-    <h3>MCP Server</h3>
-    <p>40 MCP tools for Claude Code, Cursor, Windsurf, Codex, Antigravity, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider.</p>
-  </div>
-  <div class="feature">
-    <div class="icon">⚡</div>
-    <h3>Real-Time Hook</h3>
-    <p>PostToolUse hook auto-scans files after AI edits. Instant feedback in Claude Code — no manual scan needed.</p>
-  </div>
-  <div class="feature">
-    <div class="icon">🛠️</div>
-    <h3>Auto-Fix + Verify</h3>
-    <p>12 auto-fixable rules with snapshot + rollback. Verify mode shows resolved/remaining/new issues. Full audit trail.</p>
-  </div>
-</div>
+<!-- ═══════════════════════════════════════════════════════════════
+     HERO SCENE
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene hero" id="hero">
+  <div class="scene-inner" style="min-height:100vh; display:flex; align-items:center; justify-content:center;">
 
-<div class="playground">
-  <h2>Try It — Code Security Playground</h2>
-  <div class="editor">
-    <div class="editor-bar">
-      <span style="color:#999;font-size:14px;">Paste code to scan:</span>
-      <button class="btn btn-primary" onclick="scanCode()">Scan Code</button>
+    <!-- Depth 0: Grid -->
+    <div class="layer depth-0" aria-hidden="true">
+      <div class="grid-bg"></div>
     </div>
-    <textarea id="code" placeholder="// Paste your code here...
+
+    <!-- Depth 1: Glow -->
+    <div class="layer depth-1" aria-hidden="true">
+      <div class="glow-blob hero-glow-1"></div>
+      <div class="glow-blob hero-glow-2"></div>
+    </div>
+
+    <!-- Depth 5: Particles -->
+    <div class="layer depth-5" aria-hidden="true">
+      <div class="particle float-loop" style="top:15%; left:20%"></div>
+      <div class="particle float-loop" style="top:70%; left:15%"></div>
+      <div class="particle float-loop" style="top:25%; right:18%"></div>
+      <div class="particle float-loop" style="top:65%; right:12%"></div>
+      <div class="particle float-loop" style="top:45%; left:8%"></div>
+    </div>
+
+    <!-- Depth 4: Content -->
+    <div class="layer depth-4" style="position:relative;">
+      <div class="hero-content">
+        <div class="hero-shield-wrap" style="margin-bottom:40px;">
+          <div class="hero-shield">
+            <div class="scan-line"></div>
+            <div class="checkmark">
+              <svg viewBox="0 0 48 48" fill="none">
+                <path d="M10 26 L20 36 L38 14" stroke="#22c55e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <h1 class="hero-title">Vibe<span class="gradient">Guard</span></h1>
+        <p>Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever.</p>
+        <div class="hero-install" onclick="copyInstall()">
+          <span class="prompt">$</span>
+          <span>npx @yagyeshvyas/vibeguard scan</span>
+          <span class="copy-icon">copy</span>
+        </div>
+        <div class="hero-badges">
+          <span class="hero-badge green">699 Rules</span>
+          <span class="hero-badge blue">76 MCP Tools</span>
+          <span class="hero-badge green">0 Dependencies</span>
+          <span class="hero-badge">100% Offline</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="scroll-indicator">
+      <span>Scroll to explore</span>
+      <span class="arrow">&darr;</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     STATS SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene stats" id="stats">
+  <div class="scene-inner">
+    <div class="layer depth-1" aria-hidden="true">
+      <div class="glow-blob" style="width:500px; height:500px; background:radial-gradient(circle,var(--blue) 0%,transparent 70%); top:0; left:30%;"></div>
+    </div>
+    <div class="layer depth-4" style="position:relative;">
+      <h2 class="section-title" data-animate="fade-up">By the Numbers</h2>
+      <p class="section-sub" data-animate="fade-up">Not vanity metrics. Measured against a 121-file benchmark corpus.</p>
+      <div class="stats-grid">
+        <div class="stat-item" data-animate="scale-in">
+          <div class="stat-num" data-count="699">0</div>
+          <div class="stat-label">Rules</div>
+        </div>
+        <div class="stat-item" data-animate="scale-in">
+          <div class="stat-num" data-count="76">0</div>
+          <div class="stat-label">MCP Tools</div>
+        </div>
+        <div class="stat-item" data-animate="scale-in">
+          <div class="stat-num" data-count="342">0</div>
+          <div class="stat-label">Tests</div>
+        </div>
+        <div class="stat-item" data-animate="scale-in">
+          <div class="stat-num" data-count="86">0</div>
+          <div class="stat-label">% F1 Score</div>
+        </div>
+        <div class="stat-item" data-animate="scale-in">
+          <div class="stat-num" data-count="13">0</div>
+          <div class="stat-label">Defense Layers</div>
+        </div>
+        <div class="stat-item" data-animate="scale-in">
+          <div class="stat-num" data-count="0">0</div>
+          <div class="stat-label">Dependencies</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MARQUEE
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="marquee">
+  <div class="marquee-track">
+    <span class="marquee-item"><span class="accent">Secrets</span> Detection</span>
+    <span class="marquee-item">SQL <span class="accent2">Injection</span></span>
+    <span class="marquee-item"><span class="accent">Prompt</span> Injection</span>
+    <span class="marquee-item">XSS <span class="accent2">Prevention</span></span>
+    <span class="marquee-item"><span class="accent">Command</span> Injection</span>
+    <span class="marquee-item">Path <span class="accent2">Traversal</span></span>
+    <span class="marquee-item"><span class="accent">Supply</span> Chain</span>
+    <span class="marquee-item">Compliance <span class="accent2">Ready</span></span>
+    <!-- Duplicate for seamless loop -->
+    <span class="marquee-item"><span class="accent">Secrets</span> Detection</span>
+    <span class="marquee-item">SQL <span class="accent2">Injection</span></span>
+    <span class="marquee-item"><span class="accent">Prompt</span> Injection</span>
+    <span class="marquee-item">XSS <span class="accent2">Prevention</span></span>
+    <span class="marquee-item"><span class="accent">Command</span> Injection</span>
+    <span class="marquee-item">Path <span class="accent2">Traversal</span></span>
+    <span class="marquee-item"><span class="accent">Supply</span> Chain</span>
+    <span class="marquee-item">Compliance <span class="accent2">Ready</span></span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FEATURES SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene features" id="features">
+  <div class="scene-inner">
+    <div class="layer depth-1" aria-hidden="true">
+      <div class="glow-blob" style="width:400px; height:400px; background:radial-gradient(circle,var(--green) 0%,transparent 70%); top:10%; right:5%;"></div>
+    </div>
+    <div class="layer depth-4" style="position:relative;">
+      <h2 class="section-title" data-animate="fade-up">Everything You Need</h2>
+      <p class="section-sub" data-animate="fade-up">One tool, full-stack security for AI-generated code.</p>
+      <div class="features-grid">
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--red)">
+          <div class="icon" style="background:rgba(239,68,68,0.1)">🔑</div>
+          <h3>Secret Detection</h3>
+          <p>50+ secret types: OpenAI, Stripe, GitHub, AWS, Slack, Firebase, Supabase, and more. Plus entropy-based detection for unknown secrets.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--purple)">
+          <div class="icon" style="background:rgba(139,92,246,0.1)">🧠</div>
+          <h3>AI Security</h3>
+          <p>Prompt injection detection, MCP tool analysis, agent guardrails, LLM output sink analysis, and secure_prompt scoring before code is generated.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--orange)">
+          <div class="icon" style="background:rgba(249,115,22,0.1)">🔍</div>
+          <h3>Code Analysis</h3>
+          <p>SQL injection, XSS, command injection, path traversal, prototype pollution, ReDoS, XXE. AST-based taint analysis with acorn (optional).</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--blue)">
+          <div class="icon" style="background:rgba(59,130,246,0.1)">🔗</div>
+          <h3>Cross-File Taint</h3>
+          <p>Import/export graph taint tracking. Follows user input across modules to find injection paths that single-file analysis misses entirely.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--teal)">
+          <div class="icon" style="background:rgba(6,182,212,0.1)">📦</div>
+          <h3>Supply Chain</h3>
+          <p>CVE intel via OSV.dev, slopsquat detection (hallucinated packages), typosquat detection, postinstall script analysis, dependency confusion.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--green)">
+          <div class="icon" style="background:rgba(34,197,94,0.1)">🏥</div>
+          <h3>Compliance</h3>
+          <p>SOC 2, PCI-DSS, HIPAA, GDPR, ISO 27001, EU AI Act. Maps findings to control IDs with one command.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--blue)">
+          <div class="icon" style="background:rgba(59,130,246,0.1)">🤖</div>
+          <h3>MCP Server</h3>
+          <p>76 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, and more.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--yellow)">
+          <div class="icon" style="background:rgba(234,179,8,0.1)">⚡</div>
+          <h3>Real-Time Hooks</h3>
+          <p>PostToolUse hook auto-scans files after AI edits. Instant feedback in Claude Code or Cursor — no manual scan needed.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--green)">
+          <div class="icon" style="background:rgba(34,197,94,0.1)">🛡️</div>
+          <h3>Shell Guard</h3>
+          <p>Blocks dangerous commands before execution: rm -rf, sudo, curl|sh, cloud metadata access, secret exfiltration, and 50+ evasion patterns.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     DEMO SECTION — Terminal
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene demo" id="demo">
+  <div class="scene-inner">
+    <div class="layer depth-1" aria-hidden="true">
+      <div class="glow-blob" style="width:600px; height:400px; background:radial-gradient(circle,var(--blue) 0%,transparent 70%); top:20%; left:10%;"></div>
+    </div>
+    <div class="layer depth-4" style="position:relative;">
+      <h2 class="section-title" data-animate="fade-up">See It In Action</h2>
+      <p class="section-sub" data-animate="fade-up">Real output from scanning a test project with a planted Stripe key.</p>
+      <div class="terminal" data-animate="scale-in">
+        <div class="terminal-bar">
+          <div class="terminal-dot r"></div>
+          <div class="terminal-dot y"></div>
+          <div class="terminal-dot g"></div>
+          <div class="terminal-title">vibeguard — bash</div>
+        </div>
+        <div class="terminal-body" id="terminalBody">
+          <!-- Animated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PLAYGROUND SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene playground" id="playground">
+  <div class="scene-inner">
+    <div class="layer depth-4" style="position:relative;">
+      <h2 class="section-title" data-animate="fade-up">Try It Now</h2>
+      <p class="section-sub" data-animate="fade-up">Paste code below and scan it right in your browser. No install needed.</p>
+      <div class="pg-editor" data-animate="scale-in">
+        <div class="pg-bar">
+          <span>Paste code to scan:</span>
+          <button class="pg-btn" onclick="scanCode()">Scan Code</button>
+        </div>
+        <textarea class="pg-textarea" id="codeArea" placeholder="// Paste your code here...
 const apiKey = 'sk-proj-abc123def456ghi789';
+const stripeKey = 'sk_live_51H8xkLMNOPqrstuv';
 eval(userInput);
-const query = 'SELECT * FROM users WHERE id = ' + req.body.id;"></textarea>
-    <div id="results" class="results" style="display:none;"></div>
+db.query('SELECT * FROM users WHERE id = ' + req.body.id);
+document.innerHTML = req.body.html;"></textarea>
+        <div id="pgResults" class="pg-results" style="display:none;"></div>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
-<div class="clients">
-  <h2>One Command — All AI Clients</h2>
-  <p style="color:#999;">vibeguard install auto-detects and wires MCP into every client you have:</p>
-  <div class="client-grid">
-    <div class="client">Claude Code</div>
-    <div class="client">Cursor</div>
-    <div class="client">Windsurf</div>
-    <div class="client">Codex CLI</div>
-    <div class="client">Antigravity</div>
-    <div class="client">Gemini CLI</div>
-    <div class="client">Continue</div>
-    <div class="client">Cline</div>
-    <div class="client">Roo Code</div>
-    <div class="client">OpenHands</div>
-    <div class="client">Aider</div>
+<!-- ═══════════════════════════════════════════════════════════════
+     WHAT IT CATCHES
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene catches" id="catches">
+  <div class="scene-inner">
+    <div class="layer depth-4" style="position:relative;">
+      <h2 class="section-title" data-animate="fade-up">What It Catches</h2>
+      <p class="section-sub" data-animate="fade-up">The holes that AI coding tools leave behind by default.</p>
+
+      <div class="catch-item" data-animate="fade-up">
+        <span class="catch-label critical">Critical</span>
+        <h3>Leaked Stripe key in client code</h3>
+        <div class="code-block"><span class="key">const</span> key = <span class="str">"sk_live_51H8x..."</span>; <span class="dim">// anyone with devtools can issue refunds</span></div>
+        <p>VibeGuard flags 50+ secret types — OpenAI, AWS, GitHub, Stripe, Slack, Firebase — and tells you to move them to <code>process.env</code>.</p>
+      </div>
+
+      <div class="catch-item" data-animate="fade-up">
+        <span class="catch-label high">High</span>
+        <h3>SQL injection via template literal</h3>
+        <div class="code-block">db.<span class="fn">query</span>(`SELECT * FROM users WHERE id = ${req.body.id}`);</div>
+        <p>AST taint analysis traces <code>req.body.id</code> through template literals to <code>query()</code> — confirmed dataflow, not a regex guess.</p>
+      </div>
+
+      <div class="catch-item" data-animate="fade-up">
+        <span class="catch-label ai">AI Safety</span>
+        <h3>Prompt injection in system prompt</h3>
+        <div class="code-block">{ role: <span class="str">"system"</span>, content: <span class="str">"You are "</span> + req.body.prompt }</div>
+        <p>Catches user input injected into the system role — the root cause of most prompt injection attacks against AI agents.</p>
+      </div>
+
+      <div class="catch-item" data-animate="fade-up">
+        <span class="catch-label high">High</span>
+        <h3>Shell command from LLM output</h3>
+        <div class="code-block"><span class="fn">exec</span>(completion.choices[0].message.content); <span class="dim">// RCE via prompt injection</span></div>
+        <p>The only scanner that detects LLM output reaching <code>exec</code>, <code>eval</code>, SQL queries, and DOM sinks.</p>
+      </div>
+
+      <div class="catch-item" data-animate="fade-up">
+        <span class="catch-label critical">Critical</span>
+        <h3>AI agent loop without iteration cap</h3>
+        <div class="code-block"><span class="key">while</span> (<span class="key">true</span>) { <span class="key">await</span> agent.<span class="fn">step</span>(); }</div>
+        <p>Detects uncapped agent loops — infinite API spend, resource exhaustion, runaway token costs.</p>
+      </div>
+    </div>
   </div>
-</div>
+</section>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     AI CLIENTS
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene clients" id="clients">
+  <div class="scene-inner">
+    <div class="layer depth-4" style="position:relative;">
+      <h2 class="section-title" data-animate="fade-up">One Command — All AI Clients</h2>
+      <p class="section-sub" data-animate="fade-up"><code>vibeguard install</code> auto-detects and wires MCP into every client you have.</p>
+      <div class="client-grid">
+        <div class="client-card" data-animate="scale-in">Claude Code</div>
+        <div class="client-card" data-animate="scale-in">Cursor</div>
+        <div class="client-card" data-animate="scale-in">Windsurf</div>
+        <div class="client-card" data-animate="scale-in">Codex CLI</div>
+        <div class="client-card" data-animate="scale-in">Gemini CLI</div>
+        <div class="client-card" data-animate="scale-in">Continue</div>
+        <div class="client-card" data-animate="scale-in">Cline</div>
+        <div class="client-card" data-animate="scale-in">Roo Code</div>
+        <div class="client-card" data-animate="scale-in">OpenHands</div>
+        <div class="client-card" data-animate="scale-in">Aider</div>
+        <div class="client-card" data-animate="scale-in">Antigravity</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CTA SECTION
+     ═══════════════════════════════════════════════════════════════ -->
+<section class="scene cta-section" id="cta">
+  <div class="scene-inner" style="position:relative;">
+    <div class="glow"></div>
+    <div class="layer depth-4" style="position:relative;">
+      <h2 data-animate="fade-up">Ship Safe AI Code</h2>
+      <p data-animate="fade-up">Zero dependencies. Zero telemetry. Zero excuses.</p>
+      <a href="https://github.com/yagyeshVyas/VibeGuard#quick-start" class="cta-btn-big" data-animate="scale-in" onclick="copyInstall();return false;">npx @yagyeshvyas/vibeguard scan</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     FOOTER
+     ═══════════════════════════════════════════════════════════════ -->
 <footer>
+  <div class="footer-links">
+    <a href="https://github.com/yagyeshVyas/VibeGuard">GitHub</a>
+    <a href="https://github.com/yagyeshVyas">Yagyesh Vyas</a>
+    <a href="https://www.linkedin.com/in/yagyeshvyas">LinkedIn</a>
+    <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard">npm</a>
+    <a href="https://github.com/yagyeshVyas/VibeGuard/issues">Report Bug</a>
+  </div>
   <p>VibeGuard — Free, open-source, zero dependencies.</p>
-  <p style="margin-top:8px;"><a href="https://github.com/vibeguard/vibeguard">GitHub</a> · <a href="#" onclick="copyInstall();return false;">npx -y vibeguard install</a></p>
+  <p class="copyright">&copy; 2026 Yagyesh Vyas. MIT License.</p>
 </footer>
 
-<div class="copy-toast" id="toast">Copied to clipboard!</div>
+<!-- ═══════════════════════════════════════════════════════════════
+     GSAP + ScrollTrigger
+     ═══════════════════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
 
 <script>
+gsap.registerPlugin(ScrollTrigger);
+
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+/* ── Scroll Progress ─────────────────────────────────────────── */
+window.addEventListener('scroll', () => {
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  document.getElementById('scrollProgress').style.width = (window.scrollY / h * 100) + '%';
+}, { passive: true });
+
+/* ── Nav shrink on scroll ────────────────────────────────────── */
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
+}, { passive: true });
+
+/* ── Copy install command ────────────────────────────────────── */
 function copyInstall() {
-  navigator.clipboard.writeText('npx -y vibeguard install');
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  navigator.clipboard.writeText('npx @yagyeshvyas/vibeguard scan').catch(() => {});
+}
+window.copyInstall = copyInstall;
+
+/* ── IntersectionObserver: Reveal animations ─────────────────── */
+if (!prefersReduced) {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const anim = el.dataset.animate;
+        if (anim && !el.dataset.animated) {
+          el.dataset.animated = '1';
+          if (anim === 'fade-up') gsap.from(el, { y: 60, opacity: 0, duration: 0.8, ease: 'power3.out' });
+          else if (anim === 'scale-in') gsap.from(el, { scale: 0.85, opacity: 0, duration: 0.7, ease: 'back.out(1.7)' });
+          else if (anim === 'fade-in') gsap.from(el, { opacity: 0, duration: 1.0, ease: 'power2.out' });
+        }
+        observer.unobserve(el);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('[data-animate]').forEach(el => observer.observe(el));
 }
 
-// Client-side mini-scanner for the playground (subset of rules)
+/* ── Parallax depth layers ───────────────────────────────────── */
+if (!prefersReduced) {
+  document.querySelectorAll('[data-depth]').forEach(layer => {
+    const depth = parseInt(layer.dataset.depth) || 0;
+    const factors = { 0:0.10, 1:0.25, 2:0.50, 3:0.80, 4:1.00, 5:1.20 };
+    const factor = factors[depth] || 0;
+    if (factor > 0 && factor !== 1) {
+      gsap.to(layer, {
+        yPercent: -10 * factor,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: layer.closest('.scene'),
+          start: 'top bottom',
+          end: 'bottom top',
+          scrub: true,
+        }
+      });
+    }
+  });
+}
+
+/* ── Count-up animation for stats ────────────────────────────── */
+function animateCount(el) {
+  const target = parseInt(el.dataset.count);
+  if (target === 0) { el.textContent = '0'; return; }
+  const obj = { val: 0 };
+  gsap.to(obj, {
+    val: target,
+    duration: 2,
+    ease: 'power2.out',
+    onUpdate: () => { el.textContent = Math.round(obj.val).toLocaleString(); }
+  });
+}
+
+if (!prefersReduced) {
+  const countObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        animateCount(entry.target);
+        countObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('[data-count]').forEach(el => countObserver.observe(el));
+} else {
+  document.querySelectorAll('[data-count]').forEach(el => { el.textContent = el.dataset.count; });
+}
+
+/* ── Terminal animation ──────────────────────────────────────── */
+const terminalLines = [
+  { text: '<span class="prompt">$</span> <span class="cmd">npx @yagyeshvyas/vibeguard scan</span>', delay: 0 },
+  { text: '<span class="out"></span>', delay: 400 },
+  { text: '<span class="out">VibeGuard security scan</span>', delay: 200 },
+  { text: '<span class="out">./test-project</span>', delay: 100 },
+  { text: '<span class="out"></span>', delay: 200 },
+  { text: '<span class="critical">CRITICAL</span> <span class="out"> .env:2:15</span> <span class="rule">[stripe.key-in-client]</span>', delay: 300 },
+  { text: '<span class="out">  Stripe secret key in client-accessible code</span>', delay: 100 },
+  { text: '<span class="out">  STRIPE_SECRET=</span><span class="critical">sk_l****90</span>', delay: 80 },
+  { text: '<span class="out">  </span><span class="fix">fix: Keep sk_live_ on the server; use pk_ on the client.</span>', delay: 80 },
+  { text: '<span class="out"></span>', delay: 150 },
+  { text: '<span class="critical">CRITICAL</span> <span class="out"> server.js:8:20</span> <span class="rule">[stripe.key-in-client]</span>', delay: 300 },
+  { text: '<span class="out">  Stripe secret key in client-accessible code</span>', delay: 100 },
+  { text: '<span class="out">  const stripeKey = </span><span class="critical">"sk_l****90"</span><span class="out">;</span>', delay: 80 },
+  { text: '<span class="out">  </span><span class="fix">fix: Keep sk_live_ on the server; use pk_ on the client.</span>', delay: 80 },
+  { text: '<span class="out"></span>', delay: 150 },
+  { text: '<span class="critical">CRITICAL</span> <span class="out"> server.js:18:10</span> <span class="rule">[ast.eval-dynamic]</span>', delay: 300 },
+  { text: '<span class="out">  eval() with dynamic argument — arbitrary code execution</span>', delay: 100 },
+  { text: '<span class="out">  </span><span class="fix">fix: Remove eval(). Use JSON.parse or a dispatch table.</span>', delay: 80 },
+  { text: '<span class="out"></span>', delay: 150 },
+  { text: '<span class="high">HIGH</span> <span class="out">     server.js:23:10</span> <span class="rule">[ast.command-injection]</span>', delay: 300 },
+  { text: '<span class="out">  execSync() runs a dynamically built command — command injection</span>', delay: 100 },
+  { text: '<span class="out">  </span><span class="fix">fix: Use execFile with an argument array; validate inputs.</span>', delay: 80 },
+  { text: '<span class="out"></span>', delay: 150 },
+  { text: '<span class="high">HIGH</span> <span class="out">     server.js:28:20</span> <span class="rule">[code.sql-injection]</span>', delay: 300 },
+  { text: '<span class="out">  SQL query built by string concatenation — SQL injection</span>', delay: 100 },
+  { text: '<span class="out">  </span><span class="fix">fix: Use parameterized queries / prepared statements.</span>', delay: 80 },
+  { text: '<span class="out"></span>', delay: 200 },
+  { text: '<span class="grade">Grade F</span> <span class="out">  (3 files)  4 critical  2 high  0 medium  1 low</span>', delay: 300 },
+  { text: '<span class="out"></span>', delay: 200 },
+  { text: '<span class="out">Run </span><span class="fix">vibeguard fix</span><span class="out"> to auto-fix 7 issues</span>', delay: 200 },
+];
+
+let terminalAnimated = false;
+
+function animateTerminal() {
+  if (terminalAnimated || prefersReduced) {
+    if (prefersReduced) {
+      const body = document.getElementById('terminalBody');
+      terminalLines.forEach(l => {
+        const div = document.createElement('div');
+        div.className = 'terminal-line';
+        div.innerHTML = l.text;
+        body.appendChild(div);
+      });
+    }
+    return;
+  }
+  terminalAnimated = true;
+  const body = document.getElementById('terminalBody');
+  let i = 0;
+
+  function next() {
+    if (i >= terminalLines.length) return;
+    const line = terminalLines[i];
+    const div = document.createElement('div');
+    div.className = 'terminal-line';
+    div.innerHTML = line.text;
+    if (i === 0) {
+      div.innerHTML += '<span class="terminal-cursor"></span>';
+    }
+    body.appendChild(div);
+    if (i === 0) {
+      const cursor = div.querySelector('.terminal-cursor');
+      setTimeout(() => { if (cursor) cursor.remove(); }, 600);
+    }
+    body.scrollTop = body.scrollHeight;
+    i++;
+    setTimeout(next, line.delay);
+  }
+  next();
+}
+
+const terminalObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      animateTerminal();
+      terminalObserver.unobserve(entry.target);
+    }
+  });
+}, { threshold: 0.3 });
+terminalObserver.observe(document.querySelector('.terminal'));
+
+/* ── Code Playground Scanner ─────────────────────────────────── */
 const RULES = [
-  { id: 'secret.openai-key', re: /sk-proj-[A-Za-z0-9_-]{20,}/, sev: 'critical', msg: 'OpenAI API key exposed', fix: 'Move to process.env.OPENAI_API_KEY' },
-  { id: 'secret.openai-key-old', re: /sk-[A-Za-z0-9]{48}/, sev: 'critical', msg: 'OpenAI API key (legacy format)', fix: 'Move to process.env.OPENAI_API_KEY' },
-  { id: 'secret.stripe-key', re: /sk_live_[A-Za-z0-9]{16,}/, sev: 'critical', msg: 'Stripe secret key exposed', fix: 'Move to process.env.STRIPE_SECRET_KEY' },
-  { id: 'secret.github-token', re: /gh[pousr]_[A-Za-z0-9]{36}/, sev: 'critical', msg: 'GitHub token exposed', fix: 'Move to process.env.GITHUB_TOKEN' },
-  { id: 'secret.anthropic-key', re: /sk-ant-[A-Za-z0-9_-]{50,}/, sev: 'critical', msg: 'Anthropic API key exposed', fix: 'Move to process.env.ANTHROPIC_API_KEY' },
-  { id: 'injection.eval', re: /\beval\s*\(/, sev: 'high', msg: 'eval() — code injection risk', fix: 'Avoid eval(). Use JSON.parse() or a safe parser.' },
-  { id: 'injection.sql-concat', re: /(?:SELECT|INSERT|UPDATE|DELETE)\s+.*?\+\s*(?:req\.|user|input|request)/i, sev: 'high', msg: 'SQL string concatenation — SQL injection', fix: 'Use parameterized queries: db.query("SELECT ... WHERE id = ?", [id])' },
-  { id: 'injection.command', re: /(?:exec|spawn|execSync)\s*\(\s*[^)]*(?:req\.|user|input)/i, sev: 'critical', msg: 'Command injection — user input passed to exec()', fix: 'Use execFile() with validated arguments, never exec() with user input.' },
-  { id: 'xss.innerHTML', re: /innerHTML\s*=\s*[^;]*(?:req\.|user|input|request)/i, sev: 'high', msg: 'innerHTML with user data — XSS', fix: 'Use textContent or sanitize with DOMPurify.' },
-  { id: 'crypto.tls-reject', re: /rejectUnauthorized\s*:\s*false/, sev: 'high', msg: 'TLS verification disabled — MITM risk', fix: 'Remove rejectUnauthorized: false. Verify certificates.' },
-  { id: 'auth.hardcoded-token', re: /(?:password|secret|token|apikey|api_key)\s*[:=]\s*['"][^'"]{8,}['"]/i, sev: 'high', msg: 'Hardcoded secret', fix: 'Use environment variables: process.env.SECRET' },
-  { id: 'config.cors-wildcard', re: /origin\s*:\s*['"]\*['"]/, sev: 'medium', msg: 'CORS wildcard origin', fix: 'Set origin to an allowlist of your domains.' },
-  { id: 'error.detail-to-client', re: /res\.(?:json|send)\s*\(\s*\{[^}]*(?:error|err|stack|trace)/i, sev: 'medium', msg: 'Error details sent to client', fix: 'Send a generic error; log full details server-side.' },
-  { id: 'web.missing-hsts', re: /Strict-Transport-Security/, sev: 'medium', msg: 'HSTS header check', fix: 'Add Strict-Transport-Security header' },
+  { id:'secret.openai-key', re:/sk-proj-[A-Za-z0-9_-]{20,}/, sev:'critical', msg:'OpenAI API key exposed', fix:'Move to process.env.OPENAI_API_KEY' },
+  { id:'secret.stripe-key', re:/sk_live_[A-Za-z0-9]{16,}/, sev:'critical', msg:'Stripe live secret key exposed', fix:'Move to process.env.STRIPE_SECRET_KEY' },
+  { id:'secret.github-token', re:/gh[pousr]_[A-Za-z0-9]{36}/, sev:'critical', msg:'GitHub token exposed', fix:'Move to process.env.GITHUB_TOKEN' },
+  { id:'secret.anthropic-key', re:/sk-ant-[A-Za-z0-9_-]{50,}/, sev:'critical', msg:'Anthropic API key exposed', fix:'Move to process.env.ANTHROPIC_API_KEY' },
+  { id:'secret.aws-key', re:/AKIA[0-9A-Z]{16}/, sev:'critical', msg:'AWS access key exposed', fix:'Move to environment variable or IAM role' },
+  { id:'injection.eval', re:/\beval\s*\(/, sev:'high', msg:'eval() — code injection risk', fix:'Avoid eval(). Use JSON.parse() or a safe dispatch table.' },
+  { id:'injection.sql-concat', re:/(?:SELECT|INSERT|UPDATE|DELETE)\s+.*?\+\s*(?:req\.|user|input|request)/i, sev:'high', msg:'SQL string concatenation — SQL injection', fix:'Use parameterized queries: db.query("SELECT ... WHERE id = ?", [id])' },
+  { id:'injection.command', re:/(?:exec|spawn|execSync)\s*\(\s*[^)]*(?:req\.|user|input)/i, sev:'critical', msg:'Command injection — user input to exec()', fix:'Use execFile() with validated arguments, never exec() with user input.' },
+  { id:'xss.innerHTML', re:/innerHTML\s*=\s*[^;]*(?:req\.|user|input|request)/i, sev:'high', msg:'innerHTML with user data — XSS', fix:'Use textContent or sanitize with DOMPurify.' },
+  { id:'crypto.tls-reject', re:/rejectUnauthorized\s*:\s*false/, sev:'high', msg:'TLS verification disabled — MITM risk', fix:'Remove rejectUnauthorized: false. Verify certificates.' },
+  { id:'auth.hardcoded', re:/(?:password|secret|token|apikey|api_key)\s*[:=]\s*['"][^'"]{8,}['"]/i, sev:'high', msg:'Hardcoded secret', fix:'Use environment variables: process.env.SECRET' },
+  { id:'config.cors-wildcard', re:/origin\s*:\s*['"]\*['"]/, sev:'medium', msg:'CORS wildcard origin', fix:'Set origin to an allowlist of your domains.' },
+  { id:'ai.system-prompt', re:/role\s*:\s*['"]system['"].*?\+\s*(?:req\.|user|input|request)/i, sev:'critical', msg:'Prompt injection — user input in system prompt', fix:'Never concatenate user input into the system role.' },
+  { id:'ai.agent-loop', re:/while\s*\(\s*true\s*\)/i, sev:'high', msg:'Uncapped agent loop — infinite API spend', fix:'Add a max iteration counter and break condition.' },
 ];
 
 function scanCode() {
-  const code = document.getElementById('code').value;
-  const results = document.getElementById('results');
+  const code = document.getElementById('codeArea').value;
+  const results = document.getElementById('pgResults');
   const lines = code.split('\n');
   const findings = [];
 
@@ -214,9 +1050,9 @@ function scanCode() {
     results.innerHTML = '<div style="color:#22c55e;text-align:center;padding:20px;">No issues found — clean code!</div>';
   } else {
     results.innerHTML = findings.map(f =>
-      `<div class="result-item ${f.sev}">
-        <span class="sev" style="color:${f.sev === 'critical' ? '#ef4444' : f.sev === 'high' ? '#f97316' : f.sev === 'medium' ? '#eab308' : '#3b82f6'}">${f.sev}</span>
-        <span class="rule"> ${f.id} · line ${f.line}</span>
+      `<div class="pg-result ${f.sev}">
+        <span class="sev" style="color:${f.sev==='critical'?'#ef4444':f.sev==='high'?'#f97316':f.sev==='medium'?'#eab308':'#3b82f6'}">${f.sev}</span>
+        <span class="rule"> ${f.id} &middot; line ${f.line}</span>
         <div class="msg">${f.msg}</div>
         <div class="fix">fix: ${f.fix}</div>
       </div>`
@@ -224,7 +1060,19 @@ function scanCode() {
   }
   results.style.display = 'block';
 }
-</script>
+window.scanCode = scanCode;
 
+/* ── Smooth scroll for nav links ─────────────────────────────── */
+document.querySelectorAll('nav a[href^="#"]').forEach(a => {
+  a.addEventListener('click', (e) => {
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) {
+      e.preventDefault();
+      target.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth' });
+    }
+  });
+});
+
+</script>
 </body>
 </html>
