@@ -1,0 +1,14 @@
+# VibeGuard Bitbucket Pipelines template
+# Add this to bitbucket-pipelines.yml in your repo root
+
+image: node:22
+
+pipelines:
+  default:
+    - step:
+        name: VibeGuard Security Scan
+        script:
+          - npm ci
+          - npx -y @yagyeshvyas/vibeguard scan . --fail-on high
+        artifacts:
+          - vibeguard-report.sarif

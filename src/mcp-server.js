@@ -227,7 +227,7 @@ const TOOLS = [
   },
   {
     name: 'deep_scan',
-    description: 'LLM-powered deep review: combines scan + hotspot analysis + auth coverage + behavior trace for comprehensive audit.',
+    description: 'Agentic deep review: combines scan + hotspot analysis + auth coverage + behavior trace. Emits structured review contracts for your AI client to act on.',
     inputSchema: DIR_SCHEMA,
   },
   {
@@ -398,6 +398,32 @@ const TOOLS = [
   {
     name: 'generate_csp',
     description: 'Auto-generate a Content-Security-Policy header from code analysis. Scans HTML/JS files for external script/style/image sources and builds a CSP with only the domains your code actually uses. Returns CSP header value and Helmet config.',
+    inputSchema: DIR_SCHEMA,
+  },
+  {
+    name: 'generate_sbom',
+    description: 'Generate a CycloneDX 1.5 Software Bill of Materials (SBOM) from package-lock.json + source import graph. Lists all dependencies with versions, licenses, hashes, and which are actually imported in the code. 100% local.',
+    inputSchema: DIR_SCHEMA,
+  },
+  {
+    name: 'dep_reachability',
+    description: 'Cross-reference CVE results against the actual import graph — determines whether a vulnerable dependency is actually reachable in the code, not just listed in node_modules. Filters noise from transitive-only vulns.',
+    inputSchema: DIR_SCHEMA,
+  },
+  {
+    name: 'scan_container_image',
+    description: 'Scan a container image for vulnerabilities using trivy (if installed). Returns parsed findings (CVEs, secrets, misconfig). Gracefully reports if trivy is not available.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        image: { type: 'string', description: 'Container image name (e.g., myapp:latest).' },
+      },
+      required: ['image'],
+    },
+  },
+  {
+    name: 'license_compliance',
+    description: 'Check package.json licenses against an allowlist. Flags GPL/AGPL/unlicensed/unknown packages that may violate your license policy. Returns compliant + non-compliant lists.',
     inputSchema: DIR_SCHEMA,
   },
   {
@@ -1028,12 +1054,29 @@ async function handleDeepScan(args) {
   const auth = buildAuthCoverage(dir, files);
   const { trace } = require('./trace');
   const tr = trace(dir, result.findings);
+
+  // Build structured review contracts for the consuming AI agent.
+  // VibeGuard itself never calls an LLM — these contracts are payloads
+  // the user's AI client (Claude/Cursor/etc.) reviews and acts on.
+  const hotspotFiles = [...new Set(result.findings.filter(f => /auth|payment|admin|upload|webhook/i.test(f.file)).map(f => f.file))].slice(0, 20);
+  const reviewContracts = result.findings.slice(0, 50).map(f => ({
+    findingId: f.ruleId + ':' + f.file + ':' + f.line,
+    file: f.file,
+    line: f.line,
+    ruleId: f.ruleId,
+    severity: f.severity,
+    message: f.message,
+    suggestedFix: f.fix,
+    reviewPrompt: `Review ${f.file}:${f.line} — ${f.ruleId} (${f.severity}): ${f.message}. Confirm whether this is a true positive and propose a fix. Constraint: the fix must not introduce new findings.`,
+  }));
+
   return textResult(JSON.stringify({
     scan: summarize(result),
-    findings: result.findings.slice(0, 50).map(f => ({ file: f.file, line: f.line, ruleId: f.ruleId, severity: f.severity, message: f.message, fix: f.fix })),
+    reviewContracts,
     authCoverage: auth,
     behaviorTrace: tr.behavior,
-    hotspots: [...new Set(result.findings.filter(f => /auth|payment|admin|upload|webhook/i.test(f.file)).map(f => f.file))].slice(0, 20),
+    hotspotFiles,
+    note: 'These review contracts are designed for your AI client to process. VibeGuard does not call an LLM itself.',
   }, null, 2));
 }
 
@@ -1484,6 +1527,111 @@ async function handleCSP(args) {
   return textResult(JSON.stringify(result, null, 2));
 }
 
+async function handleSBOM(args) {
+  const dir = args.dir || process.cwd();
+  const { generateSBOM } = require('./sbom');
+  const bom = generateSBOM(dir);
+  return textResult(JSON.stringify(bom, null, 2));
+}
+
+async function handleDepReachability(args) {
+  const dir = args.dir || process.cwd();
+  const { generateSBOM, buildImportGraph } = require('./sbom');
+  const { scanCVEs } = require('./cve-intel');
+  const importGraph = buildImportGraph(dir);
+  let cveFindings = [];
+  try {
+    const cveRes = await scanCVEs(dir);
+    cveFindings = cveRes.findings || [];
+  } catch {
+    return textResult(JSON.stringify({ error: 'CVE scan failed or cve-intel unavailable' }, null, 2));
+  }
+  const reachable = [];
+  const unreachable = [];
+  for (const f of cveFindings) {
+    const pkgMatch = f.message && f.message.match(/([@a-z0-9/-]+)\s/);
+    const pkgName = pkgMatch ? pkgMatch[1] : '';
+    if (pkgName && importGraph[pkgName]) {
+      reachable.push({ ...f, reachable: true, importedBy: importGraph[pkgName] });
+    } else {
+      unreachable.push({ ...f, reachable: false });
+    }
+  }
+  return textResult(JSON.stringify({
+    summary: { total: cveFindings.length, reachable: reachable.length, unreachable: unreachable.length },
+    reachable,
+    unreachable,
+  }, null, 2));
+}
+
+async function handleContainerScan(args) {
+  const image = args.image;
+  if (!image) return textResult('scan_container_image requires an "image" argument.', true);
+  const { execFileSync } = require('child_process');
+  try {
+    const output = execFileSync('trivy', ['image', '--format', 'json', '--quiet', image], {
+      timeout: 120000,
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    const result = JSON.parse(output);
+    const vulns = (result.Results || []).flatMap(r => (r.Vulnerabilities || []).map(v => ({
+      cve: v.VulnerabilityID,
+      package: v.PkgName,
+      severity: v.Severity,
+      installed: v.InstalledVersion,
+      fixed: v.FixedVersion,
+      title: v.Title,
+    })));
+    return textResult(JSON.stringify({
+      image,
+      summary: { vulnerabilities: vulns.length, critical: vulns.filter(v => v.severity === 'CRITICAL').length, high: vulns.filter(v => v.severity === 'HIGH').length },
+      vulnerabilities: vulns,
+    }, null, 2));
+  } catch (err) {
+    if (err.code === 'ENOENT' || (err.message && err.message.includes('not found'))) {
+      return textResult(JSON.stringify({ error: 'trivy is not installed or not on PATH. Install from https://trivy.dev', image }, null, 2), true);
+    }
+    if (err.killed) {
+      return textResult(JSON.stringify({ error: 'trivy scan timed out (120s)', image }, null, 2), true);
+    }
+    return textResult(JSON.stringify({ error: 'trivy scan failed: ' + err.message, image }, null, 2), true);
+  }
+}
+
+async function handleLicenseCompliance(args) {
+  const dir = args.dir || process.cwd();
+  const fs = require('fs');
+  const path = require('path');
+  const pkgJson = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) };
+  const ALLOWED = ['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'Unlicensed', 'CC0-1.0', 'Python-2.0'];
+  const compliant = [];
+  const nonCompliant = [];
+  for (const [name, version] of Object.entries(allDeps)) {
+    let depPkg = null;
+    try {
+      depPkg = JSON.parse(fs.readFileSync(path.join(dir, 'node_modules', name, 'package.json'), 'utf8'));
+    } catch {
+      nonCompliant.push({ name, version, license: 'unknown', reason: 'package.json not found' });
+      continue;
+    }
+    const lic = depPkg.license || 'unknown';
+    const licStr = typeof lic === 'string' ? lic : (lic && lic.type) || 'unknown';
+    if (ALLOWED.includes(licStr)) {
+      compliant.push({ name, version, license: licStr });
+    } else {
+      nonCompliant.push({ name, version, license: licStr, reason: 'license not in allowlist' });
+    }
+  }
+  return textResult(JSON.stringify({
+    summary: { total: Object.keys(allDeps).length, compliant: compliant.length, nonCompliant: nonCompliant.length },
+    allowlist: ALLOWED,
+    compliant,
+    nonCompliant,
+  }, null, 2));
+}
+
 async function handleAIFirewall(args) {
   const prompt = args.prompt;
   if (!prompt) return textResult('ai_firewall requires a "prompt" argument.', true);
@@ -1824,6 +1972,10 @@ async function main() {
       else if (name === 'guard_action') result = await handleGuardAction(args);
       else if (name === 'generate_privacy_policy') result = await handlePrivacyPolicy(args);
       else if (name === 'generate_csp') result = await handleCSP(args);
+      else if (name === 'generate_sbom') result = await handleSBOM(args);
+      else if (name === 'dep_reachability') result = await handleDepReachability(args);
+      else if (name === 'scan_container_image') result = await handleContainerScan(args);
+      else if (name === 'license_compliance') result = await handleLicenseCompliance(args);
       else if (name === 'ai_firewall') result = await handleAIFirewall(args);
       else if (name === 'agent_guard') result = await handleAgentGuard(args);
       else if (name === 'exfil_check') result = await handleExfilCheck(args);

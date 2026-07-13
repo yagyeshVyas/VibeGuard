@@ -15,6 +15,19 @@
  *
  * Even if AI generates malicious code, it runs in a cage.
  * 100% local. Zero network. Zero dependencies.
+ *
+ * HONEST LIMITS:
+ * - This sandbox uses Node's `vm` module. Per Node.js docs, `vm` is NOT
+ *   a security boundary. A determined attacker can escape via prototype
+ *   chain traversal (e.g., `({}).constructor.constructor('return process')()`).
+ * - The memory cap (maxMemory) is currently NOT enforced — it is computed
+ *   and returned but `runInSandbox` does not check heap usage. A memory
+ *   bomb will run until the timeout, not until the memory cap.
+ * - For hard isolation, install `isolated-vm` (optional dependency, planned).
+ *   When present, VibeGuard will use it for true V8-isolate sandboxing with
+ *   enforced memory limits and no shared heap.
+ * - Treat this sandbox as a "raised floor" not a "steel vault". It stops
+ *   accidental damage and naive exploits, not a determined adversary.
  */
 
 const vm = require('vm');
@@ -87,9 +100,9 @@ function createSandbox(opts = {}) {
 }
 
 function runInSandbox(code, opts = {}) {
-  const { context, timeout } = createSandbox(opts);
+  const { context, timeout, maxMemory } = createSandbox(opts);
   const startTime = Date.now();
-  const result = { success: false, output: null, error: null, audit: [], duration: 0 };
+  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory, memoryEnforced: false };
 
   try {
     const vmContext = vm.createContext(context);
@@ -105,6 +118,7 @@ function runInSandbox(code, opts = {}) {
 
   result.duration = Date.now() - startTime;
   result.audit = auditLog;
+  result.memoryEnforced = false; // vm does not support per-context memory limits; see HONEST LIMITS in file header
   return result;
 }
 

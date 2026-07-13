@@ -14,7 +14,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/coverage-86%25%20F1-success?style=flat-square" alt="86% F1" />
   <img src="https://img.shields.io/badge/rules-699-blue?style=flat-square" alt="699 rules" />
-  <img src="https://img.shields.io/badge/MCP%20tools-78-purple?style=flat-square" alt="78 MCP tools" />
+  <img src="https://img.shields.io/badge/MCP%20tools-82-purple?style=flat-square" alt="82 MCP tools" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
 </p>
 
@@ -511,9 +511,13 @@ It raises the floor fast — catching the holes that AI tools create by default.
 
 ### Honest limits (so the claims stay true)
 
+- **Sandbox uses Node `vm`, not a hard boundary** — per Node.js docs, `vm` is not a security sandbox. A determined attacker can escape via prototype chain traversal. The memory cap is currently unenforced. Treat `sandbox_exec` as a raised floor, not a steel vault. (Hard isolation via `isolated-vm` is planned as an optional dependency.)
 - **Guard, not a sandbox** — stops accidents, agent mistakes, and the common exfil/tamper paths; not a determined attacker with arbitrary local code execution who rewrites both a module and its manifest.
 - **Runtime enforcement is Node-scoped** — non-Node child runtimes making their own network calls bypass the wrappers (static agent-scan / guard-action still cover them).
+- **AI-safety recall is 57%** — the weakest benchmark category (`test/benchmark/benchmark-results.md`). Prompt injection, memory poisoning, and tool-result injection detection are improving but not yet comprehensive. The firewall is regex-based — paraphrased injections can evade it.
+- **Taint analysis is JS/TS only** — Python taint is heuristic (line-proximity, not dataflow). Go/Rust/Java/other languages have pattern rules but no taint tracking.
 - **Integrity ≠ full chain of trust** — detects source tampering; npm provenance is the real anchor.
+- **VibeGuard never calls an LLM** — `deep_scan` emits structured review contracts for your AI client to process. VibeGuard itself is 100% deterministic, zero-network.
 
 ---
 
@@ -531,7 +535,7 @@ vibeguard init-ci                  # generate GitHub Actions workflow
 vibeguard scan --output sarif      # SARIF output for GitHub Code Scanning
 ```
 
-Templates included for GitLab CI, Jenkins, CircleCI, Azure Pipelines.
+Templates included for GitLab CI, Jenkins, CircleCI, Azure Pipelines, Bitbucket, Travis CI, Buildkite.
 
 ---
 

@@ -1,0 +1,12 @@
+# VibeGuard Travis CI template
+# Add this to .travis.yml in your repo root
+
+language: node_js
+node_js:
+  - 18
+  - 20
+  - 22
+
+script:
+  - npm ci
+  - npx -y @yagyeshvyas/vibeguard scan . --fail-on high

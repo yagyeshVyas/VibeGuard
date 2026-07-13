@@ -1,0 +1,12 @@
+# VibeGuard Buildkite pipeline template
+# Add this to .buildkite/pipeline.yml in your repo root
+
+steps:
+  - label: "VibeGuard Security Scan"
+    command:
+      - npm ci
+      - npx -y @yagyeshvyas/vibeguard scan . --fail-on high
+    plugins:
+      - docker#v3.0.0:
+          image: "node:22"
+          workdir: /app

@@ -218,6 +218,35 @@ function installOpenHands(spec) {
   return { client: 'OpenHands', status: 'installed', detail: file };
 }
 
+function installCopilotCLI(spec) {
+  // GitHub Copilot CLI uses ~/.copilot/config.json with mcpServers key
+  const dir = path.join(HOME, '.copilot');
+  if (!exists(dir)) return { client: 'Copilot CLI', status: 'skipped', detail: 'not detected (~/.copilot missing)' };
+  const file = path.join(dir, 'config.json');
+  writeJsonMcp(file, 'mcpServers', spec, 'vibeguard');
+  return { client: 'Copilot CLI', status: 'installed', detail: file };
+}
+
+function installAmazonQ(spec) {
+  // Amazon Q Developer CLI uses ~/.aws/amazonq/config.json
+  const dir = path.join(HOME, '.aws', 'amazonq');
+  if (!exists(dir)) return { client: 'Amazon Q', status: 'skipped', detail: 'not detected (~/.aws/amazonq missing)' };
+  const file = path.join(dir, 'config.json');
+  writeJsonMcp(file, 'mcpServers', spec, 'vibeguard');
+  return { client: 'Amazon Q', status: 'installed', detail: file };
+}
+
+function installCody(spec) {
+  // Sourcegraph Cody uses ~/.config/cody/config.json
+  const dir = process.platform === 'win32'
+    ? path.join(HOME, 'AppData', 'Roaming', 'Sourcegraph', 'Cody')
+    : path.join(HOME, '.config', 'cody');
+  if (!exists(dir)) return { client: 'Sourcegraph Cody', status: 'skipped', detail: 'not detected (cody config dir missing)' };
+  const file = path.join(dir, 'config.json');
+  writeJsonMcp(file, 'mcpServers', spec, 'vibeguard');
+  return { client: 'Sourcegraph Cody', status: 'installed', detail: file };
+}
+
 function pasteBlock(spec) {
   return JSON.stringify(
     { mcpServers: { vibeguard: { command: spec.command, args: spec.args } } },
@@ -241,6 +270,9 @@ function install(opts = {}) {
     installRooCode(spec),
     installOpenHands(spec),
     installVSCode(spec),
+    installCopilotCLI(spec),
+    installAmazonQ(spec),
+    installCody(spec),
   ];
   return { spec, results, paste: pasteBlock(spec) };
 }

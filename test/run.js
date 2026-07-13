@@ -917,12 +917,12 @@ test('compliance: maps findings to SOC2 controls', () => {
   assert(report.controls['CC6.1'], 'should map to CC6.1');
 });
 
-test('compliance: maps findings to PCI-DSS', () => {
+test('compliance: maps findings to PCI-DSS v4.0', () => {
   const { generateComplianceReport } = require('../src/compliance');
   const report = generateComplianceReport([
     { ruleId: 'injection.sql', cwe: 'CWE-89', severity: 'high', file: 'app.js', line: 1, title: 'test' }
   ], 'PCI-DSS');
-  assert(report.controls['6.5.1'], 'should map to 6.5.1');
+  assert(report.controls['6.2.4'], 'should map to PCI v4.0 control 6.2.4');
 });
 
 test('compliance: maps to multiple frameworks', () => {
@@ -935,6 +935,46 @@ test('compliance: maps to multiple frameworks', () => {
   assert(report.HIPAA, 'should have HIPAA');
   assert(report.GDPR, 'should have GDPR');
   assert(report.ISO27001, 'should have ISO27001');
+  assert(report.NISTCSF, 'should have NISTCSF');
+  assert(report.ASVS, 'should have ASVS');
+  assert(report.CIS, 'should have CIS');
+  assert(report['NIST800-53'], 'should have NIST800-53');
+});
+
+test('compliance: maps findings to NIST CSF 2.0', () => {
+  const { generateComplianceReport } = require('../src/compliance');
+  const report = generateComplianceReport([
+    { ruleId: 'secret.api-key', cwe: 'CWE-798', severity: 'critical', file: 'app.js', line: 1, title: 'test' }
+  ], 'NISTCSF');
+  assert(report.name.includes('NIST'), 'should have NIST CSF name');
+  assert(report.controls['PR.AC-1'], 'should map to PR.AC-1');
+});
+
+test('compliance: maps findings to OWASP ASVS', () => {
+  const { generateComplianceReport } = require('../src/compliance');
+  const report = generateComplianceReport([
+    { ruleId: 'secret.api-key', cwe: 'CWE-798', severity: 'critical', file: 'app.js', line: 1, title: 'test' }
+  ], 'ASVS');
+  assert(report.name.includes('ASVS'), 'should have ASVS name');
+  assert(report.controls['V4.2.1'], 'should map to V4.2.1');
+});
+
+test('compliance: maps findings to CIS Controls v8', () => {
+  const { generateComplianceReport } = require('../src/compliance');
+  const report = generateComplianceReport([
+    { ruleId: 'injection.sql', cwe: 'CWE-89', severity: 'high', file: 'app.js', line: 1, title: 'test' }
+  ], 'CIS');
+  assert(report.name.includes('CIS'), 'should have CIS name');
+  assert(report.controls['CIS-16'], 'should map to CIS-16');
+});
+
+test('compliance: maps findings to NIST 800-53', () => {
+  const { generateComplianceReport } = require('../src/compliance');
+  const report = generateComplianceReport([
+    { ruleId: 'injection.sql', cwe: 'CWE-89', severity: 'high', file: 'app.js', line: 1, title: 'test' }
+  ], 'NIST800-53');
+  assert(report.name.includes('800-53'), 'should have NIST 800-53 name');
+  assert(report.controls['SI-10'], 'should map to SI-10');
 });
 
 test('CVE version rule: detects vulnerable next.js version', () => {
@@ -1115,16 +1155,16 @@ test('extended rules: AI MCP command injection fires', () => {
   assert(ids.includes('ai.mcp-command-injection'), 'should detect MCP command injection');
 });
 
-test('MCP server: has 40+ tools', () => {
+test('MCP server: has 78+ tools', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
   const toolCount = (code.match(/name: '[a-z_]+'/g) || []).length - 1; // minus server name
-  assert(toolCount >= 40, 'should have 40+ MCP tools, got ' + toolCount);
+  assert(toolCount >= 78, 'should have 78+ MCP tools, got ' + toolCount);
 });
 
-test('total rule count is 200+', () => {
+test('total rule count is 500+', () => {
   const { allRules } = require('../src/rules');
   const count = allRules().length;
-  assert(count >= 200, 'should have 200+ rules, got ' + count);
+  assert(count >= 500, 'should have 500+ rules, got ' + count);
 });
 
 test('CLI: --patch output generates unified diff', () => {
@@ -1185,10 +1225,10 @@ test('Python taint: detects request to eval flow', () => {
   assert(findings.some(f => f.ruleId === 'py.taint-flow'), 'should have py.taint-flow ruleId');
 });
 
-test('install: supports 11 AI clients', () => {
+test('install: supports 15 AI clients', () => {
   const { install } = require('../src/install');
   const result = install();
-  assert(result.results.length >= 11, 'should have 11+ client handlers, got ' + result.results.length);
+  assert(result.results.length >= 15, 'should have 15+ client handlers, got ' + result.results.length);
   const clients = result.results.map(r => r.client);
   assert(clients.includes('Claude Code'), 'has Claude Code');
   assert(clients.includes('Cursor'), 'has Cursor');
@@ -1201,6 +1241,9 @@ test('install: supports 11 AI clients', () => {
   assert(clients.includes('Gemini CLI'), 'has Gemini CLI');
   assert(clients.includes('Roo Code'), 'has Roo Code');
   assert(clients.includes('OpenHands'), 'has OpenHands');
+  assert(clients.includes('Copilot CLI'), 'has Copilot CLI');
+  assert(clients.includes('Amazon Q'), 'has Amazon Q');
+  assert(clients.includes('Sourcegraph Cody'), 'has Cody');
 });
 
 test('install: Claude Code writes .mcp.json', () => {
@@ -1282,7 +1325,7 @@ test('autofix: secret redaction produces process.env reference', () => {
   assert(changes[0].after.includes('process.env'), 'should redact to process.env');
 });
 
-test('MCP: tool list includes all 40 tools', () => {
+test('MCP: tool list includes core tools', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
   const expectedTools = [
     'scan_project', 'suggest_fixes', 'verify_fixes', 'review_hotspots', 'scan_url',
@@ -1585,7 +1628,7 @@ test('presets: list and apply', () => {
   assert(!getPreset('nonexistent'), 'nonexistent preset should return null');
 });
 
-test('MCP: tool list includes all 54 tools', () => {
+test('MCP: tool list includes extended tools', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
   const expectedNewTools = [
     'security_scorecard', 'pr_comment', 'slack_notify', 'preset_apply', 'interactive_dashboard',
@@ -2335,6 +2378,60 @@ test('clean fixture ZERO after pre-deploy gates', () => {
   const { scan } = require('../src/scanner');
   const result = scan(path.join(__dirname, 'fixtures', 'clean'));
   assert.strictEqual(result.findings.length, 0, 'clean fixture should have 0 findings, got ' + result.findings.length);
+});
+
+// --- Phase 1: SBOM + Reachability + Container + License MCP tools ---
+
+test('sbom: generates valid CycloneDX 1.5 with components', () => {
+  const { generateSBOM } = require('../src/sbom');
+  const dir = tmpProject({
+    'package.json': JSON.stringify({ name: 'test-app', version: '1.0.0', dependencies: { express: '^4.18.0' } }),
+    'package-lock.json': JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        'node_modules/express': { version: '4.18.2', license: 'MIT', integrity: 'sha512-abc=', resolved: 'https://registry.npmjs.org/express/-/express-4.18.2.tgz' },
+      },
+    }),
+    'app.js': "const express = require('express'); const app = express();",
+  });
+  const bom = generateSBOM(dir);
+  assert.strictEqual(bom.bomFormat, 'CycloneDX', 'should be CycloneDX format');
+  assert.strictEqual(bom.specVersion, '1.5', 'should be specVersion 1.5');
+  assert(bom.components && bom.components.length > 0, 'should have components');
+  const express = bom.components.find(c => c.name === 'express');
+  assert(express, 'should include express component');
+  assert(express.version === '4.18.2', 'should have correct version');
+  assert(express.properties && express.properties.some(p => p.name === 'vibeguard:imported' && p.value === 'true'), 'express should be marked as imported');
+});
+
+test('MCP: SBOM tool exists', () => {
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
+  assert(code.includes("name: 'generate_sbom'"), 'should have generate_sbom tool');
+  assert(code.includes('handleSBOM'), 'should have handleSBOM handler');
+});
+
+test('MCP: dep_reachability tool exists', () => {
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
+  assert(code.includes("name: 'dep_reachability'"), 'should have dep_reachability tool');
+  assert(code.includes('handleDepReachability'), 'should have handleDepReachability handler');
+});
+
+test('MCP: scan_container_image tool exists', () => {
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
+  assert(code.includes("name: 'scan_container_image'"), 'should have scan_container_image tool');
+  assert(code.includes('handleContainerScan'), 'should have handleContainerScan handler');
+});
+
+test('MCP: license_compliance tool exists', () => {
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
+  assert(code.includes("name: 'license_compliance'"), 'should have license_compliance tool');
+  assert(code.includes('handleLicenseCompliance'), 'should have handleLicenseCompliance handler');
+});
+
+test('MCP: tool count is 82+', () => {
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
+  const toolCount = (code.match(/name: '[a-z_]+'/g) || []).length - 1;
+  assert(toolCount >= 82, 'should have 82+ MCP tools, got ' + toolCount);
 });
 
 // --- AST-based scope-aware taint analysis (taint-ast.js) ---
@@ -3237,39 +3334,45 @@ test('shell-guard FP fix: dangerous commands all blocked', () => {
 
 // --- Auto orchestrator tests ---
 
-test('auto: writes .vibeguard/auto.json with pid and stops cleanly', () => {
-  const auto = require('../src/auto');
-  const dir = tmpProject({
-    'package.json': JSON.stringify({ name: 'test-auto', version: '1.0.0' }),
-    'index.js': 'console.log("hello");',
+test('auto: writes .vibeguard/auto.json with pid and stops cleanly', async () => {
+    const auto = require('../src/auto');
+    const dir = tmpProject({
+      'package.json': JSON.stringify({ name: 'test-auto', version: '1.0.0' }),
+      'index.js': 'console.log("hello");',
+    });
+    // Start
+    const r = auto.autoStart(dir, { noShell: true, ci: false });
+    assert(r.ok, 'autoStart should succeed');
+    const statePath = path.join(dir, '.vibeguard', 'auto.json');
+    assert(fs.existsSync(statePath), 'auto.json should be written');
+    const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+    assert(typeof state.pid === 'number', 'state should have pid');
+    assert(state.startedAt, 'state should have startedAt');
+    
+    // Wait for the async daemon to start before stopping
+    await new Promise(resolve => setTimeout(resolve, 250));
+    
+    // Stop
+    const stop = auto.autoStop(dir);
+    assert(stop.ok, 'autoStop should succeed');
+    assert(!fs.existsSync(statePath), 'auto.json should be removed after stop');
   });
-  // Start
-  const r = auto.autoStart(dir, { noShell: true, ci: false });
-  assert(r.ok, 'autoStart should succeed');
-  const statePath = path.join(dir, '.vibeguard', 'auto.json');
-  assert(fs.existsSync(statePath), 'auto.json should be written');
-  const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-  assert(typeof state.pid === 'number', 'state should have pid');
-  assert(state.startedAt, 'state should have startedAt');
-  // Stop
-  const stop = auto.autoStop(dir);
-  assert(stop.ok, 'autoStop should succeed');
-  assert(!fs.existsSync(statePath), 'auto.json should be removed after stop');
-});
 
-test('auto: idempotent — running twice does not double-install', () => {
-  const auto = require('../src/auto');
-  const dir = tmpProject({
-    'package.json': JSON.stringify({ name: 'test-idem', version: '1.0.0' }),
-    'index.js': 'console.log("hello");',
+test('auto: idempotent — running twice does not double-install', async () => {
+    const auto = require('../src/auto');
+    const dir = tmpProject({
+      'package.json': JSON.stringify({ name: 'test-idem', version: '1.0.0' }),
+      'index.js': 'console.log("hello");',
+    });
+    const r1 = auto.autoStart(dir, { noShell: true });
+    assert(r1.ok, 'first autoStart should succeed');
+    const r2 = auto.autoStart(dir, { noShell: true });
+    assert(r2.ok, 'second autoStart should succeed');
+    assert(r2.alreadyRunning || r2.steps, 'second run should be idempotent');
+    
+    await new Promise(resolve => setTimeout(resolve, 250));
+    auto.autoStop(dir);
   });
-  const r1 = auto.autoStart(dir, { noShell: true });
-  assert(r1.ok, 'first autoStart should succeed');
-  const r2 = auto.autoStart(dir, { noShell: true });
-  assert(r2.ok, 'second autoStart should succeed');
-  assert(r2.alreadyRunning || r2.steps, 'second run should be idempotent');
-  auto.autoStop(dir);
-});
 
 test('auto: --ci exits non-zero on CRITICAL fixture', () => {
   const auto = require('../src/auto');
@@ -3292,27 +3395,30 @@ test('auto: --ci exits zero on clean fixture', () => {
   assert(r.ci, 'should return ci=true');
 });
 
-test('auto: --stop restores a pre-existing pre-commit hook from backup', () => {
-  const auto = require('../src/auto');
-  const dir = tmpProject({
-    'package.json': JSON.stringify({ name: 'test-backup', version: '1.0.0' }),
-    'index.js': 'console.log("hello");',
+test('auto: --stop restores a pre-existing pre-commit hook from backup', async () => {
+    const auto = require('../src/auto');
+    const dir = tmpProject({
+      'package.json': JSON.stringify({ name: 'test-backup', version: '1.0.0' }),
+    });
+    const hooksDir = path.join(dir, '.git', 'hooks');
+    fs.mkdirSync(hooksDir, { recursive: true });
+    const preCommitPath = path.join(hooksDir, 'pre-commit');
+    const originalContent = '#!/bin/sh\necho "my custom hook"\nexit 0\n';
+    fs.writeFileSync(preCommitPath, originalContent);
+    // Run auto (will back up the existing hook)
+    auto.autoStart(dir, { noShell: true });
+    assert(fs.existsSync(preCommitPath), 'pre-commit should exist');
+    const newContent = fs.readFileSync(preCommitPath, 'utf8');
+    assert(newContent.includes('VibeGuard'), 'should have VibeGuard hook');
+    
+    await new Promise(resolve => setTimeout(resolve, 250));
+    
+    // Stop — should restore original
+    auto.autoStop(dir);
+    assert(fs.existsSync(preCommitPath), 'pre-commit should still exist');
+    const restored = fs.readFileSync(preCommitPath, 'utf8');
+    assert.strictEqual(restored, originalContent, 'should restore original pre-commit hook');
   });
-  // Create a fake .git/hooks dir with an existing pre-commit hook
-  fs.mkdirSync(path.join(dir, '.git', 'hooks'), { recursive: true });
-  const preCommitPath = path.join(dir, '.git', 'hooks', 'pre-commit');
-  const originalContent = '#!/bin/sh\necho "my custom hook"\nexit 0\n';
-  fs.writeFileSync(preCommitPath, originalContent);
-  // Run auto (will back up the existing hook)
-  auto.autoStart(dir, { noShell: true });
-  assert(fs.existsSync(preCommitPath), 'pre-commit should exist');
-  const newContent = fs.readFileSync(preCommitPath, 'utf8');
-  assert(newContent.includes('VibeGuard'), 'should have VibeGuard hook');
-  // Stop — should restore original
-  auto.autoStop(dir);
-  const restoredContent = fs.readFileSync(preCommitPath, 'utf8');
-  assert.strictEqual(restoredContent, originalContent, 'pre-commit hook should be restored byte-for-byte');
-});
 
 test('auto: findProjectRoot finds package.json', () => {
   const auto = require('../src/auto');
