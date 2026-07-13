@@ -85,6 +85,27 @@ function shouldScanFile(filePath) {
   return SCAN_EXT.has(ext);
 }
 
+// Files staged for commit (git diff --cached), as a Set of absolute paths.
+// Returns null when not a git repo / git unavailable, so the caller can decide.
+function getStagedFiles(root) {
+  try {
+    const { execFileSync } = require('child_process');
+    const out = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACM'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const set = new Set();
+    for (const rel of out.split(/\r?\n/)) {
+      const t = rel.trim();
+      if (t) set.add(path.resolve(root, t));
+    }
+    return set;
+  } catch {
+    return null; // not a git repo, or git not installed
+  }
+}
+
 // Recursively collect scannable files.
 function walk(dir, out, rootStat) {
   let entries;
@@ -553,12 +574,24 @@ function scan(dir, opts = {}) {
   // mode is per-file (line/AST/taint), intended for pre-commit / watch loops.
   let files = allFiles;
   let incremental = null;
-  if (opts.changed) {
+  let staged = null;
+  if (opts.staged) {
+    // Git-aware: scan only files staged for the current commit. Perfect for a
+    // pre-commit hook — fast and scoped to exactly what's being committed.
+    const stagedSet = getStagedFiles(root);
+    if (stagedSet) {
+      files = allFiles.filter((abs) => stagedSet.has(path.resolve(abs)));
+      staged = { total: allFiles.length, scanned: files.length };
+    }
+  } else if (opts.changed) {
     const { getChangedFiles } = require('./engine');
     const res = getChangedFiles(root, allFiles);
     files = res.changed;
     incremental = { total: res.total, scanned: res.changed.length, cached: res.cached };
   }
+  // Both modes scan a partial file set → cross-file analysis (which needs the
+  // whole project) must be skipped and reported as such.
+  const partialScan = !!incremental || !!staged;
 
   let findings = [];
   const contents = []; // {rel, content, lines} for cross-file analysis
@@ -599,10 +632,10 @@ function scan(dir, opts = {}) {
     contents.push({ rel, content, lines: content.split(/\r?\n/) });
   }
 
-  // Cross-file passes need the WHOLE project in `contents`. In incremental mode
-  // we only loaded changed files, so skip them (they would produce wrong results
-  // from a partial view) — this is the documented tradeoff of `--changed`.
-  if (!incremental) {
+  // Cross-file passes need the WHOLE project in `contents`. In a partial scan
+  // (--changed / --staged) we only loaded a subset, so skip them (they would
+  // produce wrong results from a partial view) — the documented tradeoff.
+  if (!partialScan) {
   // Cross-file taint: request data flowing across module boundaries into a sink.
   try {
     const { analyzeCrossFile } = require('./crosstaint');
@@ -756,6 +789,7 @@ function scan(dir, opts = {}) {
     engine,
     diagnostics,
     incremental, // null on a full scan; {total, scanned, cached} with --changed
+    staged, // null unless --staged; {total, scanned}
     generatedAt: new Date().toISOString(),
   };
 }

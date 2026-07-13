@@ -6,6 +6,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- `vibeguard scan --staged` — scan only git-staged files. Ideal for a
+  pre-commit hook: fast and scoped to exactly what's being committed. Per-file
+  only (cross-file analysis skipped, and the CLI says so).
 - `vibeguard scan --no-suppress` — CI trust mode. Ignores inline
   `vibeguard-ignore` comments and the heuristic false-positive filter so a
   careless or hostile inline comment in a PR cannot silence a gate. Deliberate
@@ -66,10 +69,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
      literals). Guarded by unit tests + a throughput regression test.
 
 ### Changed
-- Python taint analysis: fewer false positives. Parameterized SQL
-  (`cursor.execute("... %s ...", (params,))`) and inline-sanitized sinks
-  (`eval(int(x))`, `os.system(shlex.quote(x))`) are no longer flagged. Unsafe
-  string-concatenation / f-string flows still fire.
+- Python taint analysis rewritten as single-pass taint propagation (still pure
+  JS — no external parser, keeps VibeGuard zero-dependency and offline). Tracks
+  tainted variables through intermediate assignments (`q = "..." + data` →
+  `execute(q)`) and clears taint on clean reassignment. Fixes false positives
+  where a tainted name merely appeared near an unrelated sink. Parameterized SQL
+  (`execute("... %s ...", (params,))`) and inline-sanitized sinks
+  (`eval(int(x))`, `os.system(shlex.quote(x))`) are not flagged; unsafe
+  concatenation / f-string flows still fire.
 - Shell guard normalizer hardened. Now substitutes ALL variable assignments
   (previously only the first, a real bypass: `A=rm; B=-rf; $A $B /`), handles
   `$IFS` word-splitting and `/usr/bin/rm`, and iterates to a fixpoint so layered

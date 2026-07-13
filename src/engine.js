@@ -164,61 +164,87 @@ const PY_SINKS = [
   { re: /pickle\.loads?\s*\(/g, name: 'pickle', type: 'deserialization' },
 ];
 
+// Single-pass taint propagation (pure JS — no external parser, keeps VibeGuard
+// zero-dependency and offline). Tracks tainted variables top-to-bottom:
+//   - a source assignment (v = request.form.get(...)) taints v;
+//   - an assignment whose RHS references a tainted var propagates the taint to
+//     the LHS (multi-hop: q = "..." + data → q is tainted);
+//   - reassigning a tainted var to a clean/sanitized value clears it;
+//   - a sink using a tainted var fires — UNLESS the value is parameterized
+//     (SQL) or wrapped in a sanitizer at the sink.
+// This replaces the old "var appears anywhere between source and sink" heuristic,
+// which false-positived when a tainted name merely appeared near an unrelated sink.
 function analyzePythonTaint(content, lines, relPath) {
   const findings = [];
-  const sources = [];
-  const sinks = [];
+  const tainted = new Map(); // varName -> { name (source), line }
+  const seen = new Set(); // dedupe sink:line
+  const reOf = (v) => new RegExp('\\b' + escapeRe(v) + '\\b');
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const lineNo = i + 1;
+
+    // 1. Source assignment.
+    let matchedSource = null;
     for (const src of PY_SOURCES) {
       src.re.lastIndex = 0;
-      if (src.re.test(line)) {
-        sources.push({ line: i + 1, name: src.name, var: extractVarName(line) });
+      if (src.re.test(line)) { matchedSource = src.name; break; }
+    }
+    if (matchedSource) {
+      const v = extractVarName(line);
+      if (v) tainted.set(v, { name: matchedSource, line: lineNo });
+    }
+
+    // 2. Propagation / clearing via simple assignment `lhs = rhs`.
+    if (!matchedSource) {
+      const asn = /^\s*([A-Za-z_]\w*)\s*=\s*(.+)$/.exec(line);
+      if (asn) {
+        const lhs = asn[1];
+        const rhs = asn[2];
+        let carried = null;
+        for (const [tv, info] of tainted) {
+          if (reOf(tv).test(rhs) && !isSanitizedAtSink(rhs, tv)) { carried = info; break; }
+        }
+        if (carried) tainted.set(lhs, carried);
+        else if (tainted.has(lhs)) tainted.delete(lhs); // reassigned to clean value
       }
     }
+
+    // 3. Sinks.
     for (const sink of PY_SINKS) {
       sink.re.lastIndex = 0;
-      if (sink.re.test(line)) {
-        sinks.push({ line: i + 1, name: sink.name, type: sink.type });
-      }
-    }
-  }
-
-  for (const src of sources) {
-    for (const sink of sinks) {
-      if (sink.line >= src.line) {
-        const varName = src.var;
-        if (!varName) continue;
-        const linesBetween = lines.slice(src.line - 1, sink.line).join('\n');
-        if (linesBetween.includes(varName)) {
-          const sinkLine = lines[sink.line - 1] || '';
-          // Parameterized SQL is safe: cursor.execute("... %s ...", (params,)).
-          // A placeholder + a second argument = the driver escapes the value.
-          if (sink.type === 'sql' && isParameterizedExecute(sinkLine)) continue;
-          // Inline-sanitized at the sink: eval(int(data)), os.system(shlex.quote(x)),
-          // subprocess.run(shlex.split(x)) — the tainted value is neutralized.
-          if (isSanitizedAtSink(sinkLine, varName)) continue;
-          findings.push({
-            ruleId: 'py.taint-flow',
-            file: relPath,
-            line: sink.line,
-            column: 1,
-            severity: 'high',
-            confidence: 'medium',
-            title: `Python taint: ${src.name} → ${sink.name}`,
-            snippet: lines[sink.line - 1]?.trim().slice(0, 120) || '',
-            message: `User input (${src.name} at line ${src.line}) flows to ${sink.name} (line ${sink.line}) without sanitization.`,
-            fix: `Sanitize or validate the input before passing it to ${sink.name}.`,
-            owasp: 'A03:2025 Injection',
-            cwe: sink.type === 'sql' ? 'CWE-89' : sink.type === 'cmd' ? 'CWE-77' : 'CWE-20',
-          });
-        }
+      if (!sink.re.test(line)) continue;
+      for (const [tv, info] of tainted) {
+        if (!reOf(tv).test(line)) continue;
+        if (sink.type === 'sql' && isParameterizedExecute(line)) continue;
+        if (isSanitizedAtSink(line, tv)) continue;
+        const key = sink.name + ':' + lineNo;
+        if (seen.has(key)) break;
+        seen.add(key);
+        findings.push({
+          ruleId: 'py.taint-flow',
+          file: relPath,
+          line: lineNo,
+          column: 1,
+          severity: 'high',
+          confidence: 'medium',
+          title: `Python taint: ${info.name} → ${sink.name}`,
+          snippet: line.trim().slice(0, 120),
+          message: `User input (${info.name} at line ${info.line}) flows to ${sink.name} (line ${lineNo}) without sanitization.`,
+          fix: `Sanitize or validate the input before passing it to ${sink.name}.`,
+          owasp: 'A03:2025 Injection',
+          cwe: sink.type === 'sql' ? 'CWE-89' : sink.type === 'cmd' ? 'CWE-77' : 'CWE-20',
+        });
+        break;
       }
     }
   }
 
   return findings;
+}
+
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 // Parameterized DB call: a placeholder in the query AND a second argument to

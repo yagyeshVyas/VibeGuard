@@ -3593,6 +3593,21 @@ test('Python taint: no false positive on parameterized SQL or sanitized sinks', 
     'int()-sanitized sink must NOT fire');
 });
 
+test('Python taint: multi-hop propagation through intermediate vars', () => {
+  const { analyzePythonTaint } = require('../src/engine');
+  const fires = (code) => analyzePythonTaint(code, code.split('\n'), 'app.py')
+    .some(f => f.ruleId === 'py.taint-flow');
+  // taint flows data -> q -> execute
+  assert(fires('data = request.form.get("x")\nq = "SELECT * FROM t WHERE a=" + data\ncursor.execute(q)\n'),
+    'multi-hop tainted flow must fire');
+  // tainted var appears near sink but the sink uses an UNRELATED clean var
+  assert(!fires('data = request.form.get("x")\nlog(data)\nresult = clean()\ncursor.execute(result)\n'),
+    'unrelated clean sink must NOT fire (old proximity heuristic false-positived here)');
+  // reassignment to a clean value clears taint
+  assert(!fires('x = request.args.get("x")\nx = "safe_default"\nos.system(x)\n'),
+    'clean reassignment must clear taint');
+});
+
 // --- Incremental scan ------------------------------------------------------
 test('incremental scan: cold scans all, warm scans none, edit rescans one', () => {
   const dir = tmpProject({
@@ -3624,6 +3639,25 @@ test('full scan is unaffected by incremental option default', () => {
   const dir = tmpProject({ 'a.js': 'const x = 1;\n' });
   const r = scan(dir, { deps: false });
   assert.strictEqual(r.incremental, null, 'full scan has null incremental');
+});
+
+test('staged scan: only scans git-staged files', () => {
+  const { execFileSync } = require('child_process');
+  const dir = tmpProject({
+    'staged.js': 'const k = "sk_live_FAKEKEY1234567890ABCD";\n',
+    'unstaged.js': 'const j = "sk_live_FAKEKEY0987654321ZYXW";\n',
+  });
+  try {
+    execFileSync('git', ['init', '-q'], { cwd: dir, stdio: 'ignore' });
+    execFileSync('git', ['add', 'staged.js'], { cwd: dir, stdio: 'ignore' });
+  } catch {
+    return; // git not available in this environment — skip
+  }
+  const r = scan(dir, { deps: false, staged: true });
+  assert(r.staged, 'staged info present');
+  assert.strictEqual(r.staged.scanned, 1, 'only the staged file is scanned');
+  assert(r.findings.every(f => f.file === 'staged.js'), 'no findings from unstaged files');
+  assert(r.findings.some(f => f.ruleId === 'secret.stripe-live-key'), 'staged secret is caught');
 });
 
 // --- Shell-guard multi-assignment / evasion regression ---------------------

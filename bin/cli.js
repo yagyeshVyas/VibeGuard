@@ -124,6 +124,7 @@ Options:
   --no-deps                   Skip dependency audit.
   --deep                      Fold in semgrep/gitleaks/bandit.
   --changed                   Incremental: only rescan files changed since last scan (per-file; skips cross-file analysis).
+  --staged                    Scan only git-staged files (pre-commit; skips cross-file analysis).
   --strict                    Fail (exit 3) if any file scanned degraded.
   --no-suppress               Ignore inline vibeguard-ignore comments + heuristic FP filter (CI trust mode).
   --fail-on <level>           Exit non-zero at/above severity.
@@ -206,8 +207,16 @@ function cmdScan(dir, flags) {
     deps: flags.deps !== false && !flags['no-deps'],
     deep: !!flags.deep,
     changed: !!flags.changed,
+    staged: !!flags.staged,
     noSuppress: !!flags['no-suppress'],
   });
+
+  if (flags.staged && result.staged && !flags.json && !flags.sarif) {
+    process.stderr.write(
+      `${C.dim}staged: scanned ${result.staged.scanned} staged file(s) of ${result.staged.total} ` +
+        `(cross-file analysis skipped — run a full scan for that)${C.reset}\n`
+    );
+  }
 
   // Incremental mode note: report how much work was skipped, and be explicit
   // that cross-file analysis is not run (per-file only).
