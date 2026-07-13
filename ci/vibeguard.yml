@@ -36,6 +36,7 @@ jobs:
         with:
           sarif_file: vibeguard.sarif
 
-      # Gate the build: fail only on CRITICAL findings.
+      # Gate the build: fail on CRITICAL findings, and on a degraded scan
+      # (--strict) so an incomplete/parse-failed scan can't pass as clean.
       - name: VibeGuard gate (block on CRITICAL)
-        run: npx -y vibeguard scan . --precommit
+        run: npx -y vibeguard scan . --precommit --strict
