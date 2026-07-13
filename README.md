@@ -209,6 +209,8 @@ Install precision: `npm i -D acorn acorn-walk acorn-typescript`.
 
 Use `vibeguard scan --strict` to make a degraded scan a hard failure (exit 3) in CI.
 
+**Fast modes.** `--changed` rescans only files changed since the last scan (SHA-256 cache; ~100×+ faster warm re-scans). `--staged` scans only git-staged files — ideal for a pre-commit hook. Both are per-file (cross-file analysis skipped; run a full scan for that). `--no-suppress` ignores inline `vibeguard-ignore` comments and the heuristic FP filter for a CI trust gate.
+
 **The shell guard is a mistake-catcher, not a sandbox.** It normalizes common obfuscation (base64, `$IFS`, variable indirection, quote-splitting) and blocks accidental / AI-generated dangerous commands. A determined adversary who knows the patterns can still evade it — it is not sandbox-escape prevention.
 
 ---
