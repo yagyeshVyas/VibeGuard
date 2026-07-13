@@ -120,6 +120,8 @@ function renderJson(result) {
       grade: result.grade,
       counts: result.counts,
       scannedFiles: result.scannedFiles,
+      engine: result.engine || null,
+      diagnostics: result.diagnostics || null,
       depsInfo: result.depsInfo || null,
       externalInfo: result.externalInfo || null,
       findings: result.findings,

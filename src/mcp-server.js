@@ -510,7 +510,14 @@ const TOOLS = [
 
 function summarize(result) {
   const c = result.counts;
-  return `Grade ${result.grade} — ${c.critical} critical, ${c.high} high, ${c.medium} medium, ${c.low} low across ${result.scannedFiles} files.`;
+  let s = `Grade ${result.grade} — ${c.critical} critical, ${c.high} high, ${c.medium} medium, ${c.low} low across ${result.scannedFiles} files.`;
+  if (result.engine && result.engine.mode === 'regex-only') {
+    s += ' ⚠ engine: regex-only (acorn not installed) — AST/taint precision disabled; do not treat as an all-clear.';
+  }
+  if (result.diagnostics && result.diagnostics.degradedFileCount > 0) {
+    s += ` ⚠ ${result.diagnostics.degradedFileCount} file(s) only partially analyzed (degraded coverage).`;
+  }
+  return s;
 }
 
 function textResult(text, isError) {
@@ -525,6 +532,14 @@ async function handleScan(args) {
     grade: result.grade,
     counts: result.counts,
     scannedFiles: result.scannedFiles,
+    // Coverage transparency: tell the agent whether the scan ran at full
+    // precision and whether any file was only partially analyzed. An agent
+    // must not treat a degraded/regex-only scan as an all-clear.
+    engine: result.engine,
+    diagnostics: result.diagnostics && {
+      degradedFileCount: result.diagnostics.degradedFileCount,
+      parseFailedFiles: result.diagnostics.parseFailedFiles,
+    },
     findings: result.findings.map((f) => ({
       severity: f.severity,
       ruleId: f.ruleId,

@@ -1264,11 +1264,12 @@ test('publish workflow: has provenance + release', () => {
 });
 
 test('CI workflow: tests on multiple node versions', () => {
-  const wf = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'test.yml'), 'utf8');
+  const wf = fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', 'ci.yml'), 'utf8');
   assert(wf.includes('18') && wf.includes('20') && wf.includes('22'), 'should test on Node 18/20/22');
   assert(wf.includes('npm test'), 'should run tests');
   assert(wf.includes('npm run lint'), 'should run lint');
   assert(wf.includes('npm run coverage'), 'should run coverage');
+  assert(wf.includes('--gate'), 'should run the benchmark quality gate');
 });
 
 test('autofix: secret redaction produces process.env reference', () => {
@@ -3478,6 +3479,67 @@ test('Real-world: fs.readFileSync with template path fires', () => {
   });
   const r = scan(dir);
   assert(r.findings.some(f => f.ruleId === 'taint.path-traversal'), 'fs.readFileSync with template path should fire');
+});
+
+// --- ReDoS / pathological-input guard --------------------------------------
+// A scanner is a denial-of-service target: a single crafted source line must
+// not hang the rule engine. This asserts adversarial inputs complete fast, so a
+// future rule with a catastrophic-backtracking regex is caught here, not in prod.
+test('ReDoS guard: adversarial lines scan under time bound', () => {
+  const { scanFileContent } = require('../src/scanner');
+  const evils = [
+    'const x = "' + 'a'.repeat(3900) + '";',
+    'rm ' + '-'.repeat(3900),
+    'x'.repeat(100) + '='.repeat(100) + 'y'.repeat(3700),
+    'curl ' + 'a'.repeat(1000) + ' | ' + 'b'.repeat(1000),
+    '/'.repeat(2000) + 'bin/rm',
+    '"' + 'A1'.repeat(1900) + '"',
+  ];
+  for (const ev of evils) {
+    const t = Date.now();
+    scanFileContent('/x.js', 'x.js', ev, null);
+    const dt = Date.now() - t;
+    assert(dt < 1000, `pathological line took ${dt}ms (possible ReDoS): ${ev.slice(0, 30)}...`);
+  }
+});
+
+test('ReDoS guard: shell-guard normalizer terminates on adversarial input', () => {
+  const { checkCommand } = require('../src/shell-guard');
+  const evils = [
+    'A='.repeat(500) + 'rm',
+    '$'.repeat(2000) + '{IFS}',
+    'r""'.repeat(1000) + 'm -rf /',
+    '\\x72'.repeat(1000),
+  ];
+  for (const ev of evils) {
+    const t = Date.now();
+    checkCommand(ev);
+    const dt = Date.now() - t;
+    assert(dt < 1000, `shell-guard hung ${dt}ms on: ${ev.slice(0, 30)}...`);
+  }
+});
+
+// --- Coverage transparency (fail-loud) guards ------------------------------
+test('engine mode + diagnostics are reported on every scan', () => {
+  const dir = tmpProject({ 'a.js': 'const x = 1;\n' });
+  const r = scan(dir);
+  assert(r.engine && (r.engine.mode === 'ast' || r.engine.mode === 'regex-only'), 'engine.mode present');
+  assert(r.diagnostics && Array.isArray(r.diagnostics.degradedPasses), 'diagnostics.degradedPasses present');
+  assert(typeof r.diagnostics.degradedFileCount === 'number', 'degradedFileCount is a number');
+});
+
+test('clean scan reports zero degraded files', () => {
+  const dir = tmpProject({ 'a.js': 'const x = 1;\nconsole.log(x);\n' });
+  const r = scan(dir);
+  assert.strictEqual(r.diagnostics.degradedFileCount, 0, 'clean file should not be degraded');
+});
+
+// --- Shell-guard multi-assignment / evasion regression ---------------------
+test('shell-guard: multi-variable assignment evasion is blocked', () => {
+  const { checkCommand } = require('../src/shell-guard');
+  assert(checkCommand('A=rm; B="-rf"; $A $B /').blocked, 'A=rm;B=-rf;$A $B / should block');
+  assert(checkCommand('rm$IFS-rf$IFS/').blocked, 'IFS split rm should block');
+  assert(checkCommand('/usr/bin/rm -rf /').blocked, '/usr/bin/rm should block');
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -154,7 +154,10 @@ function renderMarkdown(report) {
   lines.push('- **Recall** = TP / (TP + FN)');
   lines.push('- **F1** = 2 * (Precision * Recall) / (Precision + Recall)');
   lines.push('');
-  lines.push(`Generated: ${new Date().toISOString()}`);
+  // No wall-clock timestamp: it made the report churn on every run and show as a
+  // dirty file with no real change. Git history is the provenance. The report now
+  // only changes when the actual metrics change.
+  lines.push('_Regenerate with `npm run benchmark`._');
   lines.push('');
   lines.push('<!-- BENCHMARK:END -->');
 
@@ -190,6 +193,35 @@ if (args.includes('--json')) {
 const mdPath = path.join(__dirname, 'benchmark-results.md');
 fs.writeFileSync(mdPath, renderMarkdown(report));
 console.log(`Report written to ${path.relative(ROOT, mdPath)}`);
+
+// --gate: fail (exit 2) if overall precision/recall/F1 regress below a floor.
+// Floors sit just under current measured numbers so a real regression trips CI
+// but the current corpus passes. Bump these UP as the tool improves — never down
+// silently. Override with VIBEGUARD_BENCH_MIN_{PRECISION,RECALL,F1}.
+if (args.includes('--gate')) {
+  const o = report.overall;
+  const floors = {
+    precision: Number(process.env.VIBEGUARD_BENCH_MIN_PRECISION || 0.80),
+    recall: Number(process.env.VIBEGUARD_BENCH_MIN_RECALL || 0.78),
+    f1: Number(process.env.VIBEGUARD_BENCH_MIN_F1 || 0.80),
+  };
+  const checks = [
+    ['precision', o.precision, floors.precision],
+    ['recall', o.recall, floors.recall],
+    ['f1', o.f1, floors.f1],
+  ];
+  let failed = false;
+  for (const [name, actual, floor] of checks) {
+    const ok = actual >= floor;
+    if (!ok) failed = true;
+    console.log(`  gate ${ok ? 'PASS' : 'FAIL'}  ${name}: ${(actual * 100).toFixed(1)}% (floor ${(floor * 100).toFixed(1)}%)`);
+  }
+  if (failed) {
+    console.error('\nBenchmark gate FAILED — detection quality regressed below floor.');
+    process.exit(2);
+  }
+  console.log('\nBenchmark gate passed.');
+}
 
 // Update README if requested.
 if (args.includes('--update-readme')) {

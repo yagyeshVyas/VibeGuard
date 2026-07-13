@@ -6,6 +6,28 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Fail-loud coverage tracking. Every analysis pass (taint, python-taint, AST,
+  file-rules) that errors is now recorded instead of silently swallowed. Scan
+  results carry `engine` (`ast` | `regex-only`) and `diagnostics`
+  (degraded passes, parse-failed files, degraded file count). The CLI prints a
+  loud banner when running `regex-only` (acorn missing) or when any file was
+  only partially analyzed — a degraded scan no longer masquerades as clean.
+- `vibeguard scan --strict` — exit code 3 when any file scanned degraded, so CI
+  never trusts an incomplete result. **Note:** existing CI configs that add
+  `--strict` will now hard-fail on degraded scans (intended).
+- Benchmark quality gate: `node test/benchmark/run.js --gate` fails (exit 2) if
+  overall precision/recall/F1 regress below a floor (P≥80% / R≥78% / F1≥80%;
+  override via `VIBEGUARD_BENCH_MIN_*`). Wired into CI so detection quality
+  regressions block merges.
+- ReDoS / pathological-input regression tests + coverage-transparency tests.
+- Engine mode + degraded-coverage now surfaced in JSON output and the MCP
+  `scan` tool (payload + summary) so agents don't treat a degraded scan as an
+  all-clear.
+- `VIBEGUARD_NO_POSTINSTALL=1` (and CI auto-detect) to silence the install
+  message.
+- README `Coverage & Limits` section: honest per-language detection-depth
+  matrix, engine-mode explainer, fail-loud explainer, and an explicit "the
+  shell guard is a mistake-catcher, not a sandbox" statement.
 - `vibeguard auto` — one-command full autonomous protection. Activates
   daemon (file watcher), pre-commit hook, post-edit hook, and shell guard.
   Idempotent. `--stop` reverses everything and restores backups. `--status`
@@ -19,6 +41,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
   and never block when VibeGuard can't load.
 
 ### Changed
+- Shell guard normalizer hardened. Now substitutes ALL variable assignments
+  (previously only the first, a real bypass: `A=rm; B=-rf; $A $B /`), handles
+  `$IFS` word-splitting and `/usr/bin/rm`, and iterates to a fixpoint so layered
+  obfuscation unwinds. Still, by design, a mistake-catcher — not a sandbox.
+- CI workflow renamed `test.yml` → `ci.yml` to match the README status badge.
 - Taint analysis upgraded from regex-only to scope-aware, AST-based dataflow
   (`taint-ast.js`). Sources/sinks matched on AST nodes (MemberExpression /
   CallExpression), not text. Respects block/function scope with shadowing,

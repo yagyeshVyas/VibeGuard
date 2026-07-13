@@ -182,6 +182,37 @@ const key = "sk_live_..."; // vibeguard-ignore[secret.stripe-live-key]: test fix
 
 ---
 
+## Coverage & Limits
+
+Detection depth is **not uniform across languages** — be honest about what you're getting:
+
+| Language | Secrets / patterns | Dataflow taint | Engine |
+|----------|:---:|:---:|--------|
+| JavaScript / TypeScript | ✅ | ✅ interprocedural + cross-file | AST (acorn) |
+| Python | ✅ | ⚠️ heuristic (line-proximity, single-file) | regex |
+| Go | ✅ | ⚠️ targeted rules (e.g. `fmt.Sprintf` SQL) | regex |
+| Java / PHP / Ruby / C# / Rust | ✅ | ❌ pattern-only | regex |
+
+**Engine modes.** Full precision needs the optional `acorn` parser. Without it VibeGuard runs `regex-only` and says so loudly on every scan:
+
+```
+⚠ engine: regex-only — acorn not installed, AST/taint precision disabled.
+```
+
+Install precision: `npm i -D acorn acorn-walk acorn-typescript`.
+
+**Fail-loud, never fail-silent.** If any analysis pass errors or a file fails to parse, VibeGuard reports degraded coverage instead of pretending the scan was clean:
+
+```
+⚠ degraded coverage: 2 file(s) not fully analyzed [passes: ast, taint].
+```
+
+Use `vibeguard scan --strict` to make a degraded scan a hard failure (exit 3) in CI.
+
+**The shell guard is a mistake-catcher, not a sandbox.** It normalizes common obfuscation (base64, `$IFS`, variable indirection, quote-splitting) and blocks accidental / AI-generated dangerous commands. A determined adversary who knows the patterns can still evade it — it is not sandbox-escape prevention.
+
+---
+
 ## Benchmark
 
 Measured against a curated corpus of 121 files (90 vuln + 31 clean). Not a vanity number.

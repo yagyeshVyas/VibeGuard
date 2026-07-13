@@ -176,6 +176,6 @@
 - **Recall** = TP / (TP + FN)
 - **F1** = 2 * (Precision * Recall) / (Precision + Recall)
 
-Generated: 2026-07-12T19:19:39.221Z
+_Regenerate with `npm run benchmark`._
 
 <!-- BENCHMARK:END -->

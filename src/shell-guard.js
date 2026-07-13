@@ -29,8 +29,10 @@ const path = require('path');
 
 // ─── Anti-evasion normalizer ──────────────────────────────────────────────
 
-function normalizeCommand(cmd) {
-  if (!cmd || typeof cmd !== 'string') return cmd || '';
+// One normalization pass. Run repeatedly to a fixpoint by normalizeCommand so
+// layered obfuscation (a var expanding to another var, base64 decoding to a
+// quoted command) unwinds step by step instead of in one brittle sweep.
+function normalizeOnce(cmd) {
   let normalized = cmd;
 
   // Layer 1: Base64 decode — catch "echo <base64> | base64 -d | sh"
@@ -42,18 +44,26 @@ function normalizeCommand(cmd) {
     } catch {}
   }
 
-  // Layer 2: Env-var indirection — VAR="rm -rf"; $VAR /
-  // Extract assignments and substitute $VAR references
-  const assignMatch = normalized.match(/(\w+)=(["'])([^"']*)\2/);
-  if (assignMatch) {
-    const varName = assignMatch[1];
-    const varValue = assignMatch[3];
-    // If the variable contains a dangerous command fragment, substitute it
-    if (/rm|sudo|chmod|mkfs|dd\s|shutdown|reboot|curl|wget/i.test(varValue)) {
-      normalized = normalized.replace(new RegExp('\\$' + varName + '\\b', 'g'), varValue);
-      normalized = normalized.replace(assignMatch[0], ''); // remove the assignment
+  // Layer 2: Env-var indirection — collect EVERY assignment and substitute all
+  // references. The original code matched only the FIRST assignment (non-global),
+  // so `A=rm; B=-rf; $A $B /` slipped through. We now sweep all of them, quoted
+  // and bare, then substitute $VAR and ${VAR}.
+  const assignAll = {};
+  const quotedAssign = /(\w+)=(["'])([^"']*)\2/g;
+  let qa;
+  while ((qa = quotedAssign.exec(normalized)) !== null) assignAll[qa[1]] = qa[3];
+  const bareAssign = /(?:^|[;\s])(\w+)=([^"'\s;|&]+)/g;
+  let ba;
+  while ((ba = bareAssign.exec(normalized)) !== null) {
+    if (!(ba[1] in assignAll)) assignAll[ba[1]] = ba[2];
+  }
+  for (const [name, value] of Object.entries(assignAll)) {
+    if (/rm|sudo|chmod|mkfs|dd\s|shutdown|reboot|curl|wget|-rf?\b/i.test(value)) {
+      normalized = normalized.replace(new RegExp('\\$\\{?' + name + '\\}?\\b', 'g'), value);
     }
   }
+  // Strip the assignment statements themselves so they don't linger as noise.
+  normalized = normalized.replace(/(?:^|[;\s])(\w+)=(?:(["'])[^"']*\2|[^"'\s;|&]+)\s*/g, ' ');
 
   // Layer 3: Subshell expansion — $(echo rm) -> rm
   normalized = normalized.replace(/\$\(\s*echo\s+([^)]+)\s*\)/g, '$1');
@@ -73,14 +83,17 @@ function normalizeCommand(cmd) {
     try { return String.fromCharCode(parseInt(hex, 16)); } catch { return m; }
   });
 
+  // Layer 5b: $IFS word-splitting — rm$IFS-rf$IFS/ -> rm -rf /
+  normalized = normalized.replace(/\$\{?IFS\}?/g, ' ');
+
   // Layer 6: rm obfuscation — rm -r -f, rm --recursive --force, /bin/rm, /sbin/rm
   // Normalize rm flags: -r -f, -fr, -rf, -Rf, --recursive --force all -> -rf
   normalized = normalized.replace(/\brm\s+(?:-[a-zA-Z]*r[a-zA-Z]*f[a-zA-Z]*|-[a-zA-Z]*f[a-zA-Z]*r[a-zA-Z]*|--recursive(?:\s+--force)?)\b/i, 'rm -rf');
   normalized = normalized.replace(/\brm\s+-r\s+-f\b/i, 'rm -rf');
   normalized = normalized.replace(/\brm\s+-f\s+-r\b/i, 'rm -rf');
   normalized = normalized.replace(/\brm\s+--recursive\s+--force\b/i, 'rm -rf');
-  // /bin/rm, /sbin/rm -> rm
-  normalized = normalized.replace(/(?:\/bin\/|\/sbin\/)rm\b/g, 'rm');
+  // /bin/rm, /sbin/rm, /usr/bin/rm -> rm
+  normalized = normalized.replace(/(?:\/usr)?(?:\/bin\/|\/sbin\/)rm\b/g, 'rm');
 
   // Layer 7: String concatenation — r""m, r''m, r\m -> rm
   // Remove quotes and backslashes between letters to detect split commands
@@ -89,17 +102,20 @@ function normalizeCommand(cmd) {
   // Layer 8: Quoted command — "rm", 'rm' -> rm
   normalized = normalized.replace(/["']([a-z]{2,})["']/gi, (m, inner) => inner);
 
-  // Layer 9: Variable concatenation — ${r}m, ${RM} -> rm
-  // If there's a var assignment followed by ${var}, substitute
-  const varAssigns = {};
-  const assignPattern = /(\w+)=(["']?)([^"'\s]*)\2/g;
-  let am;
-  while ((am = assignPattern.exec(cmd)) !== null) {
-    varAssigns[am[1]] = am[3];
-  }
-  normalized = normalized.replace(/\$\{(\w+)\}/g, (m, name) => varAssigns[name] || m);
+  return normalized;
+}
 
-  return normalized.trim();
+function normalizeCommand(cmd) {
+  if (!cmd || typeof cmd !== 'string') return cmd || '';
+  let current = cmd;
+  // Iterate to a fixpoint (bounded at 5) so layered obfuscation unwinds fully.
+  // The bound guards against pathological input causing an unbounded loop.
+  for (let i = 0; i < 5; i++) {
+    const next = normalizeOnce(current);
+    if (next === current) break;
+    current = next;
+  }
+  return current.replace(/[ \t]+/g, ' ').trim();
 }
 
 // ─── Danger patterns (matched against BOTH raw AND normalized) ───────────

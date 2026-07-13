@@ -6,6 +6,12 @@
 // files is doing the thing it warns about.
 
 try {
+  // Opt-out + CI quiet: a security tool should not add install-time noise or
+  // surprise. VIBEGUARD_NO_POSTINSTALL=1 silences this entirely.
+  if (process.env.VIBEGUARD_NO_POSTINSTALL === '1' || process.env.CI) {
+    process.exit(0);
+  }
+
   const path = require('path');
   const fs = require('fs');
 

@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run lint
+      - name: Benchmark quality gate (precision/recall/F1 regression)
+        run: node test/benchmark/run.js --gate
       - name: Coverage
         run: npm run coverage
       - uses: actions/upload-artifact@v4

@@ -134,7 +134,16 @@ function looksBinary(buf) {
   return false;
 }
 
-function scanFileContent(absPath, relPath, content, tree) {
+// `diag` (optional): a collector { degraded: [] } into which each analysis pass
+// records a failure instead of swallowing it silently. A security scanner that
+// fails open MUST surface that it did so — a quietly-skipped pass is a coverage
+// hole the user never sees. Backward compatible: omit diag and behavior is old.
+function scanFileContent(absPath, relPath, content, tree, diag) {
+  const noteDegraded = (pass, err) => {
+    if (diag && Array.isArray(diag.degraded)) {
+      diag.degraded.push({ file: relPath, pass, error: String((err && err.message) || err || 'unknown') });
+    }
+  };
   let findings = [];
   const lines = content.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++) {
@@ -166,8 +175,8 @@ function scanFileContent(absPath, relPath, content, tree) {
   try {
     const { analyzeTaint } = require('./taint');
     for (const t of analyzeTaint(content, lines, relPath, tree)) findings.push(t);
-  } catch {
-    /* taint is best-effort */
+  } catch (err) {
+    noteDegraded('taint', err);
   }
 
   // Python taint analysis for .py files
@@ -175,8 +184,8 @@ function scanFileContent(absPath, relPath, content, tree) {
     try {
       const { analyzePythonTaint } = require('./engine');
       for (const t of analyzePythonTaint(content, lines, relPath)) findings.push(t);
-    } catch {
-      /* Python taint is best-effort */
+    } catch (err) {
+      noteDegraded('python-taint', err);
     }
   }
 
@@ -190,8 +199,8 @@ function scanFileContent(absPath, relPath, content, tree) {
       findings = findings.filter((f) => !AST_SUPERSEDES.has(f.ruleId));
     }
     for (const a of ast.findings) findings.push(a);
-  } catch {
-    /* AST is optional */
+  } catch (err) {
+    noteDegraded('ast', err);
   }
 
   // File-level rules (need whole-file context).
@@ -199,7 +208,8 @@ function scanFileContent(absPath, relPath, content, tree) {
     let hits = [];
     try {
       hits = rule.run(content, lines, relPath) || [];
-    } catch {
+    } catch (err) {
+      noteDegraded(`file-rule:${rule.id || 'unknown'}`, err);
       hits = [];
     }
     for (const h of hits) {
@@ -519,6 +529,13 @@ function scan(dir, opts = {}) {
   const trees = new Map(); // rel -> parsed AST (one parse per file, shared)
   const astMod = require('./ast');
 
+  // Engine mode + coverage diagnostics. `astAvailable` is false when the acorn
+  // optional deps aren't installed → precise eval/exec/taint/mass-assignment
+  // passes silently downgrade to regex. We surface that instead of hiding it.
+  const astAvailable = astMod.isAvailable();
+  const diag = { degraded: [] };
+  const parseFailed = []; // JS/TS files acorn IS installed for but couldn't parse
+
   for (const abs of files) {
     let buf;
     try {
@@ -538,8 +555,11 @@ function scan(dir, opts = {}) {
         tree = null;
       }
       if (tree) trees.set(rel, tree);
+      // acorn installed but this file didn't parse → AST rules skipped for it.
+      // (When acorn is absent entirely that's engine-mode, reported separately.)
+      else if (astAvailable) parseFailed.push(rel);
     }
-    findings = findings.concat(scanFileContent(abs, rel, content, tree));
+    findings = findings.concat(scanFileContent(abs, rel, content, tree, diag));
     contents.push({ rel, content, lines: content.split(/\r?\n/) });
   }
 
@@ -660,6 +680,19 @@ function scan(dir, opts = {}) {
 
   const { grade, counts } = computeGrade(findings);
 
+  // Coverage transparency: engine mode + every pass that failed open. Callers
+  // (CLI, MCP, CI) can warn the user that a scan ran degraded rather than let a
+  // silent parse/taint failure masquerade as a clean result.
+  const engine = {
+    astAvailable,
+    mode: astAvailable ? 'ast' : 'regex-only',
+  };
+  const diagnostics = {
+    degradedPasses: diag.degraded,
+    parseFailedFiles: parseFailed,
+    degradedFileCount: new Set([...diag.degraded.map((d) => d.file), ...parseFailed]).size,
+  };
+
   return {
     root,
     scannedFiles: files.length,
@@ -670,6 +703,8 @@ function scan(dir, opts = {}) {
     counts,
     depsInfo,
     externalInfo,
+    engine,
+    diagnostics,
     generatedAt: new Date().toISOString(),
   };
 }

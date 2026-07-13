@@ -204,6 +204,36 @@ function cmdScan(dir, flags) {
     deep: !!flags.deep,
   });
 
+  // Engine-mode + coverage transparency. Never let a degraded scan look clean.
+  if (!flags.json && !flags.sarif) {
+    if (result.engine && result.engine.mode === 'regex-only') {
+      process.stderr.write(
+        `${C.yellow}⚠ engine: regex-only — acorn not installed, AST/taint precision disabled. ` +
+          `Install with: npm i -D acorn acorn-walk acorn-typescript${C.reset}\n`
+      );
+    }
+    const d = result.diagnostics;
+    if (d && d.degradedFileCount > 0) {
+      const passes = [...new Set((d.degradedPasses || []).map((x) => x.pass))];
+      process.stderr.write(
+        `${C.yellow}⚠ degraded coverage: ${d.degradedFileCount} file(s) not fully analyzed` +
+          (d.parseFailedFiles && d.parseFailedFiles.length ? ` (${d.parseFailedFiles.length} parse-failed)` : '') +
+          (passes.length ? ` [passes: ${passes.join(', ')}]` : '') +
+          `. Run with --strict to fail on degraded scans.${C.reset}\n`
+      );
+    }
+  }
+
+  // --strict: treat a degraded scan (any pass failed open) as a hard failure so
+  // CI never trusts an incomplete result.
+  if (flags.strict && result.diagnostics && result.diagnostics.degradedFileCount > 0) {
+    process.stderr.write(
+      `${C.red}✗ --strict: scan ran degraded on ${result.diagnostics.degradedFileCount} file(s); refusing to report clean.${C.reset}\n`
+    );
+    outputResult(result, flags);
+    return 3;
+  }
+
   // Default min-confidence: medium (unless --all or explicit --min-confidence).
   const CONFIDENCE_ORDER = { low: 0, medium: 1, high: 2 };
   const minConf = flags['min-confidence'] || (flags.all ? 'low' : 'medium');
