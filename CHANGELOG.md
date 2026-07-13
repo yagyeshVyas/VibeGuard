@@ -5,6 +5,39 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — Phase 1: Compliance + MCP Tools + Breadth
+- 4 new MCP tools (82 total): `generate_sbom`, `dep_reachability`,
+  `scan_container_image`, `license_compliance`.
+- `vibeguard sbom [dir]` — CycloneDX 1.5 SBOM from `package-lock.json` +
+  source import graph. Marks which deps are actually imported in code.
+  `src/sbom.js`.
+- `vibeguard reachability [dir]` — cross-references CVE results against
+  the actual import graph. Separates reachable vulns (imported — fix first)
+  from transitive-only (lower priority).
+- `vibeguard container-scan <image>` — shells out to `trivy` for container
+  image vulnerability scanning. Graceful fallback when trivy absent.
+- `vibeguard license [dir]` — checks `package.json` licenses against an
+  allowlist (MIT/ISC/BSD/Apache/0BSD). `--allow GPL-3.0` adds custom
+  licenses. Flags GPL/AGPL/unlicensed.
+- 4 new compliance frameworks (10 total): NIST CSF 2.0, OWASP ASVS L1/L2/L3,
+  CIS Controls v8, NIST SP 800-53 Rev. 5. `src/compliance.js`,
+  `src/rules-pack.js` `COMPLIANCE_MAP`.
+- Fixed PCI-DSS from 3.2.1 control IDs to actual v4.0 IDs (6.2.4, 8.3.2, etc.).
+- 3 new AI client installers (15 total): Copilot CLI, Amazon Q Developer,
+  Sourcegraph Cody. `src/install.js`.
+- 3 new CI templates (7 total): Bitbucket Pipelines, Travis CI, Buildkite.
+  `ci-templates/`.
+
+### Changed — Phase 0: Honesty Fixes
+- `deep_scan` reframed from "LLM-powered deep review" (overclaim) to
+  "agentic deep review" — emits structured review contracts for the
+  consuming AI client. VibeGuard never calls an LLM. `src/mcp-server.js`.
+- Sandbox `vm` limits documented honestly: Node `vm` is not a security
+  boundary, memory cap is unenforced. `src/sandbox.js`, `README.md`.
+- Stale test floors bumped: 200+ → 500+ rules, 40/54 → 78+ MCP tools.
+- README honest-scope expanded: sandbox vm, AI-safety recall 57%, taint
+  JS/TS-only, VibeGuard never calls LLM.
+
 ### Added
 - Self-integrity verification. `vibeguard self-check` now cryptographically
   verifies the CONTENT of its critical security modules (action-guard,
