@@ -6,6 +6,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- Self-integrity verification. `vibeguard self-check` now cryptographically
+  verifies the CONTENT of its critical security modules (action-guard,
+  shell-guard, interceptor, firewall, rules, scanner, taint, mcp-audit, …)
+  against a shipped SHA-256 manifest (`src/integrity.json`), not just that they
+  load. Detects a patched/neutered guard — e.g. `inspectAction` rewritten to
+  always allow, or a rule file gutted — which a load-only check missed. Manifest
+  is regenerated on `prepublishOnly` (and via `npm run integrity`). Honest limit:
+  detects source tampering, not a full chain of trust; verify npm provenance for
+  the trust anchor. `src/integrity.js`, `scripts/gen-integrity.js`.
 - Agent Action Firewall — `vibeguard guard-action` + `guard_action` MCP tool +
   `src/action-guard.js` (`inspectAction`). Real-time "nothing leaks" guard:
   inspect any agent action (shell / network / file-write / prompt / MCP call)

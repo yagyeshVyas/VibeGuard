@@ -1,36 +1,49 @@
 <div align="center">
 
-<!-- Animated logo / banner -->
 <img src="website/banner.svg" alt="VibeGuard" width="480" />
 
-### Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever.
+<h3>Security scanner + AI agent firewall for vibe-coded apps.</h3>
 
-<!-- Badges -->
+<p>
+Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops. 699 rules, AST taint analysis, real-time action firewall. 100% offline. Free forever.
+</p>
+
 <p>
   <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=flat-square&logo=npm&logoColor=white" alt="npm version" /></a>
   <a href="https://github.com/yagyeshVyas/VibeGuard/actions"><img src="https://img.shields.io/github/actions/workflow/status/yagyeshVyas/VibeGuard/ci.yml?style=flat-square&logo=github&logoColor=white" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license" /></a>
+  <img src="https://img.shields.io/badge/coverage-86%25%20F1-success?style=flat-square" alt="86% F1" />
+  <img src="https://img.shields.io/badge/rules-699-blue?style=flat-square" alt="699 rules" />
+  <img src="https://img.shields.io/badge/MCP%20tools-78-purple?style=flat-square" alt="78 MCP tools" />
+  <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
 </p>
 
-<!-- Demo GIF -->
 <img src="website/demo.gif" alt="VibeGuard scan demo" width="640" />
 
 <br/>
 <sub>Captured against a test project with a planted <code>sk_live</code> Stripe key.</sub>
 
----
+<br/><br/>
 
-<!-- Quick install command -->
 <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><code>npx @yagyeshvyas/vibeguard scan</code></a>
 
-[Features](#what-it-catches) &bull; [Quick Start](#quick-start) &bull; [Benchmark](#benchmark) &bull; [Commands](#commands) &bull; [Website](https://vibe-guard-site-ivory.vercel.app/) &bull; [Docs](https://github.com/yagyeshVyas/VibeGuard/wiki)
+<br/><br/>
+
+<a href="#what-it-catches">Features</a> &bull;
+<a href="#quick-start">Quick Start</a> &bull;
+<a href="#benchmark">Benchmark</a> &bull;
+<a href="#commands">Commands</a> &bull;
+<a href="https://vibe-guard-site-ivory.vercel.app/">Website</a> &bull;
+<a href="#why-vibeguard">Why</a> &bull;
+<a href="#honest-scope">Limits</a>
 
 </div>
 
-<!-- Anchor target for the badge link -->
-<a id="license"></a>
-
 ---
+
+## Why VibeGuard
+
+AI coding tools ship fast but skip security. Most devs vibe-code a prototype and forget to harden it. VibeGuard raises the floor — one command, 5 seconds, no account, no telemetry.
 
 ```
 $ npx @yagyeshvyas/vibeguard scan
@@ -63,22 +76,18 @@ Run vibeguard fix to auto-fix 4 issues
 npx @yagyeshvyas/vibeguard scan
 ```
 
-Or one-command full protection (daemon + hooks + shell guard):
-
+One-command full protection (daemon + hooks + shell guard):
 ```bash
 npx @yagyeshvyas/vibeguard auto          # full protection on
 npx @yagyeshvyas/vibeguard auto --stop    # turn it off
 ```
 
 ### Wire into Claude Code
-
 ```bash
 claude mcp add vibeguard -- npx @yagyeshvyas/vibeguard mcp
 ```
 
 ### Wire into Cursor / Windsurf
-
-Add to your MCP config:
 ```json
 { "mcpServers": { "vibeguard": { "command": "npx", "args": ["@yagyeshvyas/vibeguard", "mcp"] } } }
 ```
@@ -87,56 +96,50 @@ Add to your MCP config:
 
 ## What It Catches
 
-**Leaked Stripe key in client code**
+### Leaked Stripe key in client code
 ```js
 const key = "sk_live_51H8x...";  // anyone with devtools can issue refunds
 ```
-VibeGuard flags 50+ secret types — OpenAI, AWS, GitHub, Stripe, Slack, Firebase — and tells you to move them to `process.env`.
+Flags 50+ secret types — OpenAI, AWS, GitHub, Stripe, Slack, Firebase, GCP, Twilio, SendGrid, npm, Mailgun, Resend, Telegram — and tells you to move them to `process.env`.
 
-**Supabase database open to the world**
+### Supabase database open to the world
 ```sql
 create table posts ( ... );  -- no RLS — anyone can read/write all rows
 ```
 Detects missing RLS, fake RLS policies (`USING (true)`), and service-role keys in client components.
 
-**SQL injection via template literal**
+### SQL injection via template literal
 ```js
 db.query(`SELECT * FROM users WHERE id = ${req.body.id}`);
 ```
 AST taint analysis traces `req.body.id` through template literals to `query()` — confirmed dataflow, not a regex guess.
 
-**Prompt injection in system prompt**
+### Prompt injection in system prompt
 ```js
 { role: "system", content: "You are " + req.body.prompt }
 ```
 Catches user input injected into the system role — the root cause of most prompt injection attacks.
 
-**`dangerouslySetInnerHTML` with request data**
+### `dangerouslySetInnerHTML` with request data
 ```jsx
 <div dangerouslySetInnerHTML={{__html: req.body.html}} />
 ```
 Flags XSS sinks across React, Vue (`v-html`), Angular (`innerHTML`), and raw `innerHTML` / `outerHTML` / `insertAdjacentHTML`.
 
-**AI agent loop without iteration cap**
+### AI agent loop without iteration cap
 ```js
 while (true) { await agent.step(); }
 ```
 Detects uncapped agent loops — infinite API spend, resource exhaustion.
 
-**Hardcoded JWT secret**
-```js
-jwt.sign(payload, "mysecret123");  // token forgery
-```
-Catches hardcoded session secrets, JWT keys, and credentials in config files, Dockerfiles, and Kubernetes secrets.
-
-**Shell command from LLM output**
+### Shell command from LLM output (RCE via prompt injection)
 ```js
 const completion = await openai.chat.completions.create({...});
-exec(completion.choices[0].message.content);  // RCE via prompt injection
+exec(completion.choices[0].message.content);  // RCE
 ```
 Only scanner that detects LLM output reaching `exec`, `eval`, SQL queries, and DOM sinks.
 
-**Poisoned or rug-pulled MCP server**
+### Poisoned or rug-pulled MCP server
 ```json
 { "mcpServers": { "helper": { "command": "npx", "args": ["-y", "some-tool", "mcp"] } } }
 ```
@@ -165,7 +168,7 @@ Prompt injection (1)      user input in system prompt, no guard
 Agent capability (1)      agent loop with no iteration cap
 ```
 
-Aggregates MCP-server trust, PII/secret leakage to LLM providers, LLM output reaching `exec`/`eval`/SQL/DOM, prompt injection, agent capability/loop safety, and hallucinated dependencies into a single **Agent Risk Grade**. Built for people coding with AI, MCP, and agents. Offline. `--fail-on high` to gate CI; also exposed as the `agent_scan` MCP tool so an agent can grade its own setup.
+Aggregates MCP-server trust, PII/secret leakage to LLM providers, LLM output reaching `exec`/`eval`/SQL/DOM, prompt injection, agent capability/loop safety, and hallucinated dependencies into a single **Agent Risk Grade**. `--fail-on high` to gate CI; also exposed as the `agent_scan` MCP tool so an agent can grade its own setup.
 
 ---
 
@@ -186,7 +189,7 @@ inspectAction({ type: 'network', url: 'https://evil.example', body: { key: proce
 // { action: 'block', reason: 'Stripe secret key would be sent to evil.example' }
 ```
 
-The rule is simple and hard: **an API key or personal data (email, SSN, credit card, phone) never leaves to an external host** — secrets are blocked unconditionally, PII is blocked (or `warn`), sending to `localhost`/your own allowlisted hosts is fine. Also blocks cloud-metadata credential theft (`169.254.169.254`), secrets written to web-served paths, and secrets pasted into LLM prompts. `sanitizeOutbound()` redacts instead of dropping when you'd rather scrub than block. Offline; a guard, not a sandbox — it stops accidents and agent mistakes, not a determined attacker with local code execution.
+The rule is simple and hard: **an API key or personal data (email, SSN, credit card, phone) never leaves to an external host** — secrets are blocked unconditionally, PII is blocked (or `warn`), sending to `localhost`/your own allowlisted hosts is fine. Also blocks cloud-metadata credential theft (`169.254.169.254`), secrets written to web-served paths, and secrets pasted into LLM prompts. `sanitizeOutbound()` redacts instead of dropping when you'd rather scrub than block.
 
 ---
 
@@ -227,7 +230,6 @@ vibeguard scan --all                     # show everything
 ```
 
 Suppress inline with a reason:
-
 ```js
 const key = "sk_live_..."; // vibeguard-ignore[secret.stripe-live-key]: test fixture
 ```
@@ -240,10 +242,11 @@ Detection depth is **not uniform across languages** — be honest about what you
 
 | Language | Secrets / patterns | Dataflow taint | Engine |
 |----------|:---:|:---:|--------|
-| JavaScript / TypeScript | ✅ | ✅ interprocedural + cross-file | AST (acorn) |
-| Python | ✅ | ⚠️ heuristic (line-proximity, single-file) | regex |
-| Go | ✅ | ⚠️ targeted rules (e.g. `fmt.Sprintf` SQL) | regex |
-| Java / PHP / Ruby / C# / Rust | ✅ | ❌ pattern-only | regex |
+| JavaScript / TypeScript | Full | Interprocedural + cross-file | AST (acorn) |
+| Python | Full | Heuristic (line-proximity, single-file) | regex |
+| Go | Full | Targeted rules (`fmt.Sprintf` SQL) | regex |
+| Java / PHP / Ruby / C# / Rust | Full | Pattern-only | regex |
+| Kotlin / Swift / Bash | Full | Pattern-only | regex |
 
 **Engine modes.** Full precision needs the optional `acorn` parser. Without it VibeGuard runs `regex-only` and says so loudly on every scan:
 
@@ -261,7 +264,7 @@ Install precision: `npm i -D acorn acorn-walk acorn-typescript`.
 
 Use `vibeguard scan --strict` to make a degraded scan a hard failure (exit 3) in CI.
 
-**Fast modes.** `--changed` rescans only files changed since the last scan (SHA-256 cache; ~100×+ faster warm re-scans). `--staged` scans only git-staged files — ideal for a pre-commit hook. Both are per-file (cross-file analysis skipped; run a full scan for that). `--no-suppress` ignores inline `vibeguard-ignore` comments and the heuristic FP filter for a CI trust gate.
+**Fast modes.** `--changed` rescans only files changed since the last scan (SHA-256 cache; ~100x+ faster warm re-scans). `--staged` scans only git-staged files — ideal for a pre-commit hook. Both are per-file (cross-file analysis skipped; run a full scan for that).
 
 **The shell guard is a mistake-catcher, not a sandbox.** It normalizes common obfuscation (base64, `$IFS`, variable indirection, quote-splitting) and blocks accidental / AI-generated dangerous commands. A determined adversary who knows the patterns can still evade it — it is not sandbox-escape prevention.
 
@@ -451,6 +454,8 @@ Generated: 2026-07-12T18:25:03.049Z
 
 <!-- BENCHMARK:END -->
 
+Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`.
+
 ---
 
 ## Commands
@@ -459,14 +464,22 @@ Generated: 2026-07-12T18:25:03.049Z
 vibeguard scan [dir]              # scan a project (auto-detects framework)
 vibeguard scan --fix              # scan + apply safe auto-fixes
 vibeguard scan --all              # show all findings including low-confidence
+vibeguard scan --patch            # output unified diff for fixes
+vibeguard agent-scan [dir]         # AI agent security posture grade
+vibeguard mcp-audit               # audit MCP servers for poisoning/drift
+vibeguard guard-action "cmd"      # inspect an agent action before running
 vibeguard auto [dir]              # full protection (daemon + hooks + shell guard)
 vibeguard auto --stop             # turn off, restore backups
 vibeguard fix [dir]               # auto-fix 43 rule types
 vibeguard pre-deploy [dir]        # 13-gate deployment check
 vibeguard mcp                     # MCP server (for AI client integration)
 vibeguard guard "command"         # check a shell command before running it
-vibeguard install-hook           # git pre-commit hook (blocks on critical)
-vibeguard install-hook-post      # PostToolUse hook (auto-scan AI edits)
+vibeguard url <url>               # scan HTTP headers for security misconfig
+vibeguard pii-text "text"         # detect PII in text (email, SSN, card, phone)
+vibeguard cve <package>           # check a package version for known CVEs
+vibeguard install-hook            # git pre-commit hook (blocks on critical)
+vibeguard install-hook-post       # PostToolUse hook (auto-scan AI edits)
+vibeguard init-ci                 # generate CI/CD workflow files
 ```
 
 ---
@@ -520,7 +533,7 @@ Templates included for GitLab CI, Jenkins, CircleCI, Azure Pipelines.
 
 ```bash
 npm install
-npm test          # 342 tests
+npm test          # 356 tests, 0 failures
 npm run benchmark # precision/recall/F1
 npm run counts    # verify rule/tool counts match source
 npm run lint      # 0 errors

@@ -1480,8 +1480,26 @@ function cmdSelfCheck(dir, flags) {
   if (fs.existsSync(gi) && /\.env/.test(fs.readFileSync(gi, 'utf8'))) checks.push(`  ${C2.green}PASS${C.reset}  .env in .gitignore`);
   else { checks.push(`  ${C2.red}FAIL${C.reset}  .env NOT in .gitignore`); ok = false; }
 
+  // Cryptographic content integrity — detects a patched/neutered guard that a
+  // load-only check would miss.
+  try {
+    const { verifyIntegrity } = require('../src/integrity');
+    const iv = verifyIntegrity(path.join(__dirname, '..', 'src'));
+    if (!iv.available) {
+      checks.push(`  ${C2.dim}INFO  Integrity manifest not present (run: node scripts/gen-integrity.js)${C.reset}`);
+    } else if (iv.intact) {
+      checks.push(`  ${C2.green}PASS${C.reset}  Content integrity verified (${iv.checked} security modules, sha256)`);
+    } else {
+      ok = false;
+      if (iv.modified.length) checks.push(`  ${C2.red}FAIL${C.reset}  TAMPERED — modified: ${iv.modified.join(', ')}`);
+      if (iv.missing.length) checks.push(`  ${C2.red}FAIL${C.reset}  MISSING — ${iv.missing.join(', ')}`);
+    }
+  } catch (e) {
+    checks.push(`  ${C2.yellow}WARN${C.reset}  Integrity check failed to run: ${e.message}`);
+  }
+
   for (const c of checks) process.stdout.write(c + '\n');
-  process.stdout.write(`\n${ok ? C2.green + C2.bold + 'VibeGuard is intact.' : C2.yellow + 'Some checks need attention.'}${C.reset}\n`);
+  process.stdout.write(`\n${ok ? C2.green + C2.bold + 'VibeGuard is intact.' : C2.red + C2.bold + 'INTEGRITY / SECURITY CHECK FAILED — do not trust this install.'}${C.reset}\n`);
   return ok ? 0 : 1;
 }
 

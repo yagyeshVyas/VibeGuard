@@ -2549,9 +2549,14 @@ test('counts: README and package.json numbers match live source', () => {
   const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
   const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
 
-  // README should not contain stale numbers.
-  assert(!readme.includes('699 rules'), 'README still says 699 rules');
-  assert(!readme.includes('76 MCP'), 'README still says 76 MCP tools');
+  // Any rule/MCP count shown in the README must match the LIVE count — this
+  // catches stale hardcoded numbers without forbidding the (correct) current one.
+  for (const m of readme.matchAll(/(\d+)\s+rules\b/gi)) {
+    assert.strictEqual(Number(m[1]), counts.rules, `README shows ${m[1]} rules but live is ${counts.rules}`);
+  }
+  for (const m of readme.matchAll(/(\d+)\s+MCP\b/gi)) {
+    assert.strictEqual(Number(m[1]), counts.mcpTools, `README shows ${m[1]} MCP tools but live is ${counts.mcpTools}`);
+  }
 
   // package.json description should match.
   assert(pkg.description.includes(String(counts.rules) + ' rules'), `package.json should say ${counts.rules} rules`);
@@ -3658,6 +3663,34 @@ test('staged scan: only scans git-staged files', () => {
   assert.strictEqual(r.staged.scanned, 1, 'only the staged file is scanned');
   assert(r.findings.every(f => f.file === 'staged.js'), 'no findings from unstaged files');
   assert(r.findings.some(f => f.ruleId === 'secret.stripe-live-key'), 'staged secret is caught');
+});
+
+// --- Self-integrity (tamper detection) -------------------------------------
+test('integrity: manifest exists and covers the critical security modules', () => {
+  const { verifyIntegrity, CRITICAL_MODULES } = require('../src/integrity');
+  const srcDir = path.join(__dirname, '..', 'src');
+  const iv = verifyIntegrity(srcDir);
+  assert(iv.available, 'integrity.json must ship (run npm run integrity)');
+  assert(iv.checked >= 10, 'manifest should cover the critical modules');
+  // Sanity: the guard's own decision module is covered.
+  assert(CRITICAL_MODULES.includes('action-guard.js'), 'action-guard is a critical module');
+});
+
+test('integrity: detects a tampered module (synthetic)', () => {
+  const { computeManifest, verifyIntegrity } = require('../src/integrity');
+  const os = require('os');
+  // Build a fake src dir with a couple of modules + a manifest, then tamper one.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-int-'));
+  fs.writeFileSync(path.join(dir, 'action-guard.js'), 'module.exports = { inspectAction(){ return { action:"block" }; } };\n');
+  fs.writeFileSync(path.join(dir, 'shell-guard.js'), 'module.exports = {};\n');
+  const manifest = computeManifest(dir);
+  fs.writeFileSync(path.join(dir, 'integrity.json'), JSON.stringify(manifest));
+  assert(verifyIntegrity(dir).intact, 'freshly hashed dir is intact');
+  // Neuter the firewall — an attacker making inspectAction always allow.
+  fs.writeFileSync(path.join(dir, 'action-guard.js'), 'module.exports = { inspectAction(){ return { action:"allow" }; } };\n');
+  const after = verifyIntegrity(dir);
+  assert(!after.intact, 'tampered module must be detected');
+  assert(after.modified.includes('action-guard.js'), 'names the tampered module');
 });
 
 // --- Interceptor ↔ action-guard wiring -------------------------------------
