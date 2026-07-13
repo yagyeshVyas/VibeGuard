@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
+
+:root {
+  --bg: #02040a;
+  --bg2: #050a14;
+  --fg: #c8f0ff;
+  --cyan: #00f0ff;
+  --cyan-dim: #0080a0;
+  --gold: #ffb547;
+  --red: #ff3860;
+  --green: #00ff9d;
+  --panel: rgba(0, 20, 40, 0.6);
+  --edge: rgba(0, 240, 255, 0.15);
+  --edge-bright: rgba(0, 240, 255, 0.4);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: Rajdhani, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--cyan); color: var(--bg); }
+
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #02040a; }
+::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan); }
+
+/* === Tech fonts === */
+.font-tech { font-family: "Orbitron", sans-serif; }
+.font-body { font-family: "Rajdhani", sans-serif; }
+.font-mono { font-family: "JetBrains Mono", monospace; }
+
+/* === Hex grid background === */
+.bg-hex {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+.bg-hex-animated {
+  background-image:
+    linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px);
+  background-size: 52px 52px;
+  animation: gridDrift 12s linear infinite;
+}
+@keyframes gridDrift {
+  0% { background-position: 0 0; }
+  100% { background-position: 52px 52px; }
+}
+
+/* === Radial glows === */
+.glow-cyan { background: radial-gradient(circle, rgba(0, 240, 255, 0.18), transparent 65%); }
+.glow-gold { background: radial-gradient(circle, rgba(255, 181, 71, 0.12), transparent 65%); }
+.glow-red { background: radial-gradient(circle, rgba(255, 56, 96, 0.1), transparent 65%); }
+.glow-green { background: radial-gradient(circle, rgba(0, 255, 157, 0.1), transparent 65%); }
+
+/* === Gradient text === */
+.text-cyan-gradient {
+  background: linear-gradient(135deg, #00f0ff 0%, #00ff9d 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.text-gold-gradient {
+  background: linear-gradient(135deg, #ffb547 0%, #ff3860 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+/* === HUD glass panel === */
+.hud-panel {
+  background: rgba(2, 8, 20, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--edge);
+  position: relative;
+}
+.hud-panel::before,
+.hud-panel::after {
+  content: ""; position: absolute; width: 14px; height: 14px; border: 2px solid var(--cyan);
+}
+.hud-panel::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.hud-panel::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+/* === HUD corner brackets (all 4) === */
+.hud-corners { position: relative; }
+.hud-corners > .corner {
+  position: absolute; width: 16px; height: 16px; border: 2px solid var(--cyan); pointer-events: none; z-index: 2;
+}
+.hud-corners > .corner.tl { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.hud-corners > .corner.tr { top: -1px; right: -1px; border-left: none; border-bottom: none; }
+.hud-corners > .corner.bl { bottom: -1px; left: -1px; border-right: none; border-top: none; }
+.hud-corners > .corner.br { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+/* === Scanline effect === */
+@keyframes scanline { 0% { top: 0; } 100% { top: 100%; } }
+.scanline-overlay { position: relative; overflow: hidden; }
+.scanline-overlay::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  animation: scanline 3s linear infinite; opacity: 0.3; pointer-events: none;
+}
+
+/* === CRT flicker === */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.97; }
+  52% { opacity: 0.93; }
+  54% { opacity: 1; }
+}
+.crt-flicker { animation: flicker 4s infinite; }
+
+/* === Blink cursor === */
+@keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.cursor-blink::after { content: "▊"; animation: blink 1s step-end infinite; color: var(--cyan); }
+
+/* === Glow text === */
+.glow-text-cyan { text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(0, 240, 255, 0.3); }
+.glow-text-gold { text-shadow: 0 0 10px rgba(255, 181, 71, 0.5); }
+.glow-text-red { text-shadow: 0 0 10px rgba(255, 56, 96, 0.5); }
+.glow-text-green { text-shadow: 0 0 10px rgba(0, 255, 157, 0.5); }
+
+/* === Box glow === */
+.glow-box-cyan { box-shadow: 0 0 20px rgba(0, 240, 255, 0.15), inset 0 0 20px rgba(0, 240, 255, 0.05); }
+
+/* === Rotate animations === */
+@keyframes spin-slow { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes spin-reverse { from { transform: rotate(360deg); } to { transform: rotate(0); } }
+.spin-slow { animation: spin-slow 20s linear infinite; }
+.spin-medium { animation: spin-slow 10s linear infinite; }
+.spin-fast { animation: spin-slow 6s linear infinite; }
+.spin-reverse-slow { animation: spin-reverse 15s linear infinite; }
+
+/* === Pulse ring === */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.pulse-ring { animation: pulse-ring 2s ease-out infinite; }
+
+/* === Data stream (vertical lines) === */
+@keyframes data-stream {
+  0% { top: -100%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+.data-stream {
+  position: absolute; width: 1px; background: linear-gradient(180deg, transparent, var(--cyan), transparent);
+  animation: data-stream 3s linear infinite;
+}
+
+/* === Shimmer text === */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.shimmer-text {
+  background: linear-gradient(90deg, var(--cyan-dim) 0%, var(--cyan) 50%, var(--cyan-dim) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+}
+
+/* === Boot text === */
+@keyframes type-cursor { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+.boot-cursor { animation: type-cursor 0.5s step-end infinite; }
+
+/* === Fade in === */
+@keyframes fade-in-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+/* === Clip path (hex) === */
+.clip-hex { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+.clip-hex-sm { clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
