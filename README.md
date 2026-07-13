@@ -147,6 +147,28 @@ Flags tool poisoning (prompt injection in tool descriptions), unpinned auto-inst
 
 ---
 
+## `vibeguard agent-scan` — "Is my AI-agent setup safe?"
+
+One command, one grade, across every agent-era risk generic scanners miss:
+
+```bash
+vibeguard agent-scan
+```
+```
+VibeGuard — AI Agent Security Posture (offline)
+  Agent Risk Grade: C  (0 critical, 4 high, 2 medium)
+
+MCP trust (1)              unpinned server (rug-pull risk)
+AI data leakage (2)       PII sent to OpenAI without redaction
+LLM output → sink (3)     model output reaching exec() / SQL
+Prompt injection (1)      user input in system prompt, no guard
+Agent capability (1)      agent loop with no iteration cap
+```
+
+Aggregates MCP-server trust, PII/secret leakage to LLM providers, LLM output reaching `exec`/`eval`/SQL/DOM, prompt injection, agent capability/loop safety, and hallucinated dependencies into a single **Agent Risk Grade**. Built for people coding with AI, MCP, and agents. Offline. `--fail-on high` to gate CI; also exposed as the `agent_scan` MCP tool so an agent can grade its own setup.
+
+---
+
 ## `vibeguard auto` — One Command Full Protection
 
 ```bash

@@ -120,6 +120,11 @@ const TOOLS = [
     inputSchema: DIR_SCHEMA,
   },
   {
+    name: 'agent_scan',
+    description: 'AI Agent Security Posture — one graded verdict across every agent-era risk: MCP server trust, PII/secret leakage to LLM providers, LLM output reaching exec/eval/SQL/DOM, prompt injection, agent capability/loop safety, and hallucinated dependencies. Use this to answer "is my AI-agent setup safe?" Offline; aggregates VibeGuard\'s agent checks.',
+    inputSchema: { type: 'object', properties: { dir: DIR_SCHEMA.properties.dir }, required: [] },
+  },
+  {
     name: 'mcp_audit',
     description: 'Audit the MCP servers this project trusts (.mcp.json / .cursor / .vscode) for tool poisoning (prompt injection), unpinned auto-install / rug-pull, remote-code commands, secrets in env, and definition drift since last approval. 100% offline — reads config only, never runs a server.',
     inputSchema: { type: 'object', properties: { dir: DIR_SCHEMA.properties.dir, pin: { type: 'boolean', description: 'Re-baseline server definition hashes after review.' } }, required: [] },
@@ -635,6 +640,18 @@ async function handleReviewHotspots(args) {
     `\n\nReport concrete issues with file:line and a fix. Be honest about what you could not verify.`;
 
   return textResult(text);
+}
+
+async function handleAgentScan(args) {
+  const dir = args.dir || process.cwd();
+  const { agentScan } = require('./agent-scan');
+  const result = agentScan(dir);
+  const cats = Object.entries(result.categories)
+    .map(([k, v]) => `${k}=${v.length}`).join(', ');
+  const summary = `Agent Risk Grade ${result.grade} — ${result.counts.critical} critical, ${result.counts.high} high, ${result.counts.medium} medium across ${result.mcpServers} MCP server(s) and ${result.scannedFiles} files.` +
+    (cats ? ` [${cats}]` : '') +
+    (result.mcpDrifted && result.mcpDrifted.length ? ` ⚠ MCP drift: ${result.mcpDrifted.join(', ')}.` : '');
+  return textResult(summary + '\n\n' + JSON.stringify(result, null, 2));
 }
 
 async function handleMcpAudit(args) {
@@ -1771,6 +1788,7 @@ async function main() {
       else if (name === 'network_audit') result = await handleNetworkAudit(args);
       else if (name === 'ai_data_guard') result = await handleAIDataGuard(args);
       else if (name === 'mcp_audit') result = await handleMcpAudit(args);
+      else if (name === 'agent_scan') result = await handleAgentScan(args);
       else if (name === 'generate_privacy_policy') result = await handlePrivacyPolicy(args);
       else if (name === 'generate_csp') result = await handleCSP(args);
       else if (name === 'ai_firewall') result = await handleAIFirewall(args);

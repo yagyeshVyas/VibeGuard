@@ -6,6 +6,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- `vibeguard agent-scan` — AI Agent Security Posture (new `agent_scan` MCP tool
+  too). One graded verdict — "is my AI-agent setup safe?" — aggregating every
+  agent-era check into threat categories: MCP-server trust, PII/secret leakage
+  to LLM providers, LLM output reaching exec/eval/SQL/DOM, prompt injection,
+  agent capability/loop safety, and hallucinated dependencies. Pure offline
+  orchestration of already-tested modules (mcp-audit + ai-guard + the `ai.*`
+  rule family). `--fail-on <level>` to gate CI.
 - `vibeguard mcp-audit` — MCP server security audit (new `mcp_audit` MCP tool
   too). Audits the MCP servers an agent is configured to trust
   (`.mcp.json` / `.cursor/mcp.json` / `.vscode/mcp.json`) for tool poisoning

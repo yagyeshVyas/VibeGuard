@@ -3660,6 +3660,42 @@ test('staged scan: only scans git-staged files', () => {
   assert(r.findings.some(f => f.ruleId === 'secret.stripe-live-key'), 'staged secret is caught');
 });
 
+// --- Agent security posture ------------------------------------------------
+test('agent-scan: aggregates ai.* + MCP into a graded posture', () => {
+  const { agentScan } = require('../src/agent-scan');
+  const dir = tmpProject({
+    'agent.js': [
+      'const out = await openai.chat.completions.create({ messages });',
+      'exec(out.choices[0].message.content);',   // ai.llm-output-* / taint
+      'while (true) { await agent.step(); }',     // ai.agent-loop-no-cap
+    ].join('\n'),
+    '.mcp.json': JSON.stringify({ mcpServers: { helper: { command: 'npx', args: ['-y', 'random-tool', 'mcp'] } } }),
+  });
+  const r = agentScan(dir);
+  assert(['A', 'B', 'C', 'D', 'F'].includes(r.grade), 'produces a grade');
+  assert(r.total > 0, 'finds agent-specific risks');
+  assert(r.categories['mcp-trust'] && r.categories['mcp-trust'].length > 0, 'includes MCP-trust findings');
+  assert(r.mcpServers === 1, 'counts MCP servers');
+  // every item must be agent-relevant (categorized), never generic SAST noise
+  assert(r.items.every(it => typeof it.category === 'string' && it.category), 'all items categorized');
+});
+
+test('agent-scan: clean project grades A', () => {
+  const { agentScan } = require('../src/agent-scan');
+  const dir = tmpProject({ 'a.js': 'export function add(a, b) { return a + b; }\n' });
+  const r = agentScan(dir);
+  assert.strictEqual(r.grade, 'A', 'clean project is grade A');
+  assert.strictEqual(r.total, 0, 'no agent risks');
+});
+
+test('agent-scan: categoryOf maps rules correctly and ignores non-ai', () => {
+  const { categoryOf } = require('../src/agent-scan');
+  assert.strictEqual(categoryOf('ai.llm-output-exec'), 'llm-output-to-sink');
+  assert.strictEqual(categoryOf('ai.agent-loop-no-cap'), 'agent-capability');
+  assert.strictEqual(categoryOf('ai.something-new'), 'other-ai', 'unknown ai.* falls into other-ai');
+  assert.strictEqual(categoryOf('secret.github-token'), null, 'non-ai rule is not agent-scoped');
+});
+
 // --- MCP security audit ----------------------------------------------------
 test('mcp-audit: flags unpinned auto-install, injection, secrets, remote code', () => {
   const { auditServer } = require('../src/mcp-audit');
