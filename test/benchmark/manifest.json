@@ -317,7 +317,8 @@
         "ai.tool-result-injection"
       ],
       "agent-memory-poison.js": [
-        "ai.memory-poisoning"
+        "ai.memory-poisoning",
+        "ai.agent-memory-poisoning"
       ],
       "tool-poisoning.js": [
         "ai.tool-poisoning",

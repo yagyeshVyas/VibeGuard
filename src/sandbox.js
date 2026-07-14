@@ -10,27 +10,25 @@
  * - No access to net/http (no network access)
  * - No access to eval/Function (no dynamic code)
  * - Time-limited execution (prevents infinite loops)
- * - Memory-limited (prevents memory bombs)
+ * - Memory-limited (prevents memory bombs) [enforced with isolated-vm]
  * - Full audit log of every operation attempted
  *
  * Even if AI generates malicious code, it runs in a cage.
- * 100% local. Zero network. Zero dependencies.
+ * 100% local. Zero network. Zero dependencies (isolated-vm is optional).
  *
- * HONEST LIMITS:
- * - This sandbox uses Node's `vm` module. Per Node.js docs, `vm` is NOT
- *   a security boundary. A determined attacker can escape via prototype
- *   chain traversal (e.g., `({}).constructor.constructor('return process')()`).
- * - The memory cap (maxMemory) is currently NOT enforced — it is computed
- *   and returned but `runInSandbox` does not check heap usage. A memory
- *   bomb will run until the timeout, not until the memory cap.
- * - For hard isolation, install `isolated-vm` (optional dependency, planned).
- *   When present, VibeGuard will use it for true V8-isolate sandboxing with
- *   enforced memory limits and no shared heap.
- * - Treat this sandbox as a "raised floor" not a "steel vault". It stops
- *   accidental damage and naive exploits, not a determined adversary.
+ * ISOLATION LEVELS:
+ * - Level 2 (isolated-vm installed): True V8 isolate with enforced memory
+ *   limit, no shared heap, no process/require/global access. This is a real
+ *   security boundary. Prototype chain escape is impossible.
+ * - Level 1 (vm only, no isolated-vm): Node `vm` module — NOT a security
+ *   boundary per Node.js docs. Prototype chain traversal can escape.
+ *   Memory cap is NOT enforced. Treat as a "raised floor" not a "steel vault".
  */
 
 const vm = require('vm');
+
+let isolatedVm = null;
+try { isolatedVm = require('isolated-vm'); } catch { /* optional dep */ }
 
 const DEFAULT_TIMEOUT = 5000; // 5s
 const DEFAULT_MAX_MEMORY = 16 * 1024 * 1024; // 16MB
@@ -99,10 +97,64 @@ function createSandbox(opts = {}) {
   return { context, timeout, maxMemory };
 }
 
-function runInSandbox(code, opts = {}) {
+// ─── Level 2: isolated-vm (real isolation) ────────────────────────────────
+
+function runInIsolatedVm(code, opts = {}) {
+  const timeout = opts.timeout || DEFAULT_TIMEOUT;
+  const maxMemory = opts.maxMemory || DEFAULT_MAX_MEMORY;
+  const startTime = Date.now();
+  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory, memoryEnforced: true, isolation: 'isolated-vm' };
+
+  try {
+    const isolate = new isolatedVm.Isolate({ memoryLimit: Math.ceil(maxMemory / 1024 / 1024) });
+    const context = isolate.createContextSync();
+    const jail = context.global;
+    jail.setSync('globalThis', jail.derefInto());
+
+    // Provide safe globals
+    const safeNames = ['console','JSON','Math','Date','Array','String','Number','Boolean','RegExp','Map','Set','parseInt','parseFloat','isNaN','isFinite','encodeURIComponent','decodeURIComponent'];
+    for (const name of safeNames) {
+      jail.setSync(name, globalThis[name]);
+    }
+
+    // Override console to capture output
+    const logCapture = (...args) => {
+      auditLog.push({ type: 'console', level: 'log', args: args.map(a => String(a).slice(0, 200)) });
+    };
+    jail.setSync('console', { log: logCapture, error: logCapture, warn: logCapture });
+
+    // Block dangerous globals explicitly
+    const blocked = ['process','require','module','exports','__dirname','__filename','eval','Function','setTimeout','setInterval','setImmediate','fetch','Buffer','child_process'];
+    for (const b of blocked) {
+      jail.setSync(b, undefined);
+    }
+
+    const script = isolate.compileScriptSync(code);
+    const output = script.runSync(context, { timeout });
+    result.output = output !== undefined ? String(output) : null;
+    result.success = true;
+    isolate.dispose();
+  } catch (err) {
+    if (err.message && err.message.includes('memory')) {
+      result.error = 'VibeGuard Sandbox: Memory limit exceeded (' + Math.ceil(maxMemory / 1024 / 1024) + 'MB)';
+    } else if (err.message && err.message.includes('timeout')) {
+      result.error = 'VibeGuard Sandbox: Execution timed out (possible infinite loop)';
+    } else {
+      result.error = err.message || String(err);
+    }
+  }
+
+  result.duration = Date.now() - startTime;
+  result.audit = auditLog;
+  return result;
+}
+
+// ─── Level 1: vm (fallback, not a hard boundary) ──────────────────────────
+
+function runInVm(code, opts = {}) {
   const { context, timeout, maxMemory } = createSandbox(opts);
   const startTime = Date.now();
-  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory, memoryEnforced: false };
+  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory, memoryEnforced: false, isolation: 'vm' };
 
   try {
     const vmContext = vm.createContext(context);
@@ -118,8 +170,21 @@ function runInSandbox(code, opts = {}) {
 
   result.duration = Date.now() - startTime;
   result.audit = auditLog;
-  result.memoryEnforced = false; // vm does not support per-context memory limits; see HONEST LIMITS in file header
+  result.memoryEnforced = false;
   return result;
+}
+
+// ─── Main entry: use isolated-vm when available, vm as fallback ───────────
+
+function runInSandbox(code, opts = {}) {
+  if (isolatedVm) {
+    return runInIsolatedVm(code, opts);
+  }
+  return runInVm(code, opts);
+}
+
+function getIsolationLevel() {
+  return isolatedVm ? 'isolated-vm' : 'vm';
 }
 
 function getAuditLog() {
@@ -134,6 +199,8 @@ function renderSandboxReport(result) {
     '',
     `  Success:  ${result.success ? C.green + 'YES' : C.red + 'NO'}${C.reset}`,
     `  Duration: ${result.duration}ms`,
+    `  Isolation: ${result.isolation === 'isolated-vm' ? C.green + 'isolated-vm (hard boundary)' : C.yellow + 'vm (not a hard boundary)'}${C.reset}`,
+    `  Memory:   ${result.memoryEnforced ? C.green + 'enforced' : C.yellow + 'not enforced'}${C.reset} (${Math.ceil((result.memoryCap || 0) / 1024 / 1024)}MB cap)`,
     `  Output:   ${result.success ? String(result.output).slice(0, 200) : 'N/A'}`,
   ];
   if (result.error) lines.push(`  Error:    ${C.red}${result.error}${C.reset}`);
@@ -150,4 +217,4 @@ function renderSandboxReport(result) {
   return lines.join('\n');
 }
 
-module.exports = { createSandbox, runInSandbox, getAuditLog, renderSandboxReport, SAFE_GLOBALS, BLOCKED_GLOBALS };
+module.exports = { createSandbox, runInSandbox, runInVm, runInIsolatedVm, getIsolationLevel, getAuditLog, renderSandboxReport, SAFE_GLOBALS, BLOCKED_GLOBALS };

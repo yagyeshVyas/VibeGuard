@@ -968,6 +968,8 @@ async function handleExplainRemediation(args) {
   if (!ruleId) return textResult('explain_remediation requires a "ruleId" argument.', true);
   const rule = allRules().find(r => r.id === ruleId);
   if (!rule) return textResult(`Unknown rule: ${ruleId}`, true);
+  const { isAutoFixable } = require('./autofix');
+  const isFixable = isAutoFixable ? isAutoFixable(ruleId) : false;
   return textResult(JSON.stringify({
     id: rule.id,
     severity: rule.severity,
@@ -977,6 +979,15 @@ async function handleExplainRemediation(args) {
     fix: rule.fix,
     owasp: rule.owasp,
     cwe: rule.cwe,
+    autoFixable: isFixable,
+    fixContract: {
+      type: isFixable ? 'mechanical' : 'agentic',
+      description: isFixable
+        ? 'VibeGuard can auto-fix this with `vibeguard fix --apply`.'
+        : 'This requires a semantic fix. Use the fix guidance above and apply via your AI client.',
+      constraint: 'The fix must not introduce new findings. Re-scan after applying to verify.',
+      reviewPrompt: `Fix ${rule.id} (${rule.severity}): ${rule.message}. Approach: ${rule.fix}. Verify the fix does not introduce new security issues.`,
+    },
   }, null, 2));
 }
 

@@ -11,8 +11,8 @@
 | secrets | 19 | 7 | 2 | 73.1% | 90.5% | 80.9% |
 | xss | 16 | 0 | 1 | 100.0% | 94.1% | 97.0% |
 | path-traversal | 9 | 1 | 1 | 90.0% | 90.0% | 90.0% |
-| ai-safety | 8 | 2 | 6 | 80.0% | 57.1% | 66.7% |
-| **OVERALL** | **95** | **15** | **16** | **86.4%** | **85.6%** | **86.0%** |
+| ai-safety | 15 | 2 | 0 | 88.2% | 100.0% | 93.8% |
+| **OVERALL** | **102** | **15** | **10** | **87.2%** | **91.1%** | **89.1%** |
 
 ## Per-Category Details
 
@@ -157,15 +157,16 @@
 | llm-output-exec.js | `ast.command-injection` | FP |
 | agent-loop-no-cap.js | `ai.agent-loop-no-cap` | TP |
 | model-id-user-input.js | `ai.model-id-injection` | TP |
-| tool-result-injection.js | `ai.tool-result-injection` | FN |
-| agent-memory-poison.js | `ai.memory-poisoning` | FN |
+| tool-result-injection.js | `ai.tool-result-injection` | TP |
+| agent-memory-poison.js | `ai.memory-poisoning` | TP |
+| agent-memory-poison.js | `ai.agent-memory-poisoning` | TP |
 | tool-poisoning.js | `ai.tool-poisoning` | TP |
 | tool-poisoning.js | `ai.mcp-description-injection-deep` | TP |
-| prompt-extraction.js | `ai.prompt-extraction` | FN |
+| prompt-extraction.js | `ai.prompt-extraction` | TP |
 | llm-output-dom.js | `ai.llm-output-dom` | TP |
-| agent-deploy.js | `ai.agent-can-deploy` | FN |
-| agent-secrets.js | `ai.agent-can-access-secrets` | FN |
-| model-id-template.js | `ai.model-id-injection` | FN |
+| agent-deploy.js | `ai.agent-can-deploy` | TP |
+| agent-secrets.js | `ai.agent-can-access-secrets` | TP |
+| model-id-template.js | `ai.model-id-injection` | TP |
 
 ## Methodology
 

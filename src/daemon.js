@@ -241,9 +241,11 @@ function startDaemon(rootDir, opts) {
     detached: true,
     stdio: ['ignore', logStream, logStream],
     cwd: rootDir,
+    windowsHide: true,
   });
 
   child.unref();
+  try { fs.closeSync(logStream); } catch {}
 
   // Wait a moment for PID file to appear
   return new Promise((resolve) => {
