@@ -9,7 +9,7 @@ const features = [
   { icon: "◆", title: "Cross-File Taint", desc: "Import/export graph taint tracking. Follows user input across modules to find injection paths.", glow: "red" },
   { icon: "⬟", title: "Supply Chain", desc: "CVE intel via OSV.dev, slopsquat detection, typosquat detection, postinstall script analysis.", glow: "cyan" },
   { icon: "⬣", title: "Compliance Mapping", desc: "SOC 2, PCI-DSS, HIPAA, GDPR, ISO 27001, EU AI Act. Maps findings to control IDs.", glow: "green" },
-  { icon: "⬤", title: "MCP Server", desc: "75 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider.", glow: "gold" },
+  { icon: "⬤", title: "MCP Server", desc: "82 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, Copilot CLI, Amazon Q, Cody.", glow: "gold" },
   { icon: "✦", title: "Real-Time Hooks", desc: "PostToolUse hook auto-scans files after AI edits. Pre-commit hook blocks commits on critical findings.", glow: "red" },
   { icon: "◈", title: "Auto-Fix + Verify", desc: "43 auto-fixable rule types with snapshot + rollback. Verify mode shows resolved/remaining/new issues.", glow: "cyan" },
 ];

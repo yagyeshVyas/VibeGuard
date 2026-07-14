@@ -9,12 +9,13 @@ const bootLines = [
   { text: "> [OK] AST taint analysis engine", delay: 600 },
   { text: "> [OK] Secret detection module (50+ types)", delay: 900 },
   { text: "> [OK] AI security guardrails", delay: 1200 },
-  { text: "> [OK] MCP server (75 tools)", delay: 1500 },
+  { text: "> [OK] MCP server (82 tools)", delay: 1500 },
   { text: "> [OK] Shell guard interceptor", delay: 1800 },
   { text: "> [OK] Cross-file taint tracker", delay: 2100 },
-  { text: "> Loading 699 detection rules...", delay: 2400 },
-  { text: "> [OK] All systems online.", delay: 2700 },
-  { text: "> WELCOME.", delay: 3000 },
+  { text: "> [OK] Local MITM proxy", delay: 2300 },
+  { text: "> Loading 752 detection rules...", delay: 2600 },
+  { text: "> [OK] All systems online.", delay: 2900 },
+  { text: "> WELCOME.", delay: 3200 },
 ];
 
 export default function BootSequence({ onDone }: { onDone: () => void }) {
@@ -25,8 +26,8 @@ export default function BootSequence({ onDone }: { onDone: () => void }) {
     const timers = bootLines.map((l, i) =>
       setTimeout(() => setVisible(i + 1), l.delay)
     );
-    const hideTimer = setTimeout(() => setHide(true), 3400);
-    const doneTimer = setTimeout(onDone, 4000);
+    const hideTimer = setTimeout(() => setHide(true), 3700);
+    const doneTimer = setTimeout(onDone, 4300);
     return () => {
       timers.forEach(clearTimeout);
       clearTimeout(hideTimer);

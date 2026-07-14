@@ -49,7 +49,7 @@ const sections = [
     id: "mcp",
     title: "MCP Server",
     commands: [
-      { cmd: "vibeguard mcp", desc: "Start MCP server (75 tools)" },
+      { cmd: "vibeguard mcp", desc: "Start MCP server (82 tools)" },
       { cmd: "vibeguard install", desc: "Auto-detect and wire into all AI clients" },
     ],
   },

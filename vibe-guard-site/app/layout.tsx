@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "VibeGuard — Free Security Scanner for AI-Coded Apps",
   description:
-    "Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever. 699 rules, 75 MCP tools, AST taint analysis.",
+    "Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever. 752 rules, 82 MCP tools, 18 languages, AST taint analysis, local MITM proxy.",
   keywords: [
     "AI security scanner",
     "vibe coding security",

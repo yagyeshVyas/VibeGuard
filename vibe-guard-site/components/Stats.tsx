@@ -4,11 +4,11 @@ import { motion, useInView, useMotionValue, animate } from "framer-motion";
 import { useEffect, useRef } from "react";
 
 const stats = [
-  { num: 699, label: "RULES", suffix: "" },
-  { num: 75, label: "MCP TOOLS", suffix: "" },
-  { num: 22, label: "CLI COMMANDS", suffix: "" },
-  { num: 11, label: "AI CLIENTS", suffix: "" },
-  { num: 0, label: "DEPENDENCIES", suffix: "" },
+  { num: 752, label: "RULES", suffix: "" },
+  { num: 82, label: "MCP TOOLS", suffix: "" },
+  { num: 18, label: "LANGUAGES", suffix: "" },
+  { num: 15, label: "AI CLIENTS", suffix: "" },
+  { num: 10, label: "FRAMEWORKS", suffix: "" },
   { num: 0, label: "COST", suffix: "$" },
 ];
 

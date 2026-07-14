@@ -6,17 +6,18 @@ import Shell from "@/components/Shell";
 import ArcReactor from "@/components/ArcReactor";
 
 const stats = [
-  { num: "699", label: "Detection Rules" },
-  { num: "75", label: "MCP Tools" },
-  { num: "342", label: "Tests Passing" },
-  { num: "86%", label: "F1 Benchmark" },
-  { num: "0", label: "Dependencies" },
+  { num: "752", label: "Detection Rules" },
+  { num: "82", label: "MCP Tools" },
+  { num: "419", label: "Tests Passing" },
+  { num: "89%", label: "F1 Benchmark" },
+  { num: "18", label: "Languages" },
   { num: "$0", label: "Cost Forever" },
 ];
 
 const timeline = [
   { phase: "v0.1.0", title: "Initial Release", desc: "Core scanner with secrets, injection, auth, config, PII rules. MCP server with 5 tools. Pre-commit hook. SARIF output. Zero runtime dependencies." },
   { phase: "v1.0.0", title: "Full Protection Suite", desc: "699 rules, 75 MCP tools, AST taint analysis, cross-file taint tracking, auto-fix, daemon mode, shell guard, multi-client installer. 342 tests." },
+  { phase: "v1.3.0", title: "Phase 0-4 Complete", desc: "752 rules, 82 MCP tools, 18 languages, 10 compliance frameworks, Python taint v2, firewall semantic classifier, local MITM proxy, plugin system v2, agentic fix contracts, C/C++/Dart/Scala/Elixir rules. 419 tests. F1 89.1%." },
 ];
 
 export default function AboutPage() {
@@ -149,7 +150,7 @@ export default function AboutPage() {
             <p className="font-body text-lg text-[#c8f0ff] leading-relaxed">
               VibeGuard catches those holes <span className="text-[#00ff9d] font-bold">before they ship</span>.
               It runs entirely on your machine — no telemetry, no cloud, no dependencies.
-              699 rules, 75 MCP tools, AST-based taint analysis. Free forever.
+              752 rules, 82 MCP tools, AST-based taint analysis, local MITM proxy, semantic firewall. Free forever.
             </p>
             <p className="font-body text-lg text-[#c8f0ff] leading-relaxed">
               Built by <span className="text-[#00f0ff] font-bold">Yagyesh Vyas</span> — a developer who
