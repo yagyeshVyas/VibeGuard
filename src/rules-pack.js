@@ -2873,6 +2873,55 @@ const allLineRules = [
   ...dartRules,
   ...scalaRules,
   ...elixirRules,
+  // ===========================================================================
+  // PHASE 4: 30 deep rules to reach 750+ (depth, not count)
+  // ===========================================================================
+  ...(() => {
+    const deep = [
+      // C/C++ deep (5)
+      { id: 'c.integer-overflow', severity: 'medium', re: /\b(?:int|long|short)\s+\w+\s*=\s*(?:atoi|atol|strtol)\s*\(/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C integer from unchecked string conversion — integer overflow', cwe: 'CWE-190', owasp: 'A03', fix: 'Check errno after strtol. Use bounded conversion.' },
+      { id: 'c.double-free', severity: 'high', re: /free\s*\(\s*(\w+)\s*\)[\s\S]{0,200}free\s*\(\s*\1\s*\)/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', confidence: 'low', message: 'C potential double free — use-after-free risk', cwe: 'CWE-415', owasp: 'A04', fix: 'Set pointer to NULL after free. Check before freeing.' },
+      { id: 'c.uninitialized-var', severity: 'medium', re: /\bint\s+(\w+)\s*[;,][\s\S]{0,100}\b\1\s*\)/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', confidence: 'low', message: 'C potentially uninitialized variable used', cwe: 'CWE-457', owasp: 'A04', fix: 'Initialize all variables at declaration.' },
+      { id: 'cpp.smart-pointer-misuse', severity: 'medium', re: /\.get\s*\(\s*\)\s*\)|shared_ptr.*\.get\(\)/, fileFilter: '\\.(?:cpp|cc|cxx)$', confidence: 'low', message: 'C++ raw pointer from smart pointer — may outlive the smart pointer', cwe: 'CWE-416', owasp: 'A04', fix: 'Keep smart pointer alive while raw pointer is in use.' },
+      { id: 'c.unchecked-return', severity: 'medium', re: /(?:malloc|calloc|realloc|fopen|open)\s*\([^)]*\)\s*[;,\n]/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', confidence: 'low', message: 'C unchecked return value — null pointer dereference risk', cwe: 'CWE-252', owasp: 'A04', fix: 'Always check return values of malloc/fopen/open.' },
+
+      // Go deep (5)
+      { id: 'go.goroutine-leak', severity: 'medium', re: /go\s+func\s*\(\s*\)[^{]*\{/, fileFilter: '\\.go$', confidence: 'low', message: 'Go goroutine without context — potential goroutine leak', cwe: 'CWE-404', owasp: 'A04', fix: 'Pass context.Context and use select with ctx.Done().' },
+      { id: 'go.defer-in-loop', severity: 'medium', re: /for\s+[^{]*\{[^}]*\bdefer\b/, fileFilter: '\\.go$', confidence: 'low', message: 'Go defer in loop — resources accumulate until function returns', cwe: 'CWE-404', owasp: 'A04', fix: 'Extract loop body to a function so defer runs each iteration.' },
+      { id: 'go.unchecked-type-assert', severity: 'high', re: /\w+\.\(\w+\)/, fileFilter: '\\.go$', confidence: 'low', message: 'Go unchecked type assertion — panics on mismatch', cwe: 'CWE-248', owasp: 'A04', fix: 'Use comma-ok form: v, ok := i.(Type)' },
+      { id: 'go.crypto-weak-hash', severity: 'high', re: /crypto\/(?:md5|sha1)/, fileFilter: '\\.go$', message: 'Go weak hash (MD5/SHA1) — not collision resistant', cwe: 'CWE-327', owasp: 'A02', fix: 'Use crypto/sha256 or crypto/sha512.' },
+      { id: 'go.sql-format', severity: 'high', re: /fmt\.Sprintf\s*\(\s*["']SELECT/, fileFilter: '\\.go$', message: 'Go SQL via fmt.Sprintf — SQL injection', cwe: 'CWE-89', owasp: 'A03', fix: 'Use db.Query("SELECT ... WHERE id = $1", id).' },
+
+      // Python deep (5)
+      { id: 'py.yaml-unsafe-load', severity: 'high', re: /yaml\.load\s*\(\s*[^,)]*\)/, fileFilter: '\\.py$', message: 'Python yaml.load without SafeLoader — arbitrary code execution', cwe: 'CWE-502', owasp: 'A08', fix: 'Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader).' },
+      { id: 'py.subprocess-shell-equals-true', severity: 'high', re: /subprocess\.(?:run|call|Popen|check_output)\s*\([^)]*shell\s*=\s*True/, fileFilter: '\\.py$', message: 'Python subprocess with shell=True — command injection', cwe: 'CWE-78', owasp: 'A03', fix: 'Pass arguments as a list with shell=False.' },
+      { id: 'py.assert-in-prod', severity: 'low', re: /\bassert\s+\w/, fileFilter: '\\.py$', confidence: 'low', message: 'Python assert in production — stripped by python -O', cwe: 'CWE-617', owasp: 'A05', fix: 'Use explicit if/raise instead of assert for runtime checks.' },
+      { id: 'py.tempfile-race', severity: 'medium', re: /os\.remove\s*\(\s*[^)]*\)\s*[^;\n]*os\.path\.exists/, fileFilter: '\\.py$', confidence: 'low', message: 'Python TOCTOU: path check then remove — race condition', cwe: 'CWE-367', owasp: 'A04', fix: 'Use tempfile for temp files. Avoid check-then-use patterns.' },
+      { id: 'py.django-debug-true', severity: 'high', re: /DEBUG\s*=\s*True/, fileFilter: '\\.py$', message: 'Django DEBUG=True in code — information leakage in production', cwe: 'CWE-489', owasp: 'A05', fix: 'Set DEBUG=False in production settings.' },
+
+      // Rust deep (5)
+      { id: 'rust.unwrap-in-prod', severity: 'medium', re: /\.unwrap\s*\(\s*\)/, fileFilter: '\\.rs$', confidence: 'low', message: 'Rust .unwrap() — panics on None/Err, DoS', cwe: 'CWE-248', owasp: 'A04', fix: 'Use .unwrap_or_default(), .ok()?, or match.' },
+      { id: 'rust.transmute', severity: 'medium', re: /std::mem::transmute/, fileFilter: '\\.rs$', message: 'Rust transmute — undefined behavior if types mismatch', cwe: 'CWE-732', owasp: 'A05', fix: 'Avoid transmute. Use From/Into/TryFrom traits.' },
+      { id: 'rust.insecure-http', severity: 'medium', re: /reqwest::get\s*\(\s*["']http:\/\//, fileFilter: '\\.rs$', message: 'Rust HTTP without TLS — data in plaintext', cwe: 'CWE-295', owasp: 'A02', fix: 'Use https:// URLs only.' },
+      { id: 'rust.insecure-random-crypto', severity: 'high', re: /\brand::random\s*\(\s*\)/, fileFilter: '\\.rs$', message: 'Rust rand::random() — not for cryptographic use', cwe: 'CWE-330', owasp: 'A02', fix: 'Use rand::rngs::OsRng for crypto-secure randomness.' },
+      { id: 'rust.insecure-deserialize', severity: 'high', re: /serde_json::from_str\s*\(\s*(?:req|input|user|body|response)/, fileFilter: '\\.rs$', message: 'Rust deserialization of untrusted input without validation', cwe: 'CWE-502', owasp: 'A08', fix: 'Add serde validation. Deny unknown fields.' },
+
+      // DevOps / Supply chain / Extra (5)
+      { id: 'iac.docker-root-user', severity: 'medium', re: /USER\s+root\b/i, fileFilter: '\\.dockerfile$|Dockerfile$', message: 'Docker runs as root user — privilege escalation risk', cwe: 'CWE-250', owasp: 'A05', fix: 'Create a non-root user: RUN useradd -m appuser && USER appuser' },
+      { id: 'iac.docker-add-healthcheck', severity: 'low', re: /FROM\s+\w/i, fileFilter: '\\.dockerfile$|Dockerfile$', confidence: 'low', message: 'Docker image without HEALTHCHECK — orchestrator cannot detect unhealthy state', cwe: 'CWE-693', owasp: 'A05', fix: 'Add HEALTHCHECK --interval=30s CMD curl -f http://localhost/ || exit 1' },
+      { id: 'iac.github-actions-pull-request-target', severity: 'critical', re: /pull_request_target|workflow_dispatch.*secrets/, fileFilter: '\\.ya?ml$', message: 'GitHub Actions pull_request_target — runs with secrets, injection risk', cwe: 'CWE-94', owasp: 'A03', fix: 'Avoid pull_request_target. Use pull_request and gate with label checks.' },
+      { id: 'iac.terraform-hardcoded-token', severity: 'high', re: /provider\s+"[\w]+"[\s\S]{0,200}token\s*=\s*["'][^"']{8,}["']/, fileFilter: '\\.tf$', message: 'Terraform hardcoded provider token', cwe: 'CWE-798', owasp: 'A02', fix: 'Use variable or environment variable for provider tokens.' },
+      { id: 'iac.terraform-public-s3-acl', severity: 'high', re: /acl\s*=\s*["']public-read["']/, fileFilter: '\\.tf$', message: 'Terraform S3 bucket with public-read ACL', cwe: 'CWE-732', owasp: 'A05', fix: 'Use acl = "private" and a CloudFront distribution for public access.' },
+
+      // Node.js deep (5)
+      { id: 'nodejs.process-argv-injection', severity: 'high', re: /process\.argv\[2\].*(?:exec|eval|spawn|execSync)/, fileFilter: '\\.(?:js|ts)$', message: 'Node.js process.argv passed to exec — command injection', cwe: 'CWE-78', owasp: 'A03', fix: 'Sanitize argv. Use execFileSync with argument array.' },
+      { id: 'nodejs.prototype-pollution-merge', severity: 'high', re: /(?:merge|extend|defaultsDeep|deepCopy)\s*\(\s*(?:user|req|input|body|query)/, fileFilter: '\\.(?:js|ts)$', message: 'Prototype pollution via deep merge of user input', cwe: 'CWE-1321', owasp: 'A03', fix: 'Use Object.create(null) or sanitize keys. Block __proto__ and constructor.' },
+      { id: 'nodejs.path-join-injection', severity: 'high', re: /path\.join\s*\(\s*(?:req|user|input|body|query)\./, fileFilter: '\\.(?:js|ts)$', message: 'path.join with user input — path traversal', cwe: 'CWE-22', owasp: 'A01', fix: 'Canonicalize result and validate against a fixed base directory.' },
+      { id: 'nodejs.event-emitter-leak', severity: 'medium', re: /\.on\s*\(\s*['"][^'"]+['"][^)]{0,100}\b(?:req|res|stream)\b/, fileFilter: '\\.(?:js|ts)$', confidence: 'low', message: 'Event listener without removal — memory leak', cwe: 'CWE-404', owasp: 'A04', fix: 'Use .once() or remove listener in cleanup.' },
+      { id: 'nodejs.insecure-cookie-no-httponly', severity: 'medium', re: /cookie\s*[:=]\s*[^;]*secure:\s*true[^;]*['"`]/, fileFilter: '\\.(?:js|ts)$', confidence: 'low', message: 'Cookie with Secure but missing HttpOnly flag', cwe: 'CWE-1004', owasp: 'A05', fix: 'Add httpOnly: true to cookie settings.' },
+    ];
+    return deep;
+  })(),
   ...nestjsRules,
   ...remixRules,
   ...astroRules,
