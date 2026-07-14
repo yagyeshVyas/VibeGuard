@@ -1210,6 +1210,36 @@ test('plugin system: loads and exports rules', () => {
   assert.strictEqual(getPluginRules().length, 0, 'no plugins in empty dir');
 });
 
+test('plugin v2: file rules and cross-file rules hooks exist', () => {
+  const { loadPlugins, getPluginFileRules, getPluginCrossFileRules, getPluginTaintSources, getPluginTaintSinks, resetPlugins } = require('../src/plugin');
+  resetPlugins();
+  const os = require('os');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-plugin2-'));
+  loadPlugins(tmpDir, {});
+  assert.strictEqual(getPluginFileRules().length, 0, 'no file rules in empty dir');
+  assert.strictEqual(getPluginCrossFileRules().length, 0, 'no cross-file rules in empty dir');
+  assert.strictEqual(getPluginTaintSources().length, 0, 'no taint sources in empty dir');
+  assert.strictEqual(getPluginTaintSinks().length, 0, 'no taint sinks in empty dir');
+});
+
+test('plugin v2: loads fileRules from a plugin module', () => {
+  const { loadPlugins, getPluginFileRules, resetPlugins } = require('../src/plugin');
+  resetPlugins();
+  const os = require('os');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-plugin3-'));
+  // Simulate a plugin by writing a module to node_modules
+  const pluginDir = path.join(tmpDir, 'node_modules', 'vibeguard-rules-test');
+  fs.mkdirSync(pluginDir, { recursive: true });
+  fs.writeFileSync(path.join(pluginDir, 'index.js'),
+    'module.exports = { name: "test-plugin", rules: [], fileRules: [{ id: "test.file-rule", severity: "medium", run: (c,l,r) => [{ line: 1, message: "file issue" }] }], crossFileRules: [], taintSources: [], taintSinks: [] };'
+  );
+  fs.writeFileSync(path.join(tmpDir, 'package.json'), '{}');
+  loadPlugins(tmpDir, {});
+  assert.strictEqual(getPluginFileRules().length, 1, 'should load 1 file rule from plugin');
+  assert.strictEqual(getPluginFileRules()[0].id, 'test.file-rule', 'should have the right id');
+  resetPlugins(); // clean up so plugin rules don't leak into subsequent tests
+});
+
 test('Python taint: detects request to eval flow', () => {
   const { analyzePythonTaint } = require('../src/engine');
   const content = 'data = request.form.get("input")\neval(data)\n';
@@ -1528,6 +1558,9 @@ test('total rule count exceeds GuardVibe 453', () => {
 test('clean fixture still has ZERO findings after power batches', () => {
   const { scan } = require('../src/scanner');
   const result = scan(path.join(__dirname, 'fixtures', 'clean'));
+  if (result.findings.length > 0) {
+    console.log('FAILING FINDINGS:', JSON.stringify(result.findings, null, 2));
+  }
   assert.strictEqual(result.findings.length, 0, 'clean fixture should have 0 findings, got ' + result.findings.length);
 });
 
@@ -3248,6 +3281,15 @@ test('evasion: normalizeCommand decodes base64', () => {
 });
 
 // --- Auto / daemon tests ---
+async function waitForDaemon(dir) {
+  const p = require('path').join(dir, '.vibeguard', 'auto.json');
+  for (let i = 0; i < 20; i++) {
+    try {
+      if (JSON.parse(require('fs').readFileSync(p, 'utf8')).daemonPid) return;
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 200));
+  }
+}
 
 test('auto: daemon status returns running=false when no daemon', () => {
   const { getDaemonStatus } = require('../src/daemon');
@@ -3344,7 +3386,7 @@ test('auto: writes .vibeguard/auto.json with pid and stops cleanly', async () =>
     assert(state.startedAt, 'state should have startedAt');
     
     // Wait for the async daemon to start before stopping
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await waitForDaemon(dir);
     
     // Stop
     const stop = auto.autoStop(dir);
@@ -3364,7 +3406,7 @@ test('auto: idempotent — running twice does not double-install', async () => {
     assert(r2.ok, 'second autoStart should succeed');
     assert(r2.alreadyRunning || r2.steps, 'second run should be idempotent');
     
-    await new Promise(resolve => setTimeout(resolve, 250));
+    await waitForDaemon(dir);
     auto.autoStop(dir);
   });
 
@@ -3405,7 +3447,7 @@ test('auto: --stop restores a pre-existing pre-commit hook from backup', async (
     const newContent = fs.readFileSync(preCommitPath, 'utf8');
     assert(newContent.includes('VibeGuard'), 'should have VibeGuard hook');
     
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    await waitForDaemon(dir);
     
     // Stop — should restore original
     auto.autoStop(dir);
@@ -3711,6 +3753,73 @@ test('Python taint: multi-hop propagation through intermediate vars', () => {
   // reassignment to a clean value clears taint
   assert(!fires('x = request.args.get("x")\nx = "safe_default"\nos.system(x)\n'),
     'clean reassignment must clear taint');
+});
+
+// --- Python taint v2 (advanced engine) ----------------------------------------
+
+test('Python taint v2: f-string SQL injection fires', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'name = request.form.get("name")\nquery = f"SELECT * FROM users WHERE name={name}"\ncursor.execute(query)\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(findings.some(f => f.ruleId === 'py.taint.sql-injection'), 'f-string SQL injection should fire');
+});
+
+test('Python taint v2: .format() SQL injection fires', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'name = request.args.get("name")\nquery = "SELECT * FROM users WHERE name={}".format(name)\ncursor.execute(query)\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(findings.some(f => f.ruleId === 'py.taint.sql-injection'), '.format() SQL injection should fire');
+});
+
+test('Python taint v2: parameterized SQL does NOT fire', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'uid = request.args.get("id")\ncursor.execute("SELECT * FROM u WHERE id=%s", (uid,))\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(!findings.some(f => f.ruleId === 'py.taint.sql-injection'), 'parameterized SQL should NOT fire');
+});
+
+test('Python taint v2: sanitizer clears taint', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'n = request.args.get("n")\nos.system(shlex.quote(n))\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(!findings.some(f => f.ruleId === 'py.taint.command-injection'), 'shlex.quote-sanitized sink should NOT fire');
+});
+
+test('Python taint v2: subprocess shell=True fires', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'cmd = request.args.get("cmd")\nsubprocess.run(cmd, shell=True)\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(findings.some(f => f.ruleId === 'py.taint.command-injection'), 'subprocess shell=True should fire');
+});
+
+test('Python taint v2: pickle deserialization fires', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'data = request.form.get("data")\nobj = pickle.loads(data)\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(findings.some(f => f.ruleId === 'py.taint.deserialization'), 'pickle deserialization should fire');
+});
+
+test('Python taint v2: multi-hop propagation with high confidence', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'data = request.form.get("x")\nq = "SELECT * FROM t WHERE a=" + data\ncursor.execute(q)\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  const sqlFinding = findings.find(f => f.ruleId === 'py.taint.sql-injection');
+  assert(sqlFinding, 'multi-hop SQL injection should fire');
+  assert(sqlFinding.confidence === 'high', 'multi-hop should have high confidence');
+});
+
+test('Python taint v2: clean reassignment clears taint', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'x = request.args.get("x")\nx = "safe_default"\nos.system(x)\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(!findings.some(f => f.ruleId === 'py.taint.command-injection'), 'clean reassignment should clear taint');
+});
+
+test('Python taint v2: django request.GET source fires', () => {
+  const { analyzePythonTaintAdvanced } = require('../src/taint-py');
+  const code = 'name = request.GET.get("name")\ncursor.execute("SELECT * FROM u WHERE n=" + name)\n';
+  const findings = analyzePythonTaintAdvanced(code, code.split('\n'), 'app.py');
+  assert(findings.some(f => f.ruleId === 'py.taint.sql-injection'), 'Django request.GET source should fire');
 });
 
 // --- Incremental scan ------------------------------------------------------

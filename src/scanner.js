@@ -221,13 +221,19 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
     noteDegraded('taint', err);
   }
 
-  // Python taint analysis for .py files
+  // Python taint analysis for .py files (advanced multi-pass engine)
   if (relPath && relPath.endsWith('.py')) {
     try {
-      const { analyzePythonTaint } = require('./engine');
-      for (const t of analyzePythonTaint(content, lines, relPath)) findings.push(t);
+      const { analyzePythonTaintAdvanced } = require('./taint-py');
+      for (const t of analyzePythonTaintAdvanced(content, lines, relPath)) findings.push(t);
     } catch (err) {
-      noteDegraded('python-taint', err);
+      // Fallback to legacy engine
+      try {
+        const { analyzePythonTaint } = require('./engine');
+        for (const t of analyzePythonTaint(content, lines, relPath)) findings.push(t);
+      } catch (e) {
+        noteDegraded('python-taint', e);
+      }
     }
   }
 
@@ -271,6 +277,38 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
       );
     }
   }
+
+  // Plugin file-level rules (v2 plugin system).
+  try {
+    const { getPluginFileRules } = require('./plugin');
+    const pFileRules = getPluginFileRules();
+    for (const rule of pFileRules) {
+      let hits = [];
+      try {
+        hits = rule.run(content, lines, relPath) || [];
+      } catch (err) {
+        noteDegraded(`plugin-file-rule:${rule.id || 'unknown'}`, err);
+        hits = [];
+      }
+      for (const h of hits) {
+        findings.push(
+          makeFinding(rule, {
+            file: relPath,
+            line: h.line,
+            column: h.column || 1,
+            snippet: h.snippet,
+            message: h.message,
+            fix: h.fix,
+            severity: h.severity,
+            confidence: h.confidence,
+            ruleId: h.ruleId,
+            title: h.title,
+          })
+        );
+      }
+    }
+  } catch { /* plugin file rules are best-effort */ }
+
   return findings;
 }
 
@@ -565,6 +603,14 @@ function scan(dir, opts = {}) {
   const config = loadConfig(root);
   rules.configure(config);
 
+  // Reset and load plugins early — before the file scan loop — so that
+  // plugin fileRules and crossFileRules are available in scanFileContent.
+  try {
+    const { loadPlugins, resetPlugins } = require('./plugin');
+    resetPlugins();
+    loadPlugins(root, config);
+  } catch { /* plugins are best-effort */ }
+
   const allFiles = walk(root, [], null);
 
   // Incremental mode: only scan files whose content changed since the last scan
@@ -665,6 +711,32 @@ function scan(dir, opts = {}) {
       );
     }
   }
+
+  // Plugin cross-file rules (v2 plugin system).
+  try {
+    const { getPluginCrossFileRules } = require('./plugin');
+    const pCrossRules = getPluginCrossFileRules();
+    for (const rule of pCrossRules) {
+      let hits = [];
+      try {
+        hits = rule.run(contents) || [];
+      } catch {
+        hits = [];
+      }
+      for (const h of hits) {
+        findings.push(
+          makeFinding(rule, {
+            file: h.file,
+            line: h.line,
+            column: h.column || 1,
+            snippet: h.snippet,
+            message: h.message,
+            fix: h.fix,
+          })
+        );
+      }
+    }
+  } catch { /* plugin cross-file rules are best-effort */ }
   } // end !incremental cross-file block
 
   findings = findings.concat(projectScan(root));
@@ -710,10 +782,9 @@ function scan(dir, opts = {}) {
   }
   findings = applyConfigFilters(findings, config);
 
-  // Merge plugin rules
+  // Merge plugin line rules (file/cross-file rules already applied above)
   try {
-    const { loadPlugins, getPluginRules } = require('./plugin');
-    loadPlugins(root, config);
+    const { getPluginRules } = require('./plugin');
     const pluginRules = getPluginRules();
     if (pluginRules.length > 0) {
       const { matchAll, makeFinding } = require('./rules');
