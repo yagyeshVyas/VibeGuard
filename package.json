@@ -89,8 +89,7 @@
   "optionalDependencies": {
     "acorn": "^8.17.0",
     "acorn-typescript": "^1.4.13",
-    "acorn-walk": "^8.3.5",
-    "isolated-vm": "^5.0.0"
+    "acorn-walk": "^8.3.5"
   },
   "devDependencies": {
     "c8": "^10.1.3",
