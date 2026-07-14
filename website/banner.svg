@@ -46,11 +46,11 @@
 
   <!-- Stats line -->
   <text x="170" y="124" font-family="monospace" font-size="12" fill="#555">
-    <tspan fill="#22C55E">699 rules</tspan>
+    <tspan fill="#22C55E">752 rules</tspan>
     <tspan fill="#333"> · </tspan>
-    <tspan fill="#3B82F6">76 MCP tools</tspan>
+    <tspan fill="#3B82F6">82 MCP tools</tspan>
     <tspan fill="#333"> · </tspan>
-    <tspan fill="#22C55E">0 dependencies</tspan>
+    <tspan fill="#22C55E">18 languages</tspan>
     <tspan fill="#333"> · </tspan>
     <tspan fill="#3B82F6">100% offline</tspan>
     <animate attributeName="opacity" values="0;1" dur="1s" begin="0.8s" fill="freeze"/>

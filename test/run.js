@@ -1318,7 +1318,7 @@ test('website: index.html exists and has content', () => {
   assert(html.includes('VibeGuard'), 'should mention VibeGuard');
   assert(html.includes('playground'), 'should have playground');
   assert(html.includes('scanCode'), 'should have scanCode function');
-  assert(html.includes('699'), 'should mention rule count');
+  assert(html.includes('752'), 'should mention rule count');
   assert(html.includes('MCP'), 'should mention MCP tools');
 });
 
