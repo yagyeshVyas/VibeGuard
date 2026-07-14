@@ -1,12 +1,12 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-07-14T17:34:11.307Z",
+  "generatedAt": "2026-07-14T18:31:17.587Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "8b4142038b2614bd3da59c31cc9cecd7ccd1f002bec2e0a8f10bc423463cc625",
     "shell-guard.js": "f16a0bd72d7e99feaae69bb20886ed2569d137bdc65240a6eacdfcf214831d9d",
     "interceptor.js": "fd99360331111e7fbdee904206fd53989a7cbedbc784cd28c0a1523a41a3da7a",
-    "firewall.js": "06fb03919b17c62c5e42ca461e27f26a2aaf3a260a361fa1f721d0975e75b47e",
+    "firewall.js": "61b31a2a55d63503c6bdcf888394b7a713678ea0e0b656e0d2179c91f66444a9",
     "pii.js": "51ea76de52b2c15d2cb34ab8125a5f67f725d1e7de43a4cef39136e25b276025",
     "rules.js": "b14a78216654c399baa8d79b2c4052af5817dab524fa87056b74a8e25bb841f6",
     "scanner.js": "4f489a11c922be7d25c27fe3b86ae46b63227586c195d91fb655c43c19851f18",

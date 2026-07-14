@@ -2208,6 +2208,45 @@ const swiftRules = [
 ];
 
 // ===========================================================================
+// PHASE 4: C/C++, Dart/Flutter, Scala, Elixir rules
+// ===========================================================================
+
+const cCppRules = [
+  { id: 'c.gets-buffer-overflow', severity: 'critical', re: /\bgets\s*\(/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C gets() — unbounded buffer overflow (removed from C11)', cwe: 'CWE-120', owasp: 'A03', fix: 'Use fgets(buf, sizeof(buf), stdin) with explicit length limit.' },
+  { id: 'c.strcpy-buffer-overflow', severity: 'high', re: /\bstrcpy\s*\(/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C strcpy() — no bounds checking, buffer overflow', cwe: 'CWE-120', owasp: 'A03', fix: 'Use strncpy(dst, src, sizeof(dst)-1) or strlcpy().' },
+  { id: 'c.strcat-buffer-overflow', severity: 'high', re: /\bstrcat\s*\(/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C strcat() — no bounds checking, buffer overflow', cwe: 'CWE-120', owasp: 'A03', fix: 'Use strncat(dst, src, sizeof(dst)-strlen(dst)-1).' },
+  { id: 'c.sprintf-buffer-overflow', severity: 'high', re: /\bsprintf\s*\(/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C sprintf() — no bounds checking, buffer overflow', cwe: 'CWE-120', owasp: 'A03', fix: 'Use snprintf(buf, sizeof(buf), ...).' },
+  { id: 'c.format-string', severity: 'high', re: /(?:printf|fprintf|sprintf|snprintf)\s*\(\s*(?:argv|input|user|buf|data|req|user_input|[a-z_]\w*\s*\))/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C format string vulnerability — user-controlled format specifier', cwe: 'CWE-134', owasp: 'A03', fix: 'Use a fixed format string: printf("%s", user_input).' },
+  { id: 'c.system-command', severity: 'high', re: /\bsystem\s*\(\s*[^)]*(?:argv|input|user|buf|data|req)/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C system() with user input — command injection', cwe: 'CWE-78', owasp: 'A03', fix: 'Use execvp with argument array. Never pass user input to system().' },
+  { id: 'c.popen-command', severity: 'high', re: /\bpopen\s*\(\s*[^)]*(?:argv|input|user|buf|data|req)/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C popen() with user input — command injection', cwe: 'CWE-78', owasp: 'A03', fix: 'Avoid popen with user input. Use fork+execvp with argument array.' },
+  { id: 'c.hardcoded-secret', severity: 'high', re: /(?:password|secret|token|api_key|apikey)\s*[:=]\s*["'][^"']{8,}["']/i, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C/C++ hardcoded secret', cwe: 'CWE-798', owasp: 'A02', fix: 'Load secrets from environment: getenv("API_KEY")' },
+  { id: 'c.insecure-random', severity: 'medium', re: /\brand\s*\(\s*\)/, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C rand() — not crypto-secure', cwe: 'CWE-330', owasp: 'A02', fix: 'Use a CSPRNG: getrandom(), /dev/urandom, or OpenSSL RAND_bytes().' },
+  { id: 'c memcpy-tainted-size', severity: 'high', re: /memcpy\s*\([^,]*,\s*[^,]*,\s*(?:atoi|atol|strlen|sizeof\s*\(\s*\w+\s*\*\s*\)) /, fileFilter: '\\.(?:c|h|cpp|cc|cxx)$', message: 'C memcpy with tainted/unchecked size — buffer overflow', cwe: 'CWE-787', owasp: 'A03', fix: 'Validate size before memcpy. Ensure dst buffer is large enough.' },
+];
+
+const dartRules = [
+  { id: 'dart.asyncstorage-secret', severity: 'high', re: /SharedPreferences\.setString\s*\(\s*['"][^'"]*(?:password|secret|token|key|pin)/i, fileFilter: '\\.dart$', message: 'Dart/Flutter secret in SharedPreferences — not encrypted at rest', cwe: 'CWE-922', owasp: 'A02', fix: 'Use flutter_secure_storage for secrets. SharedPreferences is plaintext.' },
+  { id: 'dart.eval-like', severity: 'high', re: /eval\s*\(|Function\.apply\s*\(/, fileFilter: '\\.dart$', message: 'Dart eval/Function.apply — dynamic code execution', cwe: 'CWE-94', owasp: 'A03', fix: 'Avoid dynamic code execution. Use explicit dispatch tables.' },
+  { id: 'dart.http-no-cert', severity: 'medium', re: /badCertificateCallback\s*[:=]\s*\([^)]*true/, fileFilter: '\\.dart$', message: 'Dart HTTP badCertificateCallback returns true — TLS disabled', cwe: 'CWE-295', owasp: 'A02', fix: 'Never bypass certificate validation in production.' },
+  { id: 'dart.sql-injection', severity: 'high', re: /rawQuery\s*\(\s*["'].*\$\{/, fileFilter: '\\.dart$', message: 'Dart SQL with string interpolation — SQL injection', cwe: 'CWE-89', owasp: 'A03', fix: 'Use parameterized queries: db.rawQuery("SELECT ... WHERE id = ?", [id])' },
+  { id: 'dart.hardcoded-secret', severity: 'high', re: /(?:password|secret|token|api_key|apikey)\s*[:=]\s*['"][^'"]{8,}['"]/i, fileFilter: '\\.dart$', message: 'Dart hardcoded secret', cwe: 'CWE-798', owasp: 'A02', fix: 'Use flutter_secure_storage or dotenv package.' },
+];
+
+const scalaRules = [
+  { id: 'scala.sql-injection', severity: 'high', re: /(?:execute|query|select)\s*\(\s*s?["'].*\$\{/, fileFilter: '\\.scala$', message: 'Scala SQL with string interpolation — SQL injection', cwe: 'CWE-89', owasp: 'A03', fix: 'Use parameterized queries with PreparedStatement.' },
+  { id: 'scala.runtime-exec', severity: 'high', re: /Runtime\.getRuntime\(\)\.exec\s*\(\s*s?["'].*\$\{/, fileFilter: '\\.scala$', message: 'Scala Runtime.exec with interpolation — command injection', cwe: 'CWE-78', owasp: 'A03', fix: 'Use ProcessBuilder with separate arguments.' },
+  { id: 'scala.hardcoded-secret', severity: 'high', re: /(?:password|secret|token|apiKey|api_key)\s*[:=]\s*["'][^"']{8,}["']/i, fileFilter: '\\.scala$', message: 'Scala hardcoded secret', cwe: 'CWE-798', owasp: 'A02', fix: 'Load from environment: sys.env("API_KEY")' },
+  { id: 'scala.insecure-deserialize', severity: 'high', re: /JavaSerializer|readObject\s*\(/, fileFilter: '\\.scala$', message: 'Scala Java deserialization — remote code execution risk', cwe: 'CWE-502', owasp: 'A08', fix: 'Use JSON or Protobuf. Avoid Java serialization of untrusted data.' },
+];
+
+const elixirRules = [
+  { id: 'elixir.sql-injection', severity: 'high', re: /Ecto\.Adapter\.query\s*\(\s*["'].*#\{/, fileFilter: '\\.(?:ex|exs)$', message: 'Elixir Ecto query with interpolation — SQL injection', cwe: 'CWE-89', owasp: 'A03', fix: 'Use parameterized Ecto queries: from(u in User, where: u.id == ^id)' },
+  { id: 'elixir.hardcoded-secret', severity: 'high', re: /(?:password|secret|token|api_key)\s*[:=]\s*["'][^"']{8,}["']/i, fileFilter: '\\.(?:ex|exs)$', message: 'Elixir hardcoded secret', cwe: 'CWE-798', owasp: 'A02', fix: 'Use config/runtime.exs: System.get_env("SECRET_KEY")' },
+  { id: 'elixir.eval', severity: 'high', re: /Code\.eval_string\s*\(/, fileFilter: '\\.(?:ex|exs)$', message: 'Elixir Code.eval_string — dynamic code execution', cwe: 'CWE-94', owasp: 'A03', fix: 'Avoid eval on untrusted input. Use pattern matching and explicit dispatch.' },
+  { id: 'elixir.insecure-cookie', severity: 'medium', re: /Plug\.Session\s*,\s*store:\s*:cookie[^)]*secure:\s*false/, fileFilter: '\\.(?:ex|exs)$', message: 'Elixir insecure cookie session — no Secure flag', cwe: 'CWE-614', owasp: 'A05', fix: 'Set secure: true for cookie sessions in production.' },
+];
+
+// ===========================================================================
 // POWER BATCH C: 10 framework rules (NestJS 3, Remix 2, Astro 2, SolidStart 1, Gin 1, Echo 1)
 // ===========================================================================
 
@@ -2830,6 +2869,10 @@ const allLineRules = [
   ...rustRules,
   ...kotlinRules,
   ...swiftRules,
+  ...cCppRules,
+  ...dartRules,
+  ...scalaRules,
+  ...elixirRules,
   ...nestjsRules,
   ...remixRules,
   ...astroRules,
@@ -2902,6 +2945,10 @@ module.exports = {
   rustRules,
   kotlinRules,
   swiftRules,
+  cCppRules,
+  dartRules,
+  scalaRules,
+  elixirRules,
   nestjsRules,
   remixRules,
   astroRules,

@@ -5,7 +5,7 @@
 <h3>Security scanner + AI agent firewall for vibe-coded apps.</h3>
 
 <p>
-Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops. 699 rules, AST taint analysis, real-time action firewall. 100% offline. Free forever.
+Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops. 722 rules, AST taint analysis, real-time action firewall. 100% offline. Free forever.
 </p>
 
 <p>
@@ -13,7 +13,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
   <a href="https://github.com/yagyeshVyas/VibeGuard/actions"><img src="https://img.shields.io/github/actions/workflow/status/yagyeshVyas/VibeGuard/ci.yml?style=flat-square&logo=github&logoColor=white" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT license" /></a>
   <img src="https://img.shields.io/badge/coverage-86%25%20F1-success?style=flat-square" alt="86% F1" />
-  <img src="https://img.shields.io/badge/rules-699-blue?style=flat-square" alt="699 rules" />
+  <img src="https://img.shields.io/badge/rules-722-blue?style=flat-square" alt="722 rules" />
   <img src="https://img.shields.io/badge/MCP%20tools-82-purple?style=flat-square" alt="82 MCP tools" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
 </p>

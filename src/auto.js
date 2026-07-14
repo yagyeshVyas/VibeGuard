@@ -162,6 +162,7 @@ function autoStart(rootDir, opts) {
             state.features.daemon = true;
             state.daemonPid = r.pid;
             logEvent(root, `daemon started (PID ${r.pid})`);
+            writeState(root, state);
           }
         }).catch(() => {});
       } else {

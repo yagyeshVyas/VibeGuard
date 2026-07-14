@@ -209,11 +209,109 @@ const THREATS = [
 // Action levels: block > redact > warn > allow
 const ACTION_PRIORITY = { block: 4, redact: 3, warn: 2, allow: 1 };
 
+// ─── Semantic classifier (above regex — catches paraphrased injections) ────
+// Token-feature scorer: instruction-verb density, override keywords, imperative mood.
+// No external model — pure JS scoring. Layered: regex hit → block; classifier-only
+// hit → warn + redact. Catches paraphrases like "disregard the above directives"
+// that evade the exact-match regex patterns.
+
+const INSTRUCTION_VERBS = [
+  'ignore', 'disregard', 'forget', 'override', 'skip', 'bypass', 'override',
+  'replace', 'swap', 'change', 'switch', 'update', 'modify', 'alter',
+  'reveal', 'show', 'tell', 'print', 'output', 'display', 'dump', 'expose',
+  'execute', 'run', 'eval', 'exec', 'compile', 'interpret',
+  'delete', 'remove', 'wipe', 'clear', 'destroy', 'purge',
+  'send', 'post', 'upload', 'transmit', 'exfiltrate', 'transfer',
+  'install', 'download', 'fetch', 'pip', 'npm', 'yarn',
+  'reset', 'disable', 'enable', 'toggle', 'turn off', 'turn on',
+];
+
+const OVERRIDE_KEYWORDS = [
+  'previous', 'prior', 'above', 'system', 'initial', 'original', 'earlier',
+  'instructions', 'prompt', 'rules', 'guidelines', 'directives', 'constraints',
+  'restrictions', 'guardrails', 'safety', 'filters', 'boundaries',
+  'secrets', 'env', 'environment', 'keys', 'tokens', 'passwords', 'credentials',
+  'admin', 'root', 'sudo', 'shell', 'bash', 'terminal',
+  'jailbreak', 'dan', 'unrestricted', 'developer mode', 'god mode',
+];
+
+const IMPERATIVE_MARKERS = [
+  'you must', 'you need to', 'you have to', 'you are now', 'you will',
+  'do not', "don't", 'never', 'always', 'stop', 'start', 'begin',
+  'instead of', 'rather than', 'no longer', 'from now on',
+  'i command you', 'i order you', 'i instruct you',
+];
+
+function tokenize(text) {
+  return text.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length > 1);
+}
+
+function classifyPrompt(prompt) {
+  const tokens = tokenize(prompt);
+  if (tokens.length < 3) return { score: 0, flags: [] };
+
+  const flags = [];
+  let score = 0;
+
+  // Instruction-verb density
+  let verbHits = 0;
+  for (const verb of INSTRUCTION_VERBS) {
+    if (prompt.toLowerCase().includes(verb)) {
+      verbHits++;
+      if (verbHits <= 3) flags.push(`verb:${verb}`);
+    }
+  }
+  if (verbHits >= 3) score += 30;
+  else if (verbHits >= 2) score += 15;
+  else if (verbHits >= 1) score += 5;
+
+  // Override keyword presence
+  let overrideHits = 0;
+  for (const kw of OVERRIDE_KEYWORDS) {
+    if (prompt.toLowerCase().includes(kw)) {
+      overrideHits++;
+      if (overrideHits <= 3) flags.push(`kw:${kw}`);
+    }
+  }
+  if (overrideHits >= 3) score += 30;
+  else if (overrideHits >= 2) score += 15;
+  else if (overrideHits >= 1) score += 5;
+
+  // Imperative mood markers
+  let imperativeHits = 0;
+  for (const marker of IMPERATIVE_MARKERS) {
+    if (prompt.toLowerCase().includes(marker)) {
+      imperativeHits++;
+      flags.push(`imp:${marker}`);
+    }
+  }
+  if (imperativeHits >= 2) score += 20;
+  else if (imperativeHits >= 1) score += 10;
+
+  // Combined pattern boost: verb + override keyword in same prompt
+  if (verbHits >= 1 && overrideHits >= 1) score += 15;
+
+  // Role override pattern: "you are now" / "act as" / "pretend to be"
+  if (/you\s+are\s+now|act\s+as|pretend\s+to\s+be/i.test(prompt)) score += 20;
+
+  // Multi-step instruction pattern: "first...then..." or "step 1...step 2"
+  if (/first.*then|step\s+1.*step\s+2|1\..*2\./i.test(prompt)) score += 10;
+
+  // Base64/encoded content
+  if (/[A-Za-z0-9+/]{40,}={0,2}/.test(prompt) && prompt.length > 50) score += 10;
+
+  return { score: Math.min(score, 100), flags };
+}
+
 function inspectPrompt(prompt, context = {}) {
   const findings = [];
   let sanitizedPrompt = prompt;
   let maxAction = 'allow';
 
+  // Layer 1: Regex threats (exact pattern matching)
   for (const threat of THREATS) {
     // Handle PII specially
     if (threat.id === 'PII.IN_PROMPT') {
@@ -243,6 +341,24 @@ function inspectPrompt(prompt, context = {}) {
       });
       if (ACTION_PRIORITY[threat.action] > ACTION_PRIORITY[maxAction]) {
         maxAction = threat.action;
+      }
+    }
+  }
+
+  // Layer 2: Semantic classifier (catches paraphrased injections that evade regex)
+  // Only runs if no regex block was triggered — adds a warning for suspicious prompts
+  if (maxAction !== 'block') {
+    const cls = classifyPrompt(prompt);
+    if (cls.score >= 55) {
+      findings.push({
+        threat: 'SEMANTIC.SUSPICIOUS_PROMPT',
+        severity: 'high',
+        action: 'warn',
+        reason: `Semantic classifier detected suspicious prompt (score: ${cls.score}/100, flags: ${cls.flags.slice(0, 5).join(', ')})`,
+        fix: 'This prompt may be a paraphrased injection. Review carefully before proceeding.',
+      });
+      if (ACTION_PRIORITY.warn > ACTION_PRIORITY[maxAction]) {
+        maxAction = 'warn';
       }
     }
   }
