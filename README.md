@@ -513,7 +513,7 @@ It raises the floor fast — catching the holes that AI tools create by default.
 
 - **Sandbox uses Node `vm`, not a hard boundary** — per Node.js docs, `vm` is not a security sandbox. A determined attacker can escape via prototype chain traversal. The memory cap is currently unenforced. Treat `sandbox_exec` as a raised floor, not a steel vault. (Hard isolation via `isolated-vm` is planned as an optional dependency.)
 - **Guard, not a sandbox** — stops accidents, agent mistakes, and the common exfil/tamper paths; not a determined attacker with arbitrary local code execution who rewrites both a module and its manifest.
-- **Runtime enforcement is Node-scoped** — non-Node child runtimes making their own network calls bypass the wrappers (static agent-scan / guard-action still cover them).
+- **Runtime enforcement is Node-scoped** — the interceptor wraps Node.js built-ins. Non-Node child runtimes (Python, Go) can bypass wrappers. Use `vibeguard proxy-start` to run a local MITM proxy that catches polyglot traffic at the network layer.
 - **AI-safety recall is 57%** — the weakest benchmark category (`test/benchmark/benchmark-results.md`). Prompt injection, memory poisoning, and tool-result injection detection are improving but not yet comprehensive. The firewall is regex-based — paraphrased injections can evade it.
 - **Taint analysis is JS/TS only** — Python taint is heuristic (line-proximity, not dataflow). Go/Rust/Java/other languages have pattern rules but no taint tracking.
 - **Integrity ≠ full chain of trust** — detects source tampering; npm provenance is the real anchor.

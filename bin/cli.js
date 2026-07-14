@@ -118,6 +118,9 @@ Advanced:
   vibeguard reachability [dir]      Check which CVE-vulnerable deps are actually imported.
   vibeguard container-scan <image>  Scan container image with trivy (if installed).
   vibeguard license [dir]           Check package licenses against allowlist.
+  vibeguard proxy-start             Start local MITM proxy for polyglot interception.
+  vibeguard proxy-stop              Stop the local proxy.
+  vibeguard proxy-status            Show proxy status and blocked request audit log.
 
 Options:
   --json                      JSON output.
@@ -826,7 +829,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -961,6 +964,9 @@ async function main() {
     else if (cmd === 'reachability') code = await cmdReachability(dir, flags);
     else if (cmd === 'container-scan') code = await cmdContainerScan(args, flags);
     else if (cmd === 'license') code = await cmdLicense(dir, flags);
+    else if (cmd === 'proxy-start') code = cmdProxyStart(flags);
+    else if (cmd === 'proxy-stop') code = cmdProxyStop(flags);
+    else if (cmd === 'proxy-status') code = cmdProxyStatus(flags);
     else if (cmd === 'guard') code = cmdGuard(args, flags);
     else if (cmd === 'install-shell-hook') code = cmdInstallShellHook(flags);
     else if (cmd === 'uninstall-shell-hook') code = cmdUninstallShellHook(flags);
@@ -2070,6 +2076,57 @@ function cmdPRComment(dir, flags) {
   const { renderPRComment } = require('../src/dashboard');
   process.stdout.write(renderPRComment(result));
   return result.findings.length > 0 ? 1 : 0;
+}
+
+function cmdProxyStart(flags) {
+  const { startProxy, getProxyStatus, PROXY_DIR } = require('../src/proxy');
+  const port = flags.port ? parseInt(flags.port) : undefined;
+  const server = startProxy(port);
+  const status = getProxyStatus();
+  process.stdout.write(`${C.green}VibeGuard proxy started${C.reset} on port ${status.port}\n`);
+  process.stdout.write(`${C.dim}CA cert: ${PROXY_DIR}/ca-cert.pem${C.reset}\n`);
+  process.stdout.write(`${C.dim}Export for child processes:${C.reset}\n`);
+  process.stdout.write(`  export HTTP_PROXY=http://127.0.0.1:${status.port}\n`);
+  process.stdout.write(`  export HTTPS_PROXY=http://127.0.0.1:${status.port}\n`);
+  process.stdout.write(`\n${C.yellow}To inspect HTTPS traffic, install the CA cert in your trust store:${C.reset}\n`);
+  process.stdout.write(`${C.dim}  macOS: security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ${PROXY_DIR}/ca-cert.pem${C.reset}\n`);
+  process.stdout.write(`${C.dim}  Linux: sudo cp ${PROXY_DIR}/ca-cert.pem /usr/local/share/ca-certificates/ && sudo update-ca-certificates${C.reset}\n`);
+  process.stdout.write(`${C.dim}  Windows: certutil -addstore -f "ROOT" ${PROXY_DIR}\\ca-cert.pem${C.reset}\n`);
+  // Keep the process alive
+  process.stdin.resume();
+  return 0;
+}
+
+function cmdProxyStop(flags) {
+  const { stopProxy } = require('../src/proxy');
+  stopProxy();
+  process.stdout.write(`${C.green}VibeGuard proxy stopped.${C.reset}\n`);
+  return 0;
+}
+
+function cmdProxyStatus(flags) {
+  const { getProxyStatus } = require('../src/proxy');
+  const status = getProxyStatus();
+  if (flags.json) {
+    process.stdout.write(JSON.stringify(status, null, 2) + '\n');
+    return 0;
+  }
+  process.stdout.write(`${C.bold}VibeGuard Proxy Status${C.reset}\n`);
+  process.stdout.write(`${C.dim}${'─'.repeat(60)}${C.reset}\n\n`);
+  process.stdout.write(`  Running:    ${status.running ? C.green + 'YES' : C.red + 'NO'}${C.reset}\n`);
+  process.stdout.write(`  Port:       ${status.port || 'N/A'}\n`);
+  process.stdout.write(`  CA Cert:    ${status.caCertPath || 'not generated'}\n`);
+  if (status.auditLog && status.auditLog.length > 0) {
+    process.stdout.write(`\n${C.bold}Recent blocked requests${C.reset} (${status.auditLog.length}):\n`);
+    for (const entry of status.auditLog.slice(-20)) {
+      const sc = entry.violation.severity === 'critical' ? C.red : C.yellow;
+      process.stdout.write(`  ${sc}[${entry.violation.severity}]${C.reset} ${entry.method} ${entry.url}\n`);
+      process.stdout.write(`    ${C.dim}${entry.violation.message}${C.reset}\n`);
+    }
+  } else if (status.running) {
+    process.stdout.write(`\n${C.green}No blocked requests.${C.reset}\n`);
+  }
+  return 0;
 }
 
 function cmdGuard(args, flags) {
