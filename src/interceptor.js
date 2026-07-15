@@ -3,17 +3,20 @@
 /*
  * VibeGuard Runtime Interceptor.
  *
- * This is the LAST LINE OF DEFENSE against a jailbroken AI.
+ * Runtime-level guardrail against accidental and adversarial exfiltration.
  *
- * Even if an AI is jailbroken and bypasses all prompt firewalls,
- * it still needs to use Node.js built-in modules to actually DO anything.
- * This module wraps fetch, axios, http, https, child_process, fs, and net
- * to intercept EVERY outbound request, EVERY command, EVERY file access
- * and block anything that contains PII or secrets.
+ * If an AI agent is prompt-injected or jailbroken, it still needs to use
+ * Node.js built-in modules to actually DO anything. This module wraps
+ * fetch, axios, http, https, child_process, fs, and net to intercept
+ * outbound requests, commands, and file accesses — blocking those that
+ * contain PII or secrets.
  *
- * The AI cannot bypass this because it runs at the Node.js runtime level,
- * below the AI's code execution. Even eval("fetch('https://evil.com')")
- * goes through our wrapped fetch.
+ * This raises the bar significantly: the AI's generated code cannot bypass
+ * these wrappers at the Node.js level without native addons or spawning a
+ * non-Node runtime. It is NOT a hard sandbox — a determined attacker with
+ * arbitrary local code execution can escape via native addons, child
+ * processes in other languages, or direct syscalls. Use `vibeguard proxy`
+ * for network-layer coverage of polyglot child processes.
  *
  * Usage:
  *   require('vibeguard/interceptor').activate();

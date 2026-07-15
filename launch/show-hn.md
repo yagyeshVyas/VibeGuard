@@ -13,7 +13,7 @@ It's not another Semgrep. The specific gap I saw: AI tools (Claude Code, Cursor,
 - AST-based taint analysis (not just regex) — traces `req.body.x` through template literals, function params, and object properties to sinks like `exec()`, `db.query()`, `innerHTML`
 - Cross-file taint — catches `req.body` passed to an imported helper that hits a sink
 - AI-specific rules: prompt injection in system prompts, LLM output to exec/eval, agent loop without cap, MCP tool poisoning, user PII sent to LLM APIs
-- One-command full protection: `vibeguard auto` starts a daemon (auto-scans on file change), installs git pre-commit hook, arms a shell guard that blocks `rm -rf` / `sudo` / `curl|sh` before execution
+- One-command layered protection: `vibeguard auto` starts a daemon (auto-scans on file change), installs git pre-commit hook, arms a shell guard that blocks `rm -rf` / `sudo` / `curl|sh` before execution
 - MCP server integration for Claude Code, Cursor, Windsurf — auto-scans every file the AI edits
 
 **Benchmark (honest, not rounded up):**

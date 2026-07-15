@@ -12,7 +12,7 @@
  *   vibeguard pre-deploy [dir] --json    # JSON output for CI/CD
  *
  * Gates:
- *   1.  Static scan        — 699 rules
+ *   1.  Static scan        — rules from source
  *   2.  Secret scan        — secrets in code
  *   3.  Git history scan   — secrets committed then deleted
  *   4.  Dependency audit   — CVE + slopsquat + integrity
@@ -63,8 +63,11 @@ function runPreDeployGate(dir, opts = {}) {
   const { scan, walk } = require('./scanner');
   const files = walk(dir, []);
 
+  const { allRules } = require('./rules');
+  const ruleCount = allRules().length;
+
   // ─── Gate 1: Static Scan ──────────────────────────────────────────
-  gate('Static Scan (699 rules)', () => {
+  gate(`Static Scan (${ruleCount} rules)`, () => {
     const r = scan(dir);
     const criticals = r.findings.filter(f => f.severity === 'critical').length;
     const highs = r.findings.filter(f => f.severity === 'high').length;

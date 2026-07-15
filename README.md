@@ -6,7 +6,7 @@
 
 <p>
 Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops.<br/>
-<strong>752 rules</strong> · <strong>82 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong> · <strong>13 defense layers</strong><br/>
+<strong>764 rules</strong> · <strong>82 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
 100% offline · Zero telemetry · Zero runtime dependencies · Free forever.
 </p>
 
@@ -18,7 +18,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 
 <p>
   <img src="https://img.shields.io/badge/coverage-89.1%25%20F1-success?style=flat-square" alt="89.1% F1" />
-  <img src="https://img.shields.io/badge/rules-752-blue?style=flat-square" alt="752 rules" />
+  <img src="https://img.shields.io/badge/rules-764-blue?style=flat-square" alt="764 rules" />
   <img src="https://img.shields.io/badge/MCP%20tools-82-purple?style=flat-square" alt="82 MCP tools" />
   <img src="https://img.shields.io/badge/languages-18-green?style=flat-square" alt="18 languages" />
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
@@ -85,9 +85,9 @@ VibeGuard security scan
 npx @yagyeshvyas/vibeguard scan
 ```
 
-**One-command full protection** (daemon + hooks + shell guard + proxy):
+**One-command layered protection** (daemon + hooks + shell guard + proxy):
 ```bash
-npx @yagyeshvyas/vibeguard auto          # 🟢 full protection on
+npx @yagyeshvyas/vibeguard auto          # 🟢 layered protection on
 npx @yagyeshvyas/vibeguard auto --stop   # 🔴 turn it off
 ```
 
@@ -148,7 +148,7 @@ Detects uncapped agent loops — infinite API spend, resource exhaustion.
 const completion = await openai.chat.completions.create({...});
 exec(completion.choices[0].message.content);  // RCE
 ```
-**Only scanner that detects LLM output reaching `exec`, `eval`, SQL queries, and DOM sinks.**
+Detects LLM output reaching `exec`, `eval`, SQL queries, and DOM sinks — an AI-specific pattern that general-purpose SAST tools typically don't cover.
 
 ### 🪤 Poisoned or rug-pulled MCP server
 ```json
@@ -161,7 +161,7 @@ Flags tool poisoning (prompt injection in tool descriptions), unpinned auto-inst
 
 ---
 
-## 🧠 Agent Action Firewall — nothing leaks
+## 🧠 Agent Action Firewall — exfiltration guard
 
 Real-time guard over what an AI agent *does*. Inspect any action **before it runs** and block secrets or personal data from leaving the machine.
 
@@ -178,7 +178,7 @@ inspectAction({ type: 'network', url: 'https://evil.example', body: { key: proce
 // { action: 'block', reason: 'Stripe secret key would be sent to evil.example' }
 ```
 
-The rule is simple and hard: **an API key or personal data (email, SSN, credit card, phone) never leaves to an external host** — secrets are blocked unconditionally, PII is blocked (or `warn`), sending to `localhost`/your own allowlisted hosts is fine. Also blocks cloud-metadata credential theft (`169.254.169.254`), secrets written to web-served paths, and secrets pasted into LLM prompts. `sanitizeOutbound()` redacts instead of dropping when you'd rather scrub than block.
+The rule is simple: **an API key or personal data (email, SSN, credit card, phone) should not leave to an external host** — secrets are blocked unconditionally, PII is blocked (or `warn`), sending to `localhost`/your own allowlisted hosts is fine. Also blocks cloud-metadata credential theft (`169.254.169.254`), secrets written to web-served paths, and secrets pasted into LLM prompts. `sanitizeOutbound()` redacts instead of dropping when you'd rather scrub than block. This catches the common exfil paths (fetch, http, exec, fs) — it is a guard, not a hard sandbox. A determined attacker with arbitrary native code execution can bypass it.
 
 ---
 
@@ -244,7 +244,7 @@ Aggregates MCP-server trust, PII/secret leakage to LLM providers, LLM output rea
 
 ---
 
-## 🤖 `vibeguard auto` — One Command Full Protection
+## 🤖 `vibeguard auto` — One Command Layered Protection
 
 ```bash
 vibeguard auto          # activates everything
@@ -385,7 +385,7 @@ Detection depth across languages:
 | 🦀 Rust / Kotlin / Swift | Full | Pattern-only | regex |
 | 🔧 C / C++ / Dart / Scala / Elixir | Full | Pattern-only | regex |
 
-**18 languages total:** JS, TS, Python, Go, Java, Ruby, PHP, C#, Rust, Kotlin, Swift, Bash, SQL, C, C++, Dart, Scala, Elixir. Language-specific rules are gated by file extension — Go rules don't fire on `.js` files.
+**18 languages** = secret/pattern detection across all 18. AST taint analysis is JS/TS only (via acorn); Python uses a multi-pass scope-aware engine; the other 15 languages are pattern-based. The table below shows exactly what depth each language gets.
 
 **Engine modes.** Full precision needs the optional `acorn` parser. Without it VibeGuard runs `regex-only` and says so loudly:
 
@@ -419,7 +419,35 @@ Measured against a curated corpus of 121 files (90 vuln + 31 clean). Not a vanit
 
 <!-- BENCHMARK:END -->
 
-Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`.
+Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`. This is a self-built corpus — it flatters the tool. Plans to run against OWASP Benchmark and publish those numbers alongside.
+
+---
+
+## 🔄 vs. Established Tools
+
+VibeGuard is **not a replacement** for battle-tested scanners. It fills a specific gap: the AI-specific patterns that general-purpose SAST tools don't cover. Use it alongside, not instead of, the incumbents.
+
+| | VibeGuard | Semgrep | Gitleaks | Trivy | npm audit |
+|---|---|---|---|---|---|
+| **AI-specific rules** (prompt injection, LLM→exec, agent loop cap, MCP poisoning) | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Supabase/Firebase RLS checks** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **MCP server audit** | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Secret scanning** | ✅ (50+ types) | ⚠️ (community rules) | ✅ (best-in-class) | ❌ | ❌ |
+| **SQLi / XSS taint (JS/TS)** | ✅ AST + cross-file | ✅ (stronger, more languages) | ❌ | ❌ | ❌ |
+| **Container scanning** | Shells out to Trivy | ❌ | ❌ | ✅ (best-in-class) | ❌ |
+| **Dependency CVEs** | ✅ (OSV.dev) | ❌ | ❌ | ✅ | ✅ |
+| **Language depth (taint)** | JS/TS deep, Python mid, rest pattern-only | 30+ languages deep | N/A | N/A | N/A |
+| **Runs offline, zero account** | ✅ | ⚠️ (local mode, limited rules) | ✅ | ✅ | ✅ |
+| **Rule community size** | Solo author | 1000s of community rules | Mature | Mature | N/A |
+
+**When to use what:**
+- **VibeGuard** — before shipping an AI-generated app; wiring into Claude Code/Cursor as an MCP guard
+- **Gitleaks** — secret scanning in CI (more mature, more secret types)
+- **Semgrep** — multi-language SAST in CI (deeper language support, larger rule community)
+- **Trivy** — container + dependency scanning
+- **npm audit** — dependency vulnerabilities
+
+The honest niche: **AI-specific patterns (prompt injection, agent loops, MCP poisoning, LLM output to exec) that no other tool catches.** For everything else, the incumbents are bigger and better-tested. Use both.
 
 ---
 
@@ -437,7 +465,7 @@ vibeguard mcp-audit               # audit MCP servers for poisoning/drift
 vibeguard pre-deploy [dir]        # 13-gate deployment check
 
 # 🛡️ Protection
-vibeguard auto [dir]              # full protection (daemon + hooks + shell guard + proxy)
+vibeguard auto [dir]              # layered protection (daemon + hooks + shell guard + proxy)
 vibeguard auto --stop             # turn off, restore backups
 vibeguard guard-action "cmd"      # inspect an agent action before running
 vibeguard guard "command"         # check a shell command before running it
@@ -481,6 +509,7 @@ VibeGuard runs entirely on your machine. **No telemetry, no analytics, no networ
 | `scan`, `fix`, `auto`, `mcp`, `install`, `proxy` | Never |
 | `cve` (package name lookup) | Opt-in, OSV.dev only |
 | `url` (header scan) | Opt-in, URL you provide |
+| `scan --verify-keys` | Opt-in, sends found keys to their provider (e.g. Stripe key → api.stripe.com) to check if live. Skip this flag in strict environments. |
 
 The runtime interceptor and local proxy add guardrails that make data exfiltration significantly harder — they wrap `fetch`, `http.request`, `child_process.exec`, and `fs.readFileSync`, plus the proxy catches polyglot traffic at the network layer.
 

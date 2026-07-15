@@ -1161,6 +1161,109 @@ test('total rule count is 500+', () => {
   assert(count >= 500, 'should have 500+ rules, got ' + count);
 });
 
+test('new secret patterns: HuggingFace, Docker PAT, Figma, Shopify, Postman', () => {
+  const figPrefix = 'figd_';
+  const figBody = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + 'abcdefghijklmnopqrstuvwxyzmn';
+  const dir = tmpProject({
+    'a.js': [
+      'const hfToken = "hf_1234567890abcdefghijklmnopqrstuvwx";',
+      'const dockerPat = "dpc_abcdefghijklmnopqrstuvwxyz0123456789";',
+      'const figmaTok = "' + figPrefix + figBody + '";',
+      'const shopifyTok = "shpat_abcdefghijklmnopqrstuvwxyz012345";',
+      'const postmanKey = "PMAK-1234567890abcdefABCDEF1234567890abcdefABCDEF1234567890abcdefABCDEF";',
+    ].join('\n'),
+  });
+  const r = scan(dir);
+  const ids = ruleIds(r);
+  assert(ids.includes('secret.huggingface-token'), 'huggingface: ' + JSON.stringify(ids));
+  assert(ids.includes('secret.docker-pat'), 'docker: ' + JSON.stringify(ids));
+  assert(ids.includes('secret.figma-token'), 'figma: ' + JSON.stringify(ids));
+  assert(ids.includes('secret.shopify-admin-token'), 'shopify: ' + JSON.stringify(ids));
+  assert(ids.includes('secret.postman-api-key'), 'postman: ' + JSON.stringify(ids));
+});
+
+test('SSTI rules: EJS, Handlebars, Nunjucks, Pug with user input', () => {
+  const dir = tmpProject({
+    'src/app.js': [
+      'ejs.render(req.body.template);',
+      'Handlebars.compile(req.body.tpl);',
+      'nunjucks.renderString(req.body.html);',
+      'pug.render(req.body.view);',
+    ].join('\n'),
+  });
+  const r = scan(dir);
+  const ids = ruleIds(r);
+  assert(ids.includes('code.ssti-ejs'), 'ejs SSTI: ' + JSON.stringify(ids));
+  assert(ids.includes('code.ssti-handlebars'), 'handlebars SSTI: ' + JSON.stringify(ids));
+  assert(ids.includes('code.ssti-nunjucks'), 'nunjucks SSTI: ' + JSON.stringify(ids));
+  assert(ids.includes('code.ssti-pug'), 'pug SSTI: ' + JSON.stringify(ids));
+});
+
+test('code.json-stringify-env: leaks all env vars', () => {
+  const dir = tmpProject({
+    'api/route.js': [
+      'app.get("/config", (req, res) => { res.json(JSON.stringify(process.env)); });',
+    ].join('\n'),
+  });
+  const r = scan(dir);
+  const ids = ruleIds(r);
+  assert(ids.includes('code.json-stringify-env'), 'JSON.stringify(process.env): ' + JSON.stringify(ids));
+});
+
+test('code.process-env-to-res: env sent in response', () => {
+  const dir = tmpProject({
+    'api/env.js': [
+      'app.get("/env", (req, res) => { res.send(process.env); });',
+    ].join('\n'),
+  });
+  const r = scan(dir);
+  const ids = ruleIds(r);
+  assert(ids.includes('code.process-env-to-res'), 'process.env in res: ' + JSON.stringify(ids));
+});
+
+test('Python taint: yaml.load with user input fires', () => {
+  const { analyzePythonTaint } = require('../src/engine');
+  const content = 'data = request.form.get("yaml")\nyaml.load(data)\n';
+  const lines = content.split('\n');
+  const findings = analyzePythonTaint(content, lines, 'app.py');
+  assert(findings.length > 0, 'should detect yaml.load taint: ' + JSON.stringify(findings));
+  assert(findings.some(f => f.ruleId === 'py.taint-flow'), 'should have py.taint-flow');
+  assert(findings.some(f => f.message.includes('yaml.load')), 'should flag yaml.load');
+});
+
+test('Python taint: shutil.rmtree with user input fires', () => {
+  const { analyzePythonTaint } = require('../src/engine');
+  const content = 'path = request.form.get("dir")\nshutil.rmtree(path)\n';
+  const lines = content.split('\n');
+  const findings = analyzePythonTaint(content, lines, 'app.py');
+  assert(findings.length > 0, 'should detect shutil.rmtree taint: ' + JSON.stringify(findings));
+  assert(findings.some(f => f.message.includes('shutil.rmtree')), 'should flag shutil.rmtree');
+});
+
+test('new rules do NOT false-positive on clean code', () => {
+  const dir = tmpProject({
+    'safe.js': [
+      'const ejs = require("ejs");',
+      'const html = ejs.render("<p>Hello</p>", { name: "World" });',
+      'const Handlebars = require("handlebars");',
+      'const tpl = Handlebars.compile("<p>{{name}}</p>");',
+      'const safeConfig = { API_URL: process.env.API_URL || "http://localhost:3000" };',
+      'res.json(safeConfig);',
+    ].join('\n'),
+  });
+  const r = scan(dir);
+  const ids = ruleIds(r);
+  assert(!ids.includes('code.ssti-ejs'), 'EJS SSTI should NOT fire on safe code: ' + JSON.stringify(ids));
+  assert(!ids.includes('code.ssti-handlebars'), 'Handlebars SSTI should NOT fire on safe code');
+  assert(!ids.includes('code.json-stringify-env'), 'JSON.stringify(process.env) should NOT fire on safe code');
+  assert(!ids.includes('code.process-env-to-res'), 'process.env in res should NOT fire on safe code');
+  assert(!ids.includes('secret.huggingface-token'), 'no false HF token');
+  assert(!ids.includes('secret.docker-pat'), 'no false Docker PAT');
+  assert(!ids.includes('secret.figma-token'), 'no false Figma token');
+  assert(!ids.includes('secret.shopify-admin-token'), 'no false Shopify token');
+  assert(!ids.includes('secret.postman-api-key'), 'no false Postman key');
+});
+
 test('CLI: --patch output generates unified diff', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'bin', 'cli.js'), 'utf8');
   assert(code.includes('generatePatch'), 'should have generatePatch function');
@@ -2518,7 +2621,7 @@ test('pre-deploy: --strict fails on warnings', () => {
 test('MCP: pre_deploy tool exists', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
   assert(code.includes("name: 'pre_deploy'"), 'should have pre_deploy tool');
-  assert(code.includes('all 13 layers active'), 'MCP server should auto-activate all layers');
+  assert(code.includes('all defense layers active'), 'MCP server should auto-activate all layers');
   assert(code.includes('inspectPrompt'), 'should auto-run AI firewall on prompts');
   assert(code.includes('detectTamper'), 'should auto-run tamper detection');
   assert(code.includes('sanitizeAIResponse'), 'should auto-sanitize output');
@@ -2526,7 +2629,7 @@ test('MCP: pre_deploy tool exists', () => {
   assert(code.includes('analyzeSession'), 'should run behavioral analysis');
 });
 
-test('all 13 defense layers are active in MCP server', () => {
+test('all defense layers are active in MCP server', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
   // Layer 2: AI Firewall
   assert(code.includes('inspectPrompt'), 'Layer 2: AI Firewall');
@@ -4087,7 +4190,7 @@ test('interceptor: wrapped readFileSync does not self-recurse (regression)', () 
   assert.strictEqual(out, 'OK', 'benign file read after activation must not recurse/throw');
 });
 
-// --- Agent action firewall (nothing leaks) ---------------------------------
+// --- Agent action firewall (exfiltration guard) -----------------------------
 test('action-guard: blocks secret + PII exfiltration to external hosts', () => {
   const { inspectAction } = require('../src/action-guard');
   const b = (a, o) => inspectAction(a, o).action;

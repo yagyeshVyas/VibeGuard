@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useInView, useMotionValue, animate } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const stats = [
   { num: 752, label: "RULES", suffix: "" },
@@ -32,9 +32,6 @@ function Gauge({ target, label, suffix }: { target: number; label: string; suffi
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, scale: 0.7 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
       className="flex flex-col items-center group"
     >
       {/* Circular gauge */}
@@ -60,24 +57,21 @@ function Gauge({ target, label, suffix }: { target: number; label: string; suffi
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="font-tech text-2xl font-black text-[#00f0ff] glow-text-cyan">
+          <span className="font-display text-2xl font-bold text-[#00f0ff] glow-text-cyan">
             {suffix}{display}
           </span>
         </div>
       </div>
-      <div className="font-mono text-xs text-[#4a7a8a] tracking-widest group-hover:text-[#00f0ff] transition-colors">
+      <div className="font-mono text-xs text-[#4a6b7e] tracking-widest group-hover:text-[#00f0ff] transition-colors">
         {label}
       </div>
     </motion.div>
   );
 }
 
-// Need useState import fix
-import { useState } from "react";
-
 export default function Stats() {
   return (
-    <section className="relative py-20 px-6">
+    <section className="relative py-20 px-6" data-parallax="20">
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           {stats.map((s, i) => (

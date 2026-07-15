@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useRef } from "react";
+import type { MouseEvent } from "react";
 
 const features = [
   { icon: "◈", title: "Secret Detection", desc: "50+ secret types — OpenAI, AWS, GitHub, Stripe, Slack, Firebase — plus entropy-based detection for unknown secrets.", glow: "cyan" },
@@ -15,10 +16,10 @@ const features = [
 ];
 
 const glowMap: Record<string, string> = {
-  cyan: "rgba(0,240,255,0.15)",
-  green: "rgba(0,255,157,0.12)",
-  gold: "rgba(255,181,71,0.1)",
-  red: "rgba(255,56,96,0.1)",
+  cyan: "rgba(0,240,255,0.18)",
+  green: "rgba(0,255,157,0.14)",
+  gold: "rgba(255,181,71,0.12)",
+  red: "rgba(255,56,96,0.12)",
 };
 const colorMap: Record<string, string> = {
   cyan: "#00f0ff",
@@ -27,62 +28,69 @@ const colorMap: Record<string, string> = {
   red: "#ff3860",
 };
 
+function GlassCard({ f }: { f: (typeof features)[number] }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const onMove = (e: MouseEvent<HTMLDivElement>) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+    el.style.setProperty("--my", `${e.clientY - r.top}px`);
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      onMouseMove={onMove}
+      className="glass-gradient clip-notch p-7 group hover:-translate-y-2 transition-transform duration-300 h-full relative overflow-hidden"
+      style={{ borderRadius: 6 }}
+    >
+      <span className="card-liquid-glow" />
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+        style={{ background: `radial-gradient(circle at center, ${glowMap[f.glow]}, transparent 70%)` }}
+      />
+      <span className="corner tl" style={{ borderColor: colorMap[f.glow] }} />
+      <span className="corner tr" style={{ borderColor: colorMap[f.glow] }} />
+      <span className="corner bl" style={{ borderColor: colorMap[f.glow] }} />
+      <span className="corner br" style={{ borderColor: colorMap[f.glow] }} />
+      <div className="relative">
+        <div
+          className="text-4xl mb-4 inline-block group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300 font-tech"
+          style={{ color: colorMap[f.glow], textShadow: `0 0 14px ${glowMap[f.glow]}` }}
+        >
+          {f.icon}
+        </div>
+        <h3 className="font-display text-lg font-semibold text-white mb-2 tracking-wide">{f.title}</h3>
+        <p className="font-body text-sm text-[#7ea6bc] leading-relaxed">{f.desc}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function Features() {
   return (
-    <section id="features" className="relative py-24 px-6">
-      <div className="absolute inset-0 bg-hex opacity-20" />
+    <section id="features" className="relative py-28 px-6">
+      <div className="absolute inset-0 bg-hex opacity-20" data-parallax="30" />
       <div className="relative max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-center mb-14"
-        >
+        <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 mb-4">
-            <span className="font-mono text-xs text-[#00f0ff]/40 tracking-widest">[ 03 ]</span>
-            <span className="h-px w-12 bg-[#00f0ff]/20" />
+            <span className="font-mono text-xs text-[#00f0ff]/50 tracking-widest">[ 03 ]</span>
+            <span className="h-px w-12 bg-[#00f0ff]/20" data-rule-line />
           </div>
-          <h2 className="font-tech text-3xl md:text-5xl font-bold text-white tracking-wide">
+          <h2 className="font-display text-3xl md:text-5xl font-semibold text-white tracking-tight">
             EVERYTHING IT CATCHES,{" "}
-            <span className="text-cyan-gradient glow-text-cyan">NOTHING IT MISSES</span>
+            <span className="text-aurora-gradient glow-text-cyan">NOTHING IT MISSES</span>
           </h2>
-          <p className="mt-4 font-body text-[#5a8a9a] max-w-2xl mx-auto">
+          <p className="mt-4 font-body text-lg text-[#7ea6bc] max-w-2xl mx-auto">
             Nine detection engines running in 5 seconds, fully offline, on your machine.
           </p>
-        </motion.div>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {features.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 40, scale: 0.95 }}
-              whileInView={{ opacity: 1, y: 0, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: (i % 3) * 0.1, duration: 0.5 }}
-              whileHover={{ y: -6 }}
-              className="hud-panel rounded-sm p-7 group hover:glow-box-cyan transition-all relative overflow-hidden"
-            >
-              {/* Hover glow overlay */}
-              <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{ background: `radial-gradient(circle at center, ${glowMap[f.glow]}, transparent 70%)` }}
-              />
-              {/* Corner brackets */}
-              <span className="corner tl" style={{ borderColor: colorMap[f.glow] }} />
-              <span className="corner tr" style={{ borderColor: colorMap[f.glow] }} />
-              <span className="corner bl" style={{ borderColor: colorMap[f.glow] }} />
-              <span className="corner br" style={{ borderColor: colorMap[f.glow] }} />
-              <div className="relative">
-                <div
-                  className="text-4xl mb-4 inline-block group-hover:scale-110 transition-transform font-tech"
-                  style={{ color: colorMap[f.glow], textShadow: `0 0 10px ${glowMap[f.glow]}` }}
-                >
-                  {f.icon}
-                </div>
-                <h3 className="font-tech text-lg font-bold text-white mb-2 tracking-wide">{f.title}</h3>
-                <p className="font-body text-sm text-[#5a8a9a] leading-relaxed">{f.desc}</p>
-              </div>
-            </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((f) => (
+            <GlassCard key={f.title} f={f} />
           ))}
         </div>
       </div>

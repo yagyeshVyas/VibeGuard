@@ -492,7 +492,7 @@ const TOOLS = [
   },
   {
     name: 'env_lock',
-    description: 'Lock environment variables — hide all secrets (API keys, tokens, passwords) from the AI. Returns list of protected variables. Even if AI is jailbroken, it cannot read locked env vars.',
+    description: 'Lock environment variables — hide all secrets (API keys, tokens, passwords) from the AI. Returns list of protected variables. Hides values at the Node.js runtime level so they do not appear in process.env reads within the same process. Raises the bar for accidental and adversarial exfil — not a hard sandbox against arbitrary native code execution.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -513,7 +513,7 @@ const TOOLS = [
   },
   {
     name: 'sandbox_exec',
-    description: 'Execute AI-generated code in a zero-trust sandbox. No process.env, no fs, no child_process, no network. Time-limited and memory-limited. Full audit log of every operation attempted.',
+    description: 'Execute AI-generated code in a locked-down sandbox. No process.env, no fs, no child_process, no network. Time-limited and memory-limited. Full audit log of every operation attempted. Best with isolated-vm installed for V8 isolate enforcement; Level 1 (vm only) is a raised floor, not a hard boundary.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -1874,7 +1874,7 @@ async function main() {
     audit.log('warning', { event: 'interceptor_load_failed', error: e.message });
   }
 
-  process.stderr.write(`vibeguard MCP server: 13 layers active (env lock: ${envLock.hiddenCount} vars hidden, interceptor: ${interceptorActive ? 'ready' : 'off'}, audit: recording, behavior: monitoring)\n`);
+  process.stderr.write(`vibeguard MCP server: all defense layers active (env lock: ${envLock.hiddenCount} vars hidden, interceptor: ${interceptorActive ? 'ready' : 'off'}, audit: recording, behavior: monitoring)\n`);
 
   const server = new Server(
     { name: 'vibeguard', version: require('../package.json').version },
@@ -2038,7 +2038,7 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  process.stderr.write(`vibeguard MCP server running on stdio — all 13 layers active\n`);
+  process.stderr.write(`vibeguard MCP server running on stdio — all defense layers active\n`);
 }
 
 main().catch((err) => {

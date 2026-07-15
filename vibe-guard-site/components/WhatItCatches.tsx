@@ -36,12 +36,12 @@ export default function WhatItCatches() {
         >
           <div className="inline-flex items-center gap-2 mb-4">
             <span className="font-mono text-xs text-[#00f0ff]/40 tracking-widest">[ 04 ]</span>
-            <span className="h-px w-12 bg-[#00f0ff]/20" />
+            <span className="h-px w-12 bg-[#00f0ff]/20" data-rule-line />
           </div>
-          <h2 className="font-tech text-3xl md:text-5xl font-bold text-white tracking-wide">
+          <h2 className="font-display text-3xl md:text-5xl font-semibold text-white tracking-tight">
             WHAT IT <span className="text-gold-gradient glow-text-gold">CATCHES</span>
           </h2>
-          <p className="mt-4 font-body text-[#5a8a9a] max-w-2xl mx-auto">
+          <p className="mt-4 font-body text-[#7ea6bc] max-w-2xl mx-auto">
             The holes AI coding tools leave behind — click any card to see the vulnerable code and the fix.
           </p>
         </motion.div>
@@ -57,7 +57,7 @@ export default function WhatItCatches() {
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
                 onClick={() => setActive(i)}
-                className={`w-full text-left px-5 py-4 hud-panel rounded-sm transition-all relative ${
+                className={`w-full text-left px-5 py-4 glass rounded-sm transition-all relative ${
                   active === i ? "border-[#00f0ff]/40 glow-box-cyan" : "hover:border-[#00f0ff]/20"
                 }`}
               >
@@ -68,7 +68,7 @@ export default function WhatItCatches() {
                   >
                     {item.sev}
                   </span>
-                  <span className={`font-body text-sm font-medium ${active === i ? "text-white" : "text-[#5a8a9a]"}`}>
+                  <span className={`font-body text-sm font-medium ${active === i ? "text-white" : "text-[#7ea6bc]"}`}>
                     {item.title}
                   </span>
                   {active === i && (
@@ -86,10 +86,11 @@ export default function WhatItCatches() {
             <AnimatePresence mode="wait">
               <motion.div
                 key={active}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="hud-panel scanline-overlay rounded-sm overflow-hidden shadow-2xl"
+                initial={{ opacity: 0, scale: 0.95, x: -8 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                exit={{ opacity: 0, scale: 0.95, x: 8 }}
+                transition={{ duration: 0.2 }}
+                className="glass-strong scanline-overlay rounded-sm overflow-hidden shadow-2xl glitch-skip"
               >
                 <div className="flex items-center justify-between px-5 py-3 border-b border-[#00f0ff]/10">
                   <span className="font-tech text-sm font-semibold text-white tracking-wide">{v.title}</span>
@@ -107,7 +108,7 @@ export default function WhatItCatches() {
                   <div className="mt-4 space-y-2">
                     <div className="flex items-start gap-2">
                       <span className="font-mono text-xs text-[#ff3860] font-bold mt-0.5">[FINDING]</span>
-                      <code className="text-xs text-[#5a8a9a] font-mono">{v.finding}</code>
+                      <code className="text-xs text-[#7ea6bc] font-mono">{v.finding}</code>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="font-mono text-xs text-[#00ff9d] font-bold mt-0.5">[FIX]</span>

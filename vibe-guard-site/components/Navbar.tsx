@@ -21,7 +21,7 @@ export default function Navbar() {
       initial={{ y: -80, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-      className="fixed top-0 left-0 right-0 z-50 hud-panel"
+      className="fixed top-0 left-0 right-0 z-50 glass border-b border-[#00f0ff]/10"
     >
       <div className="max-w-7xl mx-auto px-6 py-3.5 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 group">
@@ -35,7 +35,7 @@ export default function Navbar() {
             </svg>
             <div className="w-3 h-3 rounded-full bg-[#00f0ff] glow-box-cyan" />
           </div>
-          <span className="font-tech text-lg font-bold tracking-wider text-white">
+          <span className="font-display text-lg font-bold tracking-wider text-white">
             VIBE<span className="text-[#00f0ff]">GUARD</span>
           </span>
         </Link>
@@ -46,7 +46,7 @@ export default function Navbar() {
               key={l.href}
               href={l.href}
               className={`font-body text-sm font-medium tracking-wide relative group transition-colors ${
-                pathname === l.href ? "text-[#00f0ff]" : "text-[#4a7a8a] hover:text-[#00f0ff]"
+                pathname === l.href ? "text-[#00f0ff]" : "text-[#7ea6bc] hover:text-[#00f0ff]"
               }`}
             >
               {l.label.toUpperCase()}
@@ -59,13 +59,13 @@ export default function Navbar() {
             href="https://github.com/yagyeshVyas/VibeGuard"
             target="_blank"
             rel="noreferrer"
-            className="font-body text-sm font-medium text-[#4a7a8a] hover:text-[#00f0ff] transition-colors tracking-wide"
+            className="font-body text-sm font-medium text-[#7ea6bc] hover:text-[#00f0ff] transition-colors tracking-wide"
           >
             GITHUB
           </a>
           <Link
             href="/playground"
-            className="font-tech px-5 py-2 rounded-sm bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] text-xs font-bold tracking-wider hover:bg-[#00f0ff]/20 hover:glow-box-cyan transition-all clip-hex-sm"
+            className="btn-ghost font-display px-5 py-2 clip-notch text-xs font-bold tracking-wider"
           >
             INITIALIZE
           </Link>
@@ -86,7 +86,7 @@ export default function Navbar() {
         <motion.div
           initial={{ height: 0, opacity: 0 }}
           animate={{ height: "auto", opacity: 1 }}
-          className="md:hidden hud-panel border-t border-[#00f0ff]/10"
+          className="md:hidden glass border-t border-[#00f0ff]/10"
         >
           <div className="px-6 py-4 flex flex-col gap-3">
             {links.map((l) => (
@@ -94,7 +94,7 @@ export default function Navbar() {
                 key={l.href}
                 href={l.href}
                 className={`font-body text-sm ${
-                  pathname === l.href ? "text-[#00f0ff]" : "text-[#4a7a8a] hover:text-[#00f0ff]"
+                  pathname === l.href ? "text-[#00f0ff]" : "text-[#7ea6bc] hover:text-[#00f0ff]"
                 }`}
                 onClick={() => setOpen(false)}
               >

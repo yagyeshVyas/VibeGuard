@@ -20,7 +20,7 @@ try {
     process.exit(0);
   }
 
-  process.stderr.write('\n  VibeGuard installed. Run "vibeguard auto" to enable full protection.\n\n');
+  process.stderr.write('\n  VibeGuard installed. Run "vibeguard auto" to enable layered protection.\n\n');
   process.exit(0);
 } catch {
   process.exit(0);

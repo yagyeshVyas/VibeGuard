@@ -58,7 +58,7 @@ Usage:
   vibeguard pre-deploy [dir]        13-gate deployment check.
   vibeguard dashboard [dir]         Visual terminal dashboard.
   vibeguard mcp                     MCP server (for Claude Code, Cursor, etc.).
-  vibeguard auto [dir]              One-command full protection (daemon + hooks).
+  vibeguard auto [dir]              One-command layered protection (daemon + hooks).
   vibeguard auto --stop             Turn off, restore backups.
   vibeguard auto --status           Show what's active.
 
@@ -847,6 +847,9 @@ async function main() {
     (async () => {
       const result = scan(dir, { deps: flags.deps !== false && !flags['no-deps'], deep: !!flags.deep });
       try {
+        if (!flags.json && !flags.sarif) {
+          process.stderr.write(`${C.yellow}⚠ --verify-keys sends found keys to their provider APIs (e.g. Stripe, OpenAI) to check if they are live.${C.reset}\n`);
+        }
         const { verifyKeys } = require('../src/verifykeys');
         const live = await verifyKeys(dir, result.findings);
         if (live > 0 && !flags.json && !flags.sarif) {
@@ -2372,7 +2375,7 @@ function cmdAutoUnified(dir, args, flags) {
     yes: !!flags.yes || !!flags.force,
   };
 
-  process.stdout.write(`\n${C.bold}${C.cyan}[VibeGuard] Activating full protection...${C.reset}\n\n`);
+  process.stdout.write(`\n${C.bold}${C.cyan}[VibeGuard] Activating layered protection...${C.reset}\n\n`);
 
   const r = auto.autoStart(rootDir, opts);
   if (!r.ok) {

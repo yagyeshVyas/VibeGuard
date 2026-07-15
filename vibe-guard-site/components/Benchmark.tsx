@@ -30,7 +30,7 @@ export default function Benchmark() {
 
   return (
     <section id="benchmark" className="relative py-24 px-6 overflow-hidden">
-      <div className="absolute inset-0 glow-green opacity-15" />
+      <div className="absolute inset-0 glow-green opacity-15" data-parallax="25" />
       <div className="relative max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -40,12 +40,12 @@ export default function Benchmark() {
         >
           <div className="inline-flex items-center gap-2 mb-4">
             <span className="font-mono text-xs text-[#00f0ff]/40 tracking-widest">[ 06 ]</span>
-            <span className="h-px w-12 bg-[#00f0ff]/20" />
+            <span className="h-px w-12 bg-[#00f0ff]/20" data-rule-line />
           </div>
-          <h2 className="font-tech text-3xl md:text-5xl font-bold text-white tracking-wide">
-            HONEST <span className="text-cyan-gradient glow-text-cyan">BENCHMARK</span>
+          <h2 className="font-display text-3xl md:text-5xl font-semibold text-white tracking-tight">
+            HONEST <span className="text-aurora-gradient glow-text-cyan">BENCHMARK</span>
           </h2>
-          <p className="mt-4 font-body text-[#5a8a9a] max-w-2xl mx-auto">
+          <p className="mt-4 font-body text-[#7ea6bc] max-w-2xl mx-auto">
             Measured against a curated corpus of 121 files. Run <code className="font-mono text-[#00ff9d]">npm run benchmark</code> to reproduce.
           </p>
         </motion.div>
@@ -56,7 +56,7 @@ export default function Benchmark() {
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="hud-panel rounded-sm p-6 flex items-center justify-center scanline-overlay"
+            className="glass rounded-sm p-6 flex items-center justify-center scanline-overlay"
           >
             <svg width={360} height={360} viewBox="0 0 360 360">
               {/* Grid rings */}
@@ -126,7 +126,7 @@ export default function Benchmark() {
                     key={i}
                     x={cx + lr * Math.cos(angle)}
                     y={cy + lr * Math.sin(angle)}
-                    fill="#4a7a8a"
+                    fill="#4a6b7e"
                     fontSize="10"
                     fontFamily="Orbitron"
                     fontWeight="700"
@@ -146,18 +146,18 @@ export default function Benchmark() {
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="hud-panel rounded-sm p-6 mb-6 text-center"
+              className="glass rounded-sm p-6 mb-6 text-center"
             >
-              <div className="font-tech text-6xl font-black text-cyan-gradient glow-text-cyan">{overall.f1}%</div>
-              <div className="mt-2 font-mono text-xs uppercase tracking-widest text-[#4a7a8a]">Overall F1 Score</div>
+              <div className="font-tech text-6xl font-black text-aurora-gradient glow-text-cyan">{overall.f1}%</div>
+              <div className="mt-2 font-mono text-xs uppercase tracking-widest text-[#4a6b7e]">Overall F1 Score</div>
               <div className="mt-4 flex justify-center gap-8">
                 <div>
                   <div className="font-tech text-2xl font-bold text-white">{overall.precision}%</div>
-                  <div className="font-mono text-xs text-[#4a7a8a] uppercase">Precision</div>
+                  <div className="font-mono text-xs text-[#4a6b7e] uppercase">Precision</div>
                 </div>
                 <div>
                   <div className="font-tech text-2xl font-bold text-white">{overall.recall}%</div>
-                  <div className="font-mono text-xs text-[#4a7a8a] uppercase">Recall</div>
+                  <div className="font-mono text-xs text-[#4a6b7e] uppercase">Recall</div>
                 </div>
               </div>
               {/* Legend */}
@@ -176,7 +176,7 @@ export default function Benchmark() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.08 }}
-                  className="hud-panel rounded-sm p-3.5"
+                  className="glass rounded-sm p-3.5"
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-tech text-xs font-bold text-white tracking-wider">{d.category}</span>
@@ -202,7 +202,7 @@ export default function Benchmark() {
           </div>
         </div>
 
-        <p className="mt-8 text-center font-body text-sm text-[#5a8a9a]">
+        <p className="mt-8 text-center font-body text-sm text-[#7ea6bc]">
           86.0% F1 means it misses ~14% of real issues. Read per-category details in{" "}
           <code className="font-mono text-[#00ff9d]">test/benchmark/benchmark-results.md</code> before relying on it.
         </p>

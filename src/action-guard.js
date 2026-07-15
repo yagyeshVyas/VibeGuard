@@ -3,7 +3,7 @@
 /*
  * src/action-guard.js — Agent Action Firewall.
  *
- * The real-time "nothing leaks" guard. Inspects an agent action BEFORE it runs
+ * Real-time exfiltration guard. Inspects an agent action BEFORE it runs
  * and blocks it if it would exfiltrate secrets or personal data, run a
  * dangerous command, or send sensitive data to an untrusted destination.
  *
@@ -14,10 +14,12 @@
  *   { type: 'prompt',  content, provider? }   // text going to an LLM
  *   { type: 'mcp',     tool, args }           // an MCP tool call
  *
- * Core guarantee (best-effort, not a sandbox): a hardcoded API key or a piece
- * of personal data (email, SSN, credit card, phone) MUST NOT leave the machine
- * to an external host without an explicit allow. Secrets to any external
- * destination are BLOCKED, unconditionally.
+ * Core rule (best-effort, not a sandbox): a hardcoded API key or a piece
+ * of personal data (email, SSN, credit card, phone) should not leave the
+ * machine to an external host without an explicit allow. Secrets to any
+ * external destination are blocked. This catches the common exfil paths
+ * (fetch, http, exec, fs) — it is not a guarantee against a determined
+ * attacker with arbitrary native code execution.
  *
  * 100% local. Zero network. Zero dependencies. Fail-closed on the block path.
  */

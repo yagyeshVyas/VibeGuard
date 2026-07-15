@@ -32,7 +32,7 @@ Run vibeguard fix to auto-fix 4 issues
 - Supabase/Firebase: missing RLS, fake RLS policies (`USING (true)`), service-role keys in client components
 - AST taint analysis: traces `req.body.x` through variables, template literals, and function calls to sinks — not just regex matching
 
-**One command for full protection:**
+**One command for layered protection:**
 ```bash
 vibeguard auto    # daemon + git hook + shell guard + post-edit hook
 ```

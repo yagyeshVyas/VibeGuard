@@ -16,7 +16,7 @@ const stats = [
 
 const timeline = [
   { phase: "v0.1.0", title: "Initial Release", desc: "Core scanner with secrets, injection, auth, config, PII rules. MCP server with 5 tools. Pre-commit hook. SARIF output. Zero runtime dependencies." },
-  { phase: "v1.0.0", title: "Full Protection Suite", desc: "699 rules, 75 MCP tools, AST taint analysis, cross-file taint tracking, auto-fix, daemon mode, shell guard, multi-client installer. 342 tests." },
+  { phase: "v1.0.0", title: "Layered Protection Suite", desc: "699 rules, 75 MCP tools, AST taint analysis, cross-file taint tracking, auto-fix, daemon mode, shell guard, multi-client installer. 342 tests." },
   { phase: "v1.3.0", title: "Phase 0-4 Complete", desc: "752 rules, 82 MCP tools, 18 languages, 10 compliance frameworks, Python taint v2, firewall semantic classifier, local MITM proxy, plugin system v2, agentic fix contracts, C/C++/Dart/Scala/Elixir rules. 419 tests. F1 89.1%." },
 ];
 
@@ -41,7 +41,7 @@ export default function AboutPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 hud-panel clip-hex-sm mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 glass clip-hex-sm mb-8"
           >
             <span className="w-2 h-2 rounded-full bg-[#00ff9d] animate-pulse" />
             <span className="font-mono text-xs text-[#00f0ff]/70 tracking-widest">CREATOR PROFILE</span>
@@ -88,7 +88,7 @@ export default function AboutPage() {
               href="https://github.com/yagyeshVyas"
               target="_blank"
               rel="noreferrer"
-              className="font-tech px-7 py-3.5 rounded-sm hud-panel text-[#00f0ff] text-sm font-bold tracking-wider hover:glow-box-cyan transition-all clip-hex-sm"
+              className="btn-ghost font-display px-7 py-3.5 clip-notch text-sm font-bold tracking-wider"
             >
               GITHUB PROFILE
             </a>
@@ -107,7 +107,7 @@ export default function AboutPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.08 }}
-                className="hud-panel rounded-sm p-5 text-center"
+                className="glass rounded-sm p-5 text-center"
               >
                 <div className="font-tech text-3xl font-black text-cyan-gradient glow-text-cyan">{s.num}</div>
                 <div className="mt-2 font-mono text-xs text-[#4a7a8a] tracking-widest">{s.label}</div>
@@ -140,7 +140,7 @@ export default function AboutPage() {
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="hud-panel scanline-overlay rounded-sm p-8 space-y-6"
+            className="glass-strong scanline-overlay rounded-sm p-8 space-y-6"
           >
             <p className="font-body text-lg text-[#c8f0ff] leading-relaxed">
               AI coding tools like Claude Code, Cursor, and Windsurf generate code at incredible speed —
@@ -186,7 +186,7 @@ export default function AboutPage() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.15 }}
-                className="hud-panel rounded-sm p-6 relative"
+                className="glass rounded-sm p-6 relative"
               >
                 <div className="flex items-center gap-3 mb-3">
                   <span className="font-tech text-sm font-bold text-[#00f0ff] tracking-wider">{t.phase}</span>
@@ -215,10 +215,10 @@ export default function AboutPage() {
             SHIP SAFE CODE. <span className="text-cyan-gradient glow-text-cyan">SLEEP EASY.</span>
           </h2>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <Link href="/" className="font-tech px-7 py-3.5 rounded-sm bg-gradient-to-r from-[#00f0ff]/80 to-[#00ff9d]/80 text-[#02040a] text-sm font-bold tracking-wider hover:-translate-y-0.5 transition-all clip-hex-sm">
+            <Link href="/" className="btn-primary font-display px-7 py-3.5 clip-notch text-sm font-bold tracking-wider">
               BACK TO HOME
             </Link>
-            <Link href="/playground" className="font-tech px-7 py-3.5 rounded-sm hud-panel text-[#00f0ff] text-sm font-bold tracking-wider hover:glow-box-cyan transition-all clip-hex-sm">
+            <Link href="/playground" className="btn-ghost font-display px-7 py-3.5 clip-notch text-sm font-bold tracking-wider">
               TRY PLAYGROUND
             </Link>
           </div>

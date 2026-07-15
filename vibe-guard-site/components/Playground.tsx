@@ -81,7 +81,7 @@ export default function Playground() {
 
   return (
     <section id="playground" className="relative py-24 px-6 overflow-hidden">
-      <div className="absolute inset-0 glow-cyan opacity-20" />
+      <div className="absolute inset-0 glow-cyan opacity-20" data-parallax="25" />
       <div className="relative max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -91,19 +91,20 @@ export default function Playground() {
         >
           <div className="inline-flex items-center gap-2 mb-4">
             <span className="font-mono text-xs text-[#00f0ff]/40 tracking-widest">[ 05 ]</span>
-            <span className="h-px w-12 bg-[#00f0ff]/20" />
+            <span className="h-px w-12 bg-[#00f0ff]/20" data-rule-line />
           </div>
-          <h2 className="font-tech text-3xl md:text-5xl font-bold text-white tracking-wide">
-            CODE SECURITY <span className="text-cyan-gradient glow-text-cyan">PLAYGROUND</span>
+          <h2 className="font-display text-3xl md:text-5xl font-semibold text-white tracking-tight">
+            CODE SECURITY <span className="text-aurora-gradient glow-text-cyan">PLAYGROUND</span>
           </h2>
-          <p className="mt-4 font-body text-[#5a8a9a]">Paste your code and run a live scan. No data leaves your browser.</p>
+          <p className="mt-4 font-body text-[#7ea6bc]">Paste your code and run a live scan. No data leaves your browser.</p>
         </motion.div>
 
         <motion.div
           initial={{ opacity: 0, scale: 0.97 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
-          className="hud-panel scanline-overlay overflow-hidden shadow-2xl"
+          className="glass-strong scanline-overlay overflow-hidden shadow-2xl"
+          data-float-in
         >
           {/* Editor bar */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-[#00f0ff]/10 bg-[#050a14]">
@@ -111,10 +112,10 @@ export default function Playground() {
               <span className="w-3 h-3 rounded-full bg-[#ff3860]/70" />
               <span className="w-3 h-3 rounded-full bg-[#ffb547]/70" />
               <span className="w-3 h-3 rounded-full bg-[#00ff9d]/70" />
-              <span className="ml-3 font-mono text-xs text-[#4a7a8a]">playground.js</span>
+              <span className="ml-3 font-mono text-xs text-[#4a6b7e]">playground.js</span>
             </div>
             <div className="flex items-center gap-3">
-              <button onClick={() => setCode(sampleCode)} className="font-mono text-xs text-[#4a7a8a] hover:text-[#00f0ff] transition-colors">
+              <button onClick={() => setCode(sampleCode)} className="font-mono text-xs text-[#4a6b7e] hover:text-[#00f0ff] transition-colors">
                 [RESET]
               </button>
               <button
@@ -169,11 +170,11 @@ export default function Playground() {
                   >
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-tech text-xs font-bold uppercase tracking-wider" style={{ color: sevStyle[f.sev].color }}>{f.sev}</span>
-                      <code className="text-xs text-[#5a8a9a] font-mono">{f.id}</code>
-                      <span className="font-mono text-xs text-[#4a7a8a]">· line {f.line}</span>
+                      <code className="text-xs text-[#7ea6bc] font-mono">{f.id}</code>
+                      <span className="font-mono text-xs text-[#4a6b7e]">· line {f.line}</span>
                     </div>
                     <div className="mt-1.5 font-body text-sm text-[#c8f0ff]">{f.msg}</div>
-                    <code className="mt-1 block text-xs text-[#5a8a9a] font-mono truncate">{f.snippet}</code>
+                    <code className="mt-1 block text-xs text-[#7ea6bc] font-mono truncate">{f.snippet}</code>
                     <div className="mt-1.5 font-body text-xs text-[#00ff9d]">
                       <span className="font-mono font-bold">[FIX]</span> {f.fix}
                     </div>

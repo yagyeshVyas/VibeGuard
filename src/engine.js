@@ -152,6 +152,7 @@ const PY_SOURCES = [
   { re: /\binput\s*\(/g, name: 'input()' },
   { re: /os\.environ\.get\s*\(/g, name: 'os.environ' },
   { re: /sys\.argv/g, name: 'sys.argv' },
+  { re: /os\.getenv\s*\(/g, name: 'os.getenv' },
 ];
 
 const PY_SINKS = [
@@ -162,6 +163,8 @@ const PY_SINKS = [
   { re: /exec\s*\(/g, name: 'exec()', type: 'code' },
   { re: /open\s*\(/g, name: 'open()', type: 'file' },
   { re: /pickle\.loads?\s*\(/g, name: 'pickle', type: 'deserialization' },
+  { re: /yaml\.load\s*\(/g, name: 'yaml.load', type: 'deserialization' },
+  { re: /shutil\.rmtree\s*\(/g, name: 'shutil.rmtree', type: 'file' },
 ];
 
 // Single-pass taint propagation (pure JS — no external parser, keeps VibeGuard

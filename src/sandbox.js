@@ -1,7 +1,7 @@
 'use strict';
 
 /*
- * VibeGuard Zero-Trust Sandbox.
+ * VibeGuard Sandbox.
  *
  * Executes AI-generated code in a locked-down context with:
  * - No access to process.env (secrets hidden)
@@ -13,13 +13,13 @@
  * - Memory-limited (prevents memory bombs) [enforced with isolated-vm]
  * - Full audit log of every operation attempted
  *
- * Even if AI generates malicious code, it runs in a cage.
+ * Raises the bar for AI-generated code. NOT a hard sandbox at Level 1.
  * 100% local. Zero network. Zero dependencies (isolated-vm is optional).
  *
  * ISOLATION LEVELS:
  * - Level 2 (isolated-vm installed): True V8 isolate with enforced memory
  *   limit, no shared heap, no process/require/global access. This is a real
- *   security boundary. Prototype chain escape is impossible.
+ *   security boundary. Prototype chain escape is not possible.
  * - Level 1 (vm only, no isolated-vm): Node `vm` module — NOT a security
  *   boundary per Node.js docs. Prototype chain traversal can escape.
  *   Memory cap is NOT enforced. Treat as a "raised floor" not a "steel vault".
