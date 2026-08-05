@@ -5,6 +5,29 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed — Dogfood + dependency hygiene
+- **Autofix bug:** the `error.empty-catch` autofix rewrote `catch {}` as
+  `catch { console.error(err); }` — `err` is not bound in an optional catch
+  clause, so every autofixed file threw `ReferenceError: err is not defined`
+  at runtime. Now it emits `catch (err) { console.error(err); }` (or reuses an
+  existing binding: `catch (e) {}` → `catch (e) { console.error(e); }`). New
+  regression test executes the fixed output in a VM to prove no ReferenceError.
+- **Demo site false positive:** `website/index.html` demo placeholder contained
+  a hardcoded `sk-proj-…` string (example text), which the scanner correctly
+  flagged as `secret.openai-key`. Replaced with inert `<KEY>` placeholders —
+  VibeGuard's own repo scan went from **Grade F → Grade A** (0 findings / 275
+  files).
+- **Dependency vulnerabilities (npm audit → 0):** `@hono/node-server`
+  (1.19.14 → 2.1.0, path traversal), `ip-address` (10.2.0 → 10.4.0, SSRF
+  class), `brace-expansion` (5.0.9), `fast-uri` (4.1.2), `hono` (≥4.12.34) —
+  all transitive via `@modelcontextprotocol/sdk`, pinned through
+  `package.json` `overrides`. The SDK's own range permits these versions.
+- **Lint hygiene:** eslint now ignores `**/.vibeguard/` (autofix snapshot
+  store) — `no-unused-vars` warnings back to the 120s, still 0 errors.
+- **MCP robustness:** `scan_secrets_history` handler tolerates both a bare
+  array and the `{ findings, … }` shape from `history.scanHistory()` (was
+  `findings.map is not a function`).
+
 ### Fixed — Agent interop (MCP)
 - **Critical:** the MCP `tools/call` handler read the tool name from the request
   object instead of `req.params`, so every agent (Claude Code, Cursor, Windsurf,

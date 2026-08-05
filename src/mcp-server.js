@@ -874,7 +874,7 @@ async function handleAuditConfig(args) {
 async function handleGeneratePolicy(args) {
   const type = args.type || 'csp';
   const templates = {
-    csp: "Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none';",
+    csp: "Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{nonce}'; style-src 'self' 'nonce-${nonce}'; img-src 'self' data: https:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none';",
     cors: "const allowedOrigins = ['https://yourdomain.com'];\napp.use(cors({ origin: (origin, cb) => { if (!origin || allowedOrigins.includes(origin)) cb(null, true); else cb(new Error('Not allowed by CORS')); }, credentials: true }));",
     rls: "CREATE POLICY \"users_select_own\" ON users FOR SELECT USING (auth.uid() = id);\nCREATE POLICY \"users_update_own\" ON users FOR UPDATE USING (auth.uid() = id);\nCREATE POLICY \"users_delete_own\" ON users FOR DELETE USING (auth.uid() = id);",
     'rate-limit': "const rateLimit = require('express-rate-limit');\napp.use('/api/', rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false }));",
@@ -897,9 +897,10 @@ async function handleReviewPr(args) {
 async function handleScanHistory(args) {
   const dir = args.dir || process.cwd();
   const { scanHistory } = require('./history');
-  let findings;
-  try { findings = scanHistory(dir); }
+  let res;
+  try { res = scanHistory(dir); }
   catch { return textResult('Not a git repo or git history not available.'); }
+  const findings = Array.isArray(res) ? res : (res && res.findings) || [];
   return textResult(`${findings.length} findings in git history.\n\n` + JSON.stringify(findings.map(f => ({ commit: f.commit, file: f.file, line: f.line, ruleId: f.ruleId, message: f.message })), null, 2));
 }
 
@@ -1105,7 +1106,7 @@ async function handleFullAudit(args) {
     const { scanCVEs } = require('./cve-intel');
     const cveRes = await scanCVEs(dir);
     cveFindings = cveRes.findings;
-  } catch {}
+  } catch (err) { console.error(err); }
   const crypto = require('crypto');
   const hash = crypto.createHash('sha256').update(JSON.stringify(result.findings)).digest('hex').slice(0, 16);
   return textResult(JSON.stringify({
@@ -1255,7 +1256,7 @@ async function handleBatchFix(args) {
   snapshot(dir, changes);
   const applied = [];
   for (const c of changes) {
-    try { applyChanges(dir, [c]); applied.push(`${c.file}: ${c.description}`); } catch {}
+    try { applyChanges(dir, [c]); applied.push(`${c.file}: ${c.description}`); } catch (err) { console.error(err); }
   }
   return textResult(`Auto-fixed ${applied.length} issues:\n` + applied.join('\n'));
 }

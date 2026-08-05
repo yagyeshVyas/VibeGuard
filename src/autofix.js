@@ -147,10 +147,17 @@ function computeAutoFixes(root, result) {
       const lines = before.split(/\r?\n/);
       const idx = f.line - 1;
       if (idx < 0 || idx >= lines.length) continue;
-      if (/\{\s*\}/.test(lines[idx])) {
-        lines[idx] = lines[idx].replace(/\{\s*\}/, '{ console.error(err); }');
-      } else if (idx + 1 < lines.length && /^\s*\}\s*$/.test(lines[idx + 1]) && !/console\.error|throw|return/.test(lines[idx])) {
-        lines[idx] = lines[idx] + '\n    console.error(err);';
+      const line = lines[idx];
+      // single-line empty catch: `catch {}` -> `catch (err) { console.error(err); }`
+      //                                    `catch (e) {}` -> `catch (e) { console.error(e); }`
+      const single = /(\bcatch\s*)(?:\(\s*([A-Za-z_$][\w$]*)\s*\))?(\s*\{\s*\})/.exec(line);
+      if (single) {
+        const name = single[2] || 'err';
+        lines[idx] = line.replace(single[0], `catch (${name}) { console.error(${name}); }`);
+      } else if (/(?:^|[^A-Za-z0-9_$])catch\s*\{$/.test(line) && idx + 1 < lines.length && /^\s*\}\s*$/.test(lines[idx + 1])) {
+        // multi-line empty catch (`} catch {` + `}`): add binding + log before closing brace
+        lines[idx] = line.replace(/(\bcatch\s*)\{$/, '$1(err) {');
+        lines.splice(idx + 1, 0, '    console.error(err);');
       } else { continue; }
       const after = lines.join('\n');
       if (!byFile.has(rel)) byFile.set(rel, { file: rel, absFile: abs, ruleId: f.ruleId, description: `Add error logging to empty catch on line ${f.line}`, before, after });

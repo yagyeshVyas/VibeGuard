@@ -26,6 +26,13 @@
     "README.md",
     "CHANGELOG.md"
   ],
+  "overrides": {
+    "@hono/node-server": "^2.0.5",
+    "ip-address": "^10.4.0",
+    "hono": ">=4.12.34",
+    "brace-expansion": "^5.0.9",
+    "fast-uri": "^4.1.2"
+  },
   "scripts": {
     "test": "node test/run.js",
     "scan": "node bin/cli.js scan",

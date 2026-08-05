@@ -304,6 +304,34 @@ test('autofix: dry-run computes change, apply+rollback restores', () => {
   assert.strictEqual(fs.readFileSync(path.join(dir, '.gitignore'), 'utf8'), original);
 });
 
+test('autofix: empty catch gains a real (err) binding (no ReferenceError)', () => {
+  const autofix = require('../src/autofix');
+  const vm = require('vm');
+  // 1) bare catch {} -> catch (err) { console.error(err); }
+  const dir = tmpProject({ 'a.js': 'function a(){ try { risky(); } catch {} }\n' });
+  const r = { findings: [{ ruleId: 'error.empty-catch', file: 'a.js', line: 1, severity: 'low' }] };
+  const changes = autofix.computeAutoFixes(dir, r);
+  assert.strictEqual(changes.length, 1, 'one empty-catch autofix');
+  autofix.snapshot(dir, changes);
+  autofix.applyChanges(dir, changes);
+  const out = fs.readFileSync(path.join(dir, 'a.js'), 'utf8');
+  assert(out.includes('catch (err) { console.error(err); }'), 'binding + logging added');
+  assert(!/catch\s*\{\s*\}/.test(out), 'no bare catch {} survives');
+  // 2) existing binding is preserved: catch (e) {} -> catch (e) { console.error(e); }
+  fs.writeFileSync(path.join(dir, 'b.js'), 'function b(){ try { risky(); } catch (e) {} }\n');
+  const r2 = { findings: [{ ruleId: 'error.empty-catch', file: 'b.js', line: 1, severity: 'low' }] };
+  const c2 = autofix.computeAutoFixes(dir, r2);
+  assert.strictEqual(c2.length, 1, 'one autofix for bound catch');
+  autofix.snapshot(dir, c2);
+  autofix.applyChanges(dir, c2);
+  const out2 = fs.readFileSync(path.join(dir, 'b.js'), 'utf8');
+  assert(out2.includes('catch (e) { console.error(e); }'), 'existing binding preserved');
+  // 3) the fixed file must be executable (no ReferenceError on err)
+  assert.doesNotThrow(() => vm.runInNewContext(out, { console: { error() {} } }), 'fixed code runs');
+  const rb = autofix.rollback(dir);
+  assert(rb.ok);
+});
+
 test('deps: npm audit parser maps severity and fix guidance', () => {
   const { parseNpmAudit } = require('../src/deps');
   const out = parseNpmAudit({

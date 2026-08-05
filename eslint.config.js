@@ -34,6 +34,6 @@ module.exports = [
     },
   },
   {
-    ignores: ['node_modules/', 'test-project/', 'coverage/', 'dist/', 'website/'],
+    ignores: ['node_modules/', 'test-project/', 'coverage/', 'dist/', 'website/', '**/.vibeguard/'],
   },
 ];
