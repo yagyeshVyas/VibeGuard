@@ -962,10 +962,17 @@ test('install: emits Hermes Agent config instructions (does not hand-edit config
   const res = install(); // spec defaults to the npx path
   const hermes = res.results.find((r) => r.client === 'Hermes Agent');
   assert(hermes, 'install() should report a Hermes Agent entry');
-  // Instructions always reference the safe config CLI, never a raw YAML write.
-  assert(hermes.status === 'instructions', 'Hermes should be instructions-based, got ' + hermes.status);
-  assert(hermes.detail.includes('hermes config set mcp_servers.vibeguard.command'), 'should suggest config set');
-  assert(hermes.detail.includes('mcp_servers'), 'should mention the mcp_servers key');
+  // Environment-independent: on a machine where Hermes is detected the installer
+  // must be instructions-based; on a clean machine (CI) it is skipped. Either is
+  // correct — what must never happen is writing to the YAML directly.
+  assert(
+    hermes.status === 'instructions' || hermes.status === 'skipped',
+    'Hermes should be instructions (detected) or skipped (not installed), got ' + hermes.status
+  );
+  if (hermes.status === 'instructions') {
+    assert(hermes.detail.includes('hermes config set mcp_servers.vibeguard.command'), 'should suggest config set');
+    assert(hermes.detail.includes('mcp_servers'), 'should mention the mcp_servers key');
+  }
   // The paste block is valid JSON with the file server spec.
   const paste = JSON.parse(res.paste);
   assert(paste.mcpServers.vibeguard.command, 'paste block has a command');
