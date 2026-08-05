@@ -5,6 +5,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed — Agent interop (MCP)
+- **Critical:** the MCP `tools/call` handler read the tool name from the request
+  object instead of `req.params`, so every agent (Claude Code, Cursor, Windsurf,
+  Codex, Hermes, …) got `Unknown tool: undefined` on ANY of the 82 tools. Now
+  reads `req.params` per the SDK contract; verified with a live JSON-RPC stdio
+  handshake and a new regression test (`mcp: full stdio handshake —
+  initialize, tools/list, tools/call`) that speaks the protocol like a real
+  client, so this class of bug cannot ship again.
+- Added `scripts/live-mcp-check.js` — standalone MCP health check that boots the
+  server, handshakes, lists tools, calls `scan_project` + `check_code`, and
+  verifies unknown-tool errors name the tool.
+- Lint hygiene: removed dead code + unused vars in `src/taint-ast.js`
+  (warnings 125 → 121). Benchmark unchanged: 96.0% F1, 428/428 tests.
+- `src/install.js`: added a **Hermes Agent** installer (16th client). Detects
+  `$HERMES_HOME/config.yaml` and emits safe `hermes config set` instructions for
+  the `mcp_servers.vibeguard` entry — it never hand-edits the YAML. README count
+  updated to 16 AI clients.
+
 ### Added — Phase 1: Compliance + MCP Tools + Breadth
 - 4 new MCP tools (82 total): `generate_sbom`, `dep_reachability`,
   `scan_container_image`, `license_compliance`.

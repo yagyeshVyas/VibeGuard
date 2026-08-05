@@ -101,7 +101,7 @@ claude mcp add vibeguard -- npx @yagyeshvyas/vibeguard mcp
 { "mcpServers": { "vibeguard": { "command": "npx", "args": ["@yagyeshvyas/vibeguard", "mcp"] } } }
 ```
 
-**15 AI clients supported** — Claude Code, Cursor, Windsurf, Codex CLI, Antigravity, Continue, Cline, Aider, Gemini CLI, Roo Code, OpenHands, VS Code, Copilot CLI, Amazon Q, Sourcegraph Cody. Install: `vibeguard install`.
+**16 AI clients supported** — Claude Code, Cursor, Windsurf, Codex CLI, Antigravity, Continue, Cline, Aider, Gemini CLI, Roo Code, OpenHands, VS Code, Copilot CLI, Amazon Q, Sourcegraph Cody, **Hermes Agent** (Nous Research). Install: `vibeguard install`.
 
 ---
 

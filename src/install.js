@@ -247,6 +247,24 @@ function installCody(spec) {
   return { client: 'Sourcegraph Cody', status: 'installed', detail: file };
 }
 
+function installHermes(spec) {
+  // Hermes Agent (Nous Research) reads MCP servers from $HERMES_HOME/config.yaml
+  // (default ~/.hermes/config.yaml) under `mcp_servers:`. We never hand-edit the
+  // YAML (a bad write can break the live gateway); we detect it and emit the
+  // exact, safe commands using Hermes' own config CLI instead.
+  const hermesHome = process.env.HERMES_HOME || path.join(HOME, '.hermes');
+  const cfg = path.join(hermesHome, 'config.yaml');
+  if (!exists(cfg)) {
+    return { client: 'Hermes Agent', status: 'skipped', detail: `not detected (${cfg} missing)` };
+  }
+  const argsStr = spec.args.map((a) => JSON.stringify(a)).join(', ');
+  return {
+    client: 'Hermes Agent',
+    status: 'instructions',
+    detail: `${cfg} — add under \`mcp_servers:\`, or run:\n  hermes config set mcp_servers.vibeguard.command ${spec.command}\n  hermes config set mcp_servers.vibeguard.args '[${argsStr}]'\n  hermes config set mcp_servers.vibeguard.timeout 120`,
+  };
+}
+
 function pasteBlock(spec) {
   return JSON.stringify(
     { mcpServers: { vibeguard: { command: spec.command, args: spec.args } } },
@@ -273,6 +291,7 @@ function install(opts = {}) {
     installCopilotCLI(spec),
     installAmazonQ(spec),
     installCody(spec),
+    installHermes(spec),
   ];
   return { spec, results, paste: pasteBlock(spec) };
 }

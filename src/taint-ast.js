@@ -531,7 +531,6 @@ function exprIsSource(node) {
 function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
   const walk = ast.getWalk();
   if (!walk || !tree) return [];
-  const ext = require('path').extname(relPath || '').toLowerCase();
   const sanList = sanitizers || DEFAULT_SANITIZERS;
 
   const findings = [];
@@ -921,7 +920,7 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
           if (!containsPiiSource(arg, PII_FIELDS)) continue;
         }
 
-        let taintInfo = exprTaintInfo(arg, currentScope);
+        const taintInfo = exprTaintInfo(arg, currentScope);
         if (!taintInfo) {
           // Also check: is the arg a call to a function whose param reaches a sink,
           // and is the call's argument tainted? (cross-function, return-value taint)
@@ -959,7 +958,7 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
     const calleeName = call.callee && call.callee.type === 'Identifier' ? call.callee.name : '';
     const sinkInfo = funcSinkInfo.get(calleeName);
     if (sinkInfo) {
-      for (const { paramIndex, sinkDef, node: sinkNode } of sinkInfo) {
+      for (const { paramIndex, sinkDef, node: _sinkNode } of sinkInfo) {
         const arg = (call.arguments || [])[paramIndex];
         if (!arg) continue;
         if (exprIsSource(arg)) {
@@ -1012,31 +1011,6 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
     // This is handled in handleDeclarator/handleAssignment, but we also need
     // to handle the case where the sanitizer result is used inline.
     // (No action needed here — exprTaintInfo already checks for sanitizer calls.)
-  }
-
-  // Collect all identifier names referenced in a subtree.
-  function collectAllRefs(node, out) {
-    out = out || new Set();
-    if (!node || typeof node !== 'object') return out;
-    if (node.type === 'Identifier') {
-      out.add(node.name);
-      return out;
-    }
-    if (node.type === 'MemberExpression') {
-      const r = ast.rootName(node);
-      if (r) out.add(r);
-      return out;
-    }
-    for (const key in node) {
-      if (key === 'type' || key === 'loc' || key === 'start' || key === 'end' || key === 'range') continue;
-      const child = node[key];
-      if (Array.isArray(child)) {
-        child.forEach((c) => collectAllRefs(c, out));
-      } else if (child && typeof child === 'object' && child.type) {
-        collectAllRefs(child, out);
-      }
-    }
-    return out;
   }
 
   // Start the walk.

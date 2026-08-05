@@ -1884,7 +1884,10 @@ async function main() {
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
 
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
-    const { name, arguments: args = {} } = req;
+    // The MCP SDK delivers the full JSON-RPC request object; params carries the
+    // tool name + arguments (SDK >= 1.x). Reading from `req` directly yields
+    // `name: undefined` and every tool call fails with "Unknown tool".
+    const { name, arguments: args = {} } = (req && req.params) || {};
     const startTime = Date.now();
 
     // ─── LAYER 2: AI FIREWALL — auto-inspect any prompt argument ─────
