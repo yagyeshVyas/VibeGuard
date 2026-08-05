@@ -1389,7 +1389,7 @@ async function handleTrendReport(args) {
     new: newFindings.length,
     persisted: persisted.length,
     improving: resolved.length > newFindings.length,
-    newFindings: current.findings.filter(f => newFindings.has(f.fingerprint)).map(f => ({ ruleId: f.ruleId, file: f.file, line: f.line, severity: f.severity })).slice(0, 20),
+    newFindings: current.findings.filter(f => !baselineFingerprints.has(f.fingerprint)).map(f => ({ ruleId: f.ruleId, file: f.file, line: f.line, severity: f.severity })).slice(0, 20),
   };
   return textResult(JSON.stringify(trend, null, 2));
 }
@@ -1614,7 +1614,11 @@ async function handleLicenseCompliance(args) {
   const dir = args.dir || process.cwd();
   const fs = require('fs');
   const path = require('path');
-  const pkgJson = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+  const pkgFile = path.join(dir, 'package.json');
+  if (!fs.existsSync(pkgFile)) {
+    return textResult(`license_compliance: no package.json found in ${dir}`, true);
+  }
+  const pkgJson = JSON.parse(fs.readFileSync(pkgFile, 'utf8'));
   const allDeps = { ...(pkgJson.dependencies || {}), ...(pkgJson.devDependencies || {}) };
   const ALLOWED = ['MIT', 'ISC', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0', '0BSD', 'Unlicensed', 'CC0-1.0', 'Python-2.0'];
   const compliant = [];

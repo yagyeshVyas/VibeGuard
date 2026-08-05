@@ -195,7 +195,7 @@ function renderPrivacyReport(inventory) {
   if (inventory.summary.piiFieldCount === 0) {
     lines.push(`  ${C.green}No PII fields detected${C.reset}`);
   } else {
-    lines.push(`  ${inventory.summary.piiFields.map(f => C.cyan + f + C.reset).join(', ')}`);
+    lines.push(`  ${inventory.summary.piiFieldsDetected.map(f => C.cyan + f + C.reset).join(', ')}`);
   }
   lines.push('');
 
