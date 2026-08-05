@@ -195,7 +195,13 @@ function analyzeAst(content, relPath, preparsed) {
         push(node, { ruleId: 'ast.function-constructor', severity: 'critical', title: 'new Function() with a dynamic argument (AST-confirmed)', message: 'new Function() builds code from a dynamic argument — arbitrary code execution.', fix: 'Avoid new Function on dynamic input.', snippet: 'new Function(...)' });
       }
       // new Model(req.body)
-      if (node.callee && node.callee.type === 'Identifier' && /^[A-Z]/.test(node.callee.name) && isReqDerived(args[0])) {
+      if (
+        node.callee && node.callee.type === 'Identifier' &&
+        /^[A-Z]/.test(node.callee.name) && isReqDerived(args[0]) &&
+        // Exclude JS builtins/globals that are NOT data records — `new Date(req.x)`,
+        // `new RegExp(req.x)`, `new Function(code)` etc. are not mass assignment.
+        !/^(?:Function|Boolean|Number|String|RegExp|Date|Array|Object|Map|Set|WeakMap|WeakSet|Promise|Error|TypeError|RangeError|EvalError|SyntaxError|ReferenceError|URIError|Symbol|BigInt|DataView|ArrayBuffer|SharedArrayBuffer|Buffer|Blob|FormData|Headers|URL|URLSearchParams|TextEncoder|TextDecoder|AbortController|AbortSignal|Uint8Array|Uint8ClampedArray|Int8Array|Uint16Array|Int16Array|Uint32Array|Int32Array|Float32Array|Float64Array|BigInt64Array|BigUint64Array)$/.test(node.callee.name)
+      ) {
         push(node, { ruleId: 'ast.mass-assignment', severity: 'high', title: 'Mass assignment from request (AST-confirmed)', message: `new ${node.callee.name}(req.*) constructs a record from the whole request — mass assignment.`, fix: 'Construct from an explicit allowlist of fields.', snippet: `new ${node.callee.name}(req.*)` });
       }
     },

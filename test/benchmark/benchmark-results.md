@@ -7,12 +7,12 @@
 
 | Category | TP | FP | FN | Precision | Recall | F1 |
 |----------|----|----|----|-----------|--------|----|
-| injection | 43 | 5 | 6 | 89.6% | 87.8% | 88.7% |
-| secrets | 19 | 7 | 2 | 73.1% | 90.5% | 80.9% |
-| xss | 16 | 0 | 1 | 100.0% | 94.1% | 97.0% |
-| path-traversal | 9 | 1 | 1 | 90.0% | 90.0% | 90.0% |
-| ai-safety | 15 | 2 | 0 | 88.2% | 100.0% | 93.8% |
-| **OVERALL** | **102** | **15** | **10** | **87.2%** | **91.1%** | **89.1%** |
+| injection | 45 | 3 | 4 | 93.8% | 91.8% | 92.8% |
+| secrets | 21 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| xss | 17 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| path-traversal | 9 | 0 | 1 | 100.0% | 90.0% | 94.7% |
+| ai-safety | 15 | 1 | 0 | 93.8% | 100.0% | 96.8% |
+| **OVERALL** | **107** | **4** | **5** | **96.4%** | **95.5%** | **96.0%** |
 
 ## Per-Category Details
 
@@ -34,11 +34,10 @@
 | sql-raw-rb.js | `code.sql-injection` | TP |
 | sql-raw2.js | `db.sql-template-literal` | TP |
 | sql-knex.js | `code.sql-injection` | TP |
-| sql-knex.js | `mikroorm.identifier-from-request` | FP |
 | sql-sequelize.js | `code.sql-injection` | TP |
 | sql-fstring.py | `py.sql-injection` | TP |
 | sql-fstring2.py | `py.sql-injection` | TP |
-| sql-py-concat.py | `py.sql-injection` | FN |
+| sql-py-concat.py | `py.sql-injection` | TP |
 | sql-sprintf.go | `go.sql-fmt-sprintf` | TP |
 | sql-sprintf.go | `go.sql-injection` | FP |
 | sql-sprintf2.go | `go.sql-fmt-sprintf` | TP |
@@ -51,7 +50,7 @@
 | cmd-template.js | `ast.command-injection` | TP |
 | cmd-concat2.js | `taint.command-injection` | TP |
 | cmd-concat2.js | `ast.command-injection` | TP |
-| cmd-spawn.js | `taint.command-injection` | FN |
+| cmd-spawn.js | `taint.command-injection` | TP |
 | cmd-py.py | `py.os-system` | TP |
 | cmd-py2.py | `py.subprocess-shell-true` | TP |
 | cmd-py3.py | `py.os-system` | TP |
@@ -60,7 +59,6 @@
 | eval-template.js | `ast.eval-dynamic` | TP |
 | eval-template.js | `taint.code-injection` | FP |
 | eval-new-function.js | `ast.function-constructor` | TP |
-| eval-new-function.js | `ast.mass-assignment` | FP |
 | nosql.js | `ast.nosql-injection` | TP |
 | nosql2.js | `ast.nosql-injection` | TP |
 | nosql3.js | `ast.nosql-injection` | TP |
@@ -83,30 +81,23 @@
 | openai-key2.js | `secret.anthropic-key` | TP |
 | github-token.js | `secret.github-token` | TP |
 | github-token2.js | `secret.github-token` | TP |
-| github-token2.js | `secret.high-entropy` | FP |
 | stripe-key.js | `secret.stripe-live-key` | TP |
 | stripe-key.js | `secret.generic-credential` | TP |
-| stripe-key.js | `stripe.key-in-client` | FP |
 | stripe-restricted.js | `secret.stripe-restricted-key` | TP |
 | slack-token.js | `secret.slack-token` | TP |
 | gitlab-token.js | `secret.gitlab-token` | TP |
 | sendgrid-key.js | `secret.sendgrid-key` | TP |
 | npm-token.js | `secret.npm-token` | TP |
-| npm-token.js | `secret.high-entropy` | FP |
-| gcp-key.js | `secret.gcp-api-key` | FN |
+| gcp-key.js | `secret.gcp-api-key` | TP |
 | private-key.js | `secret.private-key` | TP |
 | aws-key.js | `secret.aws-access-key` | TP |
 | mailgun-key.js | `secret.mailgun-key` | TP |
-| mailgun-key.js | `secret.high-entropy` | FP |
-| telegram-token.js | `secret.telegram-bot-token` | FN |
+| telegram-token.js | `secret.telegram-bot-token` | TP |
 | resend-key.js | `secret.resend-key` | TP |
 | conn-string.js | `secret.conn-string-password` | TP |
-| conn-string.js | `secret.connection-string` | FP |
 | generic-secret.js | `secret.generic-credential` | TP |
 | docker-build-arg.js | `secret.docker-build-arg` | TP |
-| docker-build-arg.js | `ai.key-in-url` | FP |
 | env-secret.js | `secret.aws-secret-in-env` | TP |
-| env-secret.js | `secret.high-entropy` | FP |
 
 ### xss
 
@@ -127,7 +118,7 @@
 | dangerously-html.jsx | `react.dangerous-html` | TP |
 | dangerously-html2.jsx | `react.dangerous-html` | TP |
 | dangerously-html2.jsx | `ai.llm-output-dom` | TP |
-| vue-v-html.js | `injection.xss-vue-v-html` | FN |
+| vue-v-html.js | `injection.xss-vue-v-html` | TP |
 | eval-llm-output.js | `ai.llm-output-dom` | TP |
 
 ### path-traversal
@@ -144,7 +135,6 @@
 | append-file.js | `taint.path-traversal` | TP |
 | path-join-template.js | `taint.path-traversal` | FN |
 | path-join-template.js | `upload.filename-path-traversal` | TP |
-| allowlist.js | `taint.path-traversal` | FP |
 
 ### ai-safety
 
@@ -153,7 +143,6 @@
 | user-in-system-prompt.js | `ai.user-input-in-system-prompt` | TP |
 | llm-output-exec.js | `ai.llm-output-exec` | TP |
 | llm-output-exec.js | `taint.command-injection` | TP |
-| llm-output-exec.js | `ai.llm-output-shell` | FP |
 | llm-output-exec.js | `ast.command-injection` | FP |
 | agent-loop-no-cap.js | `ai.agent-loop-no-cap` | TP |
 | model-id-user-input.js | `ai.model-id-injection` | TP |

@@ -251,16 +251,19 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
     noteDegraded('ast', err);
   }
 
-  // File-level rules (need whole-file context).
-  for (const rule of fileRules) {
-    let hits = [];
-    try {
-      hits = rule.run(content, lines, relPath) || [];
-    } catch (err) {
-      noteDegraded(`file-rule:${rule.id || 'unknown'}`, err);
-      hits = [];
-    }
-    for (const h of hits) {
+  // File-level rules (need whole-file context). Pass prior findings so rules
+    // can suppress noise that a line-level rule already reported (e.g. the
+    // high-entropy hint shouldn't double-fire on a line a specific secret rule
+    // already flagged). Backward compatible: rules that ignore the arg are fine.
+    for (const rule of fileRules) {
+      let hits = [];
+      try {
+        hits = rule.run(content, lines, relPath, findings) || [];
+      } catch (err) {
+        noteDegraded(`file-rule:${rule.id || 'unknown'}`, err);
+        hits = [];
+      }
+      for (const h of hits) {
       findings.push(
         makeFinding(rule, {
           file: relPath,

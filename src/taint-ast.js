@@ -49,6 +49,24 @@ function isSourceNode(node) {
   return false;
 }
 
+// Allowlist/whitelist guard: `allowed.includes(v) ? v : "default"` (or
+// `X.indexOf(v) !== -1 ? v : "default"`, `X.has(v) ? v : d`) only ever returns a
+// value constrained to the container (or the safe default), so the conditional is
+// NOT a taint source. Used by both exprIsSource and exprTaintInfo so the
+// allowlist pattern is not flagged as traversal/injection.
+function isAllowlistGuardConditional(node) {
+  if (!node || node.type !== 'ConditionalExpression') return false;
+  const memProp = (n) =>
+    (n && n.type === 'MemberExpression' && n.property &&
+      (n.property.type === 'Identifier' ? n.property.name : ''));
+  const memCall = (n) =>
+    n && n.type === 'CallExpression' &&
+    ['includes', 'has', 'indexOf', 'startsWith', 'endsWith'].includes(memProp(n.callee)) &&
+    (n.arguments || []).length > 0;
+  const t = node.test;
+  return memCall(t) || (t && t.type === 'BinaryExpression' && (memCall(t.left) || memCall(t.right)));
+}
+
 // ---------------------------------------------------------------------------
 // Sinks — matched on CallExpression nodes.
 // Kept identical ruleId/severity/title/message/fix to the regex SINKS in taint.js.
@@ -411,6 +429,9 @@ function exprTaintInfo(node, scope) {
       return null;
     }
     case 'ConditionalExpression': {
+      // Allowlist/whitelist guard: `allowed.includes(v) ? v : "default"` only ever
+      // returns a value constrained to the container — result is NOT tainted.
+      if (isAllowlistGuardConditional(node)) return null;
       const c = exprTaintInfo(node.consequent, scope);
       if (c) return c;
       return exprTaintInfo(node.alternate, scope);
@@ -482,6 +503,9 @@ function exprIsSource(node) {
     case 'CallExpression':
       return (node.arguments || []).some(exprIsSource);
     case 'ConditionalExpression':
+      // An allowlist-guarded ternary is not a raw source — the value is
+      // constrained to the container (e.g. `allowed.includes(x) ? x : d`).
+      if (isAllowlistGuardConditional(node)) return false;
       return exprIsSource(node.consequent) || exprIsSource(node.alternate);
     case 'LogicalExpression':
       return exprIsSource(node.left) || exprIsSource(node.right);
@@ -850,8 +874,35 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
       // For execFile/spawn: only arg[0] (command) — args array (arg[1]) is safe.
       // For query/execute/raw: only arg[0] (SQL string) — params array (arg[1]) is safe.
       const name = ast.calleeName(call);
-      const isFirstArgOnly = /(?:^|\.)(?:execFile|execFileSync|spawn|spawnSync)$/.test(name) ||
-        (sinkDef.ruleId === 'taint.sql-injection');
+      const isShellExecCall = /(?:^|\\.)(?:execFile|execFileSync|spawn|spawnSync)$/.test(name);
+      let isFirstArgOnly = isShellExecCall || (sinkDef.ruleId === 'taint.sql-injection');
+      // Shell-exec caveat: execFile/spawn args are normally safe because no shell
+      // interprets them — UNLESS the command IS a shell binary and an arg is a
+      // shell flag (-c / -k / /c / -command). Then the remaining args are
+      // shell-interpreted: the classic spawn("sh", ["-c", tainted]) RCE. In that
+      // case the whole args array is dangerous, so check every argument.
+      if (isShellExecCall) {
+        const cargs = call.arguments || [];
+        const cmd = cargs[0];
+        const cmdStr = cmd && cmd.type === 'Literal' && typeof cmd.value === 'string' ? cmd.value : null;
+        const isShellBinary = !!cmdStr && /^(?:sh|bash|zsh|ksh|dash|fish|csh|tcsh|cmd|cmd\.exe|powershell|powershell\.exe|pwsh|nu|busybox)$/i.test(cmdStr);
+        // spawn/execFile take the args as a single array: spawn("sh", ["-c", "cd "+d]).
+        // Gather every string literal among the non-command args (including inside
+        // arrays/objects) to detect a shell flag (-c/-k//c/...).
+        let hasShellFlag = false;
+        const collectStr = (node) => {
+          if (!node) return;
+          if (node.type === 'Literal' && typeof node.value === 'string') {
+            if (/^(?:-c|-k|-command|\/c|\/k)$/i.test(node.value.trim())) hasShellFlag = true;
+            return;
+          }
+          if (node.elements) node.elements.forEach(collectStr);
+          if (node.properties) node.properties.forEach((p) => { if (p.value) collectStr(p.value); });
+          if (node.arguments) node.arguments.forEach(collectStr);
+        };
+        cargs.slice(1).forEach(collectStr);
+        if (isShellBinary && hasShellFlag) isFirstArgOnly = false;
+      }
       const argsToCheck = isFirstArgOnly ? (call.arguments || []).slice(0, 1) : (call.arguments || []);
 
       for (const arg of argsToCheck) {

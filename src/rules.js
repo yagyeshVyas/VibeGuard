@@ -208,14 +208,24 @@ const secretRules = [
     fix: 'Remove it, load from an environment variable, and rotate it in Mailgun.',
   },
   {
-    id: 'secret.telegram-bot-token',
-    severity: 'critical',
-    confidence: 'high',
-    title: 'Telegram bot token',
-    re: /\b\d{8,10}:[A-Za-z0-9_-]{35}\b/,
-    message: 'Hardcoded Telegram bot token.',
-    fix: 'Remove it, load from an environment variable, and revoke it via BotFather.',
-  },
+      id: 'secret.telegram-bot-token',
+      severity: 'critical',
+      confidence: 'high',
+      title: 'Telegram bot token',
+      // Bot tokens: <bot_id>:<base64url body>. The body is 35 chars, but tokens
+      // with hyphens/underscores quoted in code can render shorter — accept 32-35.
+      re: /\b\d{8,10}:[A-Za-z0-9_-]{32,35}\b/,
+      message: 'Hardcoded Telegram bot token.',
+      fix: 'Remove it, load from an environment variable, and revoke it via BotFather.',
+      filter(line, m) {
+        // Bot token bodies are base64url — mixed case plus digits. Requiring both
+        // letter cases (and a digit) rejects look-alike timestamps (e.g.
+        // "20240101:abcdefghijklmnop") and hex hashes that match the shape but
+        // are not tokens.
+        const body = m ? String(m.match).split(':')[1] || '' : line;
+        return /[A-Z]/.test(body) && /[a-z]/.test(body) && /[0-9]/.test(body);
+      },
+    },
   {
     id: 'secret.npm-token',
     severity: 'critical',
@@ -247,9 +257,17 @@ const secretRules = [
     message: 'A database/broker connection string embeds a username and password.',
     fix: 'Load the connection string from an environment variable; never commit credentials.',
     filter(line, m) {
-      // Ignore obvious placeholders like user:pass@ / user:password@host.
-      return !/:\/\/(?:user|username|root|admin):(?:pass|password|changeme|xxx+|\.\.\.)@/i.test(m.match);
-    },
+          const url = m ? m.match : line;
+          // Ignore obvious placeholders like user:pass@ / user:password@host.
+          if (/:\/\/(?:user|username|root|admin):(?:pass|password|changeme|xxx+|\.\.\.)@/i.test(url)) return false;
+          // The standard schemes below are already covered by the dedicated
+          // secret.conn-string-password rule in the extended pack — this rule
+          // deliberately stays quiet on them to avoid double-reporting the same
+          // line. It keeps the schemes that rule alone handles: mariadb, amqp(s),
+          // and the mongodb+srv form (the pack only matches plain mongodb://).
+          if (/^(?:mongodb|postgres(?:ql)?|mysql|redis):\/\//i.test(url)) return false;
+          return true;
+        },
   },
   {
     id: 'secret.public-llm-key',
@@ -264,6 +282,7 @@ const secretRules = [
   {
     id: 'secret.anthropic-key',
     severity: 'critical',
+    confidence: 'high',
     title: 'Anthropic API key',
     // Must be checked before the OpenAI rule (sk- prefix overlap).
     re: /\bsk-ant-[A-Za-z0-9_\-]{20,}\b/,
@@ -273,6 +292,7 @@ const secretRules = [
   {
     id: 'secret.openai-key',
     severity: 'critical',
+    confidence: 'high',
     title: 'OpenAI API key',
     // sk- or sk-proj-, but NOT sk-ant- (Anthropic) and NOT sk_live_ (Stripe uses _).
     re: /\bsk-(?!ant-)(?:proj-)?[A-Za-z0-9_\-]{20,}\b/,
@@ -282,14 +302,19 @@ const secretRules = [
   {
     id: 'secret.stripe-live-key',
     severity: 'critical',
+    confidence: 'high',
     title: 'Stripe live secret key',
-    re: /\b(?:sk|rk)_live_[A-Za-z0-9]{16,}\b/,
+    // Live secret keys start sk_live_ (full account access). Restricted keys
+    // (rk_live_) are a separate, less-privileged class covered by
+    // secret.stripe-restricted-key — don't double-report them as full live keys.
+    re: /\bsk_live_[A-Za-z0-9]{16,}\b/,
     message: 'Hardcoded Stripe LIVE secret key. This can move real money.',
     fix: 'Remove the key, load it from process.env.STRIPE_SECRET_KEY, and roll it in the Stripe dashboard now.',
   },
   {
     id: 'secret.aws-access-key',
     severity: 'critical',
+    confidence: 'high',
     title: 'AWS access key id',
     re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
     message: 'Hardcoded AWS access key id.',
@@ -978,28 +1003,43 @@ const fileRules = [
     severity: 'high',
     confidence: 'medium',
     title: 'High-entropy string (possible hardcoded secret)',
-    run(content, lines, relPath) {
-      if (ENTROPY_SKIP_FILE.test(relPath || '')) return [];
-      const out = [];
-      const strRe = /['"`]([A-Za-z0-9+/=_\-]{24,120})['"`]/g;
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.length > 2000) continue;
-        let m;
-        strRe.lastIndex = 0;
-        while ((m = strRe.exec(line)) !== null) {
-          const val = m[1];
-          if (ENTROPY_SKIP_PREFIX.test(val)) continue;
-          if (looksLikePlaceholder(val)) continue;
-          if (isPublicBaaSKey(line, val)) continue;
-          // UUID — structured, not a secret.
-          if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) continue;
-          // Pure-hex of checksum lengths (md5/sha1/sha256) — usually a hash, not a secret.
-          if (/^[0-9a-f]+$/i.test(val) && [32, 40, 64].includes(val.length)) continue;
-          // Must have digit+letter mix (avoids long English identifiers / base64 words).
-          if (!/[0-9]/.test(val) || !/[A-Za-z]/.test(val)) continue;
-          if (shannonEntropy(val) < 4.0) continue;
-          out.push({
+    run(content, lines, relPath, priorFindings) {
+          if (ENTROPY_SKIP_FILE.test(relPath || '')) return [];
+          const out = [];
+          // Lines already reported by a specific secret.* line rule. The
+          // high-entropy hint is meant to catch *unclassified* tokens; firing it
+          // again on the same line a specific rule already flagged (at any
+          // confidence) is pure noise, e.g. AWS env keys which are 'low'.
+          const priorSecretLines = new Set();
+          if (Array.isArray(priorFindings)) {
+            for (const f of priorFindings) {
+              if (f && typeof f.ruleId === 'string' && f.ruleId.startsWith('secret.') &&
+                  typeof f.line === 'number') {
+                priorSecretLines.add(f.line);
+              }
+            }
+          }
+          const strRe = /['"`]([A-Za-z0-9+/=_\-]{24,120})['"`]/g;
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.length > 2000) continue;
+            let m;
+            strRe.lastIndex = 0;
+            while ((m = strRe.exec(line)) !== null) {
+              const val = m[1];
+              if (ENTROPY_SKIP_PREFIX.test(val)) continue;
+              if (looksLikePlaceholder(val)) continue;
+              if (isPublicBaaSKey(line, val)) continue;
+              // UUID — structured, not a secret.
+              if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) continue;
+              // Pure-hex of checksum lengths (md5/sha1/sha256) — usually a hash, not a secret.
+              if (/^[0-9a-f]+$/i.test(val) && [32, 40, 64].includes(val.length)) continue;
+              // Must have digit+letter mix (avoids long English identifiers / base64 words).
+              if (!/[0-9]/.test(val) || !/[A-Za-z]/.test(val)) continue;
+              if (shannonEntropy(val) < 4.0) continue;
+              // Skip if a specific secret rule already raised this exact line.
+              if (priorSecretLines.has(i + 1)) continue;
+              out.push({
             line: i + 1,
             column: (m.index || 0) + 1,
             snippet: (val.slice(0, 4) + '****' + val.slice(-2)),
@@ -1393,6 +1433,69 @@ const fileRules = [
       return out;
     },
   },
+  {
+    id: 'injection.xss-vue-v-html',
+    severity: 'high',
+    confidence: 'high',
+    title: 'Vue v-html with user data — XSS',
+    run(content, lines, relPath) {
+      const ext = (relPath || '').toLowerCase();
+      if (!/\.(?:vue|js|jsx|ts|tsx|html|mjs|cjs)$/.test(ext)) return [];
+      const REQ_SRC = /\b(?:req|request|event|ctx)\s*\.\s*[A-Za-z_$][\w$]*|\b(?:location\.search|location\.hash|window\.location|document\.URL|document\.location)\b|\b(?:searchParams|URLSearchParams)\b/i;
+      const ASSIGN = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(.+?)\s*;?\s*$/;
+      const derived = new Set();
+      let changed = true;
+      for (let pass = 0; pass < 6 && changed; pass++) {
+        changed = false;
+        for (const line of lines) {
+          const m = ASSIGN.exec(line);
+          if (!m || derived.has(m[1])) continue;
+          const rhs = m[2];
+          if (REQ_SRC.test(rhs)) { derived.add(m[1]); changed = true; continue; }
+          for (const v of derived) {
+            if (new RegExp(`\\b${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(rhs)) {
+              derived.add(m[1]); changed = true; break;
+            }
+          }
+        }
+      }
+      const VHTML = /v-html\s*=\s*["']([^"']+)["']/gi;
+      const out = [];
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        let m;
+        VHTML.lastIndex = 0;
+        while ((m = VHTML.exec(line)) !== null) {
+          const bound = m[1];
+          // Collect identifiers bound into v-html — supports `${var}` (ES template),
+          // `{{ var }}` (Vue interpolation), and a bare `var` — then check whether any
+          // is a request-derived variable, or the binding itself references a source.
+          const ids = [];
+          let mm;
+          const tRe = /\$\{([A-Za-z_$][\w$]*)\}/g;
+          while ((mm = tRe.exec(bound))) ids.push(mm[1]);
+          const vRe = /\{\{\s*([A-Za-z_$][\w$]*)/g;
+          while ((mm = vRe.exec(bound))) ids.push(mm[1]);
+          const bare = /^([A-Za-z_$][\w$]*)$/.exec(bound);
+          if (bare) ids.push(bare[1]);
+          const dangerous =
+            REQ_SRC.test(bound) ||
+            ids.some((id) => derived.has(id.split('.')[0]));
+          if (dangerous) {
+            out.push({
+              ruleId: 'injection.xss-vue-v-html', severity: 'high', confidence: 'high',
+              title: 'Vue v-html with user data — XSS',
+              message: 'v-html is bound to request-derived data — XSS.',
+              fix: 'Never use v-html with user input. Use v-text or sanitize with DOMPurify.',
+              line: i + 1, column: (m.index || 0) + 1,
+              snippet: line.trim().slice(0, 120),
+            });
+          }
+        }
+      }
+      return out;
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1453,6 +1556,8 @@ const crossFileRules = [
 ];
 
 // Flat registry of every rule (for `vibeguard rules` / `explain`). File/cross
+
+      // Flat registry of every rule (for `vibeguard rules` / `explain`). File/cross
 // rules carry dynamic messages, so message/fix may be empty there — title covers it.
 function allRules() {
   const out = [];

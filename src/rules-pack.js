@@ -378,7 +378,11 @@ const mikroOrmRules = [
     severity: 'high',
     confidence: 'medium',
     title: 'MikroORM query with raw identifier from request',
-    re: /knex\.raw\s*\(\s*[^)]*req\.(?:body|query|params)/i,
+        // MikroORM queries go through the EM/QueryBuilder API, NOT knex.raw — a plain
+        // knex.raw string concat is a Knex (db.sql) issue already covered by
+        // code.sql-injection. Match only actual MikroORM raw-query surfaces so this
+        // doesn't double-report ordinary Knex/Sequelize code.
+        re: /(?:createQueryBuilder|\.getKnex\(\)\s*\.raw|qb\.rawQuery)\s*\([^)]*req\.(?:body|query|params)/i,
     skipComments: true,
     fileFilter: '\\.(?:js|ts)$',
     message: 'MikroORM/Knex raw query with request data — identifier injection.',
@@ -434,7 +438,10 @@ const stripeRules = [
     severity: 'critical',
     confidence: 'high',
     title: 'Stripe secret key in client-side code',
-    re: /(?:NEXT_PUBLIC_|VITE_|EXPO_PUBLIC_|REACT_APP_).*?STRIPE_SECRET|sk_live_[A-Za-z0-9]{16,}/i,
+    // Intentionally NOT a bare sk_live_ matcher: server-side hardcoded live keys
+    // are already caught by secret.stripe-live-key. This rule is specifically
+    // about leaking a secret to the browser build via a public env prefix.
+    re: /(?:NEXT_PUBLIC_|VITE_|EXPO_PUBLIC_|REACT_APP_).*?STRIPE_SECRET/i,
     skipComments: true,
     message: 'Stripe secret key is in client-accessible code — anyone can make charges and refunds.',
     fix: 'Use Stripe.js with the publishable key (pk_) on the client; keep sk_live_ on the server only.',
@@ -886,6 +893,11 @@ const aiSecurityRules = [
     title: 'AI API key passed in URL parameters',
     re: /(?:api_key|apikey|key)\s*=\s*(?:sk-|sk-ant-)/i,
     skipComments: true,
+    // Only meaningful inside a URL (query string / fragment) where browser
+    // history, server logs, and referrer headers will expose the key. A bare
+    // assignment like --build-arg API_KEY=sk-... is NOT a URL leak and is
+    // covered by the secret.docker-build-arg rule instead.
+    filter(line) { return /(?:https?|ftp):\/\//i.test(line); },
     message: 'AI API key in a URL — exposed in browser history, server logs, and referrer headers.',
     fix: 'Pass API keys in the Authorization header, never in URL parameters.',
     owasp: 'A02:2025 Cryptographic Failures',
@@ -908,7 +920,10 @@ const aiSecurityRules = [
     severity: 'critical',
     confidence: 'medium',
     title: 'LLM output used in shell command',
-    re: /(?:exec|spawn|execFile)\s*\(\s*[^)]*(?:completion|response|content|text|output|generated)/i,
+        // exec()/spawn() with LLM output are already reported by ai.llm-output-exec.
+        // execFile() is the one shell-exec sink that rule does NOT cover, so keep the
+        // shell rule scoped to it to avoid double-reporting the same vulnerability.
+        re: /execFile\s*\(\s*[^)]*(?:completion|response|content|text|output|generated)/i,
     skipComments: true,
     message: 'LLM output is passed to a shell command — prompt injection becomes RCE.',
     fix: 'Never use LLM output in shell commands. Use a fixed command with validated arguments.',
@@ -1898,7 +1913,22 @@ const COMPLIANCE_MAP = {
 
 const extraSecretRules = [
   { id: 'secret.gcp-service-account', severity: 'critical', re: /"type":\s*"service_account"[^}]*"private_key"/, message: 'GCP service account JSON key exposed', cwe: 'CWE-798', owasp: 'A02', fix: 'Move GCP service account key to a secret manager or environment variable.' },
-  { id: 'secret.gcp-api-key', severity: 'high', re: /AIza[0-9A-Za-z_-]{35}/, filter: (line) => !/(?:123456|abcdefgh|test|placeholder|example|dummy|fake|sample)/i.test(line), message: 'GCP API key exposed', cwe: 'CWE-798', owasp: 'A02', fix: 'Move to process.env.GOOGLE_API_KEY.' },
+  { id: 'secret.gcp-api-key', severity: 'high', re: /AIza[0-9A-Za-z_-]{35}/, filter: (line, m) => {
+      const key = m ? m.match : (line.match(/AIza[0-9A-Za-z_-]{35}/) || [''])[0];
+      // Redaction / truncation markers (e.g. «redacted:AIza…» , AIza...) are never real keys.
+      if (/[«»…]|\.\.\./.test(key)) return false;
+      // Obvious placeholder words. Deliberately NOT substring matches like '123456'
+      // or 'abcdefgh' — real base64url keys routinely contain those runs, and the
+      // old substring filter silently dropped genuine keys (a false negative).
+      if (/(?:placeholder|example|dummy|sample|fake\s*key|test\s*key|redacted|your\s*key)/i.test(line)) return false;
+      // Firebase JavaScript web API keys assigned to `apiKey` / `api_key` (client
+      // firebaseConfig) are public by design, not high-severity secrets. Keep the
+      // generic `const key = "AIza..."` case (real GCP keys) firing.
+      if (/(?:apiKey|api_key)\s*[:=]\s*['"]AIza/i.test(line)) return false;
+      // A real key is not a single character repeated.
+      if (/^AIza([0-9A-Za-z_-])\1{30,}$/.test(key)) return false;
+      return true;
+    }, message: 'GCP API key exposed', cwe: 'CWE-798', owasp: 'A02', fix: 'Move to process.env.GOOGLE_API_KEY.' },
   { id: 'secret.azure-storage-key', severity: 'high', re: /DefaultEndpointsProtocol=https?;AccountName=[^;]+;AccountKey=[A-Za-z0-9+/=]{50,}/, message: 'Azure Storage connection string with key exposed', cwe: 'CWE-798', owasp: 'A02', fix: 'Move to Azure Key Vault or environment variable.' },
   { id: 'secret.cloudflare-api-token', severity: 'high', re: /(?:cloudflare_api_token|CF_API_TOKEN)\s*[:=]\s*['"][A-Za-z0-9_-]{40,}['"]/i, message: 'Cloudflare API token exposed', cwe: 'CWE-798', owasp: 'A02', fix: 'Move to process.env.CLOUDFLARE_API_TOKEN.' },
   { id: 'secret.datadog-api-key', severity: 'high', re: /(?:DATADOG_API_KEY|DD_API_KEY)\s*[:=]\s*['"][0-9a-f]{32,}['"]/i, message: 'Datadog API key exposed', cwe: 'CWE-798', owasp: 'A02', fix: 'Move to process.env.DATADOG_API_KEY.' },
@@ -2115,7 +2145,7 @@ const pythonDeepRules = [
   { id: 'py.debug-true', severity: 'critical', re: /(?:DEBUG|debug)\s*=\s*True/, message: 'Python debug mode enabled — exposes stack traces', cwe: 'CWE-489', owasp: 'A05', fileFilter: '\\.py$', fix: 'Set debug=False in production.' },
   { id: 'py.secret-key-hardcoded', severity: 'high', re: /SECRET_KEY\s*=\s*['"][A-Za-z0-9_-]{16,}['"]/, message: 'Python SECRET_KEY hardcoded', cwe: 'CWE-798', owasp: 'A02', fileFilter: '\\.py$', fix: 'Load from environment: SECRET_KEY = os.environ[\'SECRET_KEY\']' },
   { id: 'py.allowed-hosts-wildcard', severity: 'high', re: /ALLOWED_HOSTS\s*=\s*\[\s*['"]\*['"]\s*\]/, message: 'Python ALLOWED_HOSTS wildcard — host header attacks', cwe: 'CWE-444', owasp: 'A05', fileFilter: '\\.py$', fix: 'Set ALLOWED_HOSTS to specific domains.' },
-  { id: 'py.sql-injection', severity: 'high', re: /(?:execute|cursor\.execute)\s*\(\s*(?:f['"]|['"].*%s.*['"],\s*\[)[^)]*(?:request|input|user|form)/, message: 'Python SQL execution with user input — SQL injection', cwe: 'CWE-89', owasp: 'A03', fileFilter: '\\.py$', fix: 'Use parameterized queries: cursor.execute("SELECT ... WHERE id = %s", [id])' },
+  { id: 'py.sql-injection', severity: 'high', re: /(?:execute|cursor\.execute)\s*\(\s*(?:f['"]|['"].*%s.*['"],\s*\[|['"][^+]*\+\s*['"]?\s*)[^)]*(?:request|input|user|form)/, message: 'Python SQL execution with user input — SQL injection', cwe: 'CWE-89', owasp: 'A03', fileFilter: '\\.py$', fix: 'Use parameterized queries: cursor.execute("SELECT ... WHERE id = %s", [id])' },
   { id: 'py.subprocess-shell-true', severity: 'high', re: /subprocess\.(?:run|call|Popen|check_output)\s*\([^)]*shell\s*=\s*True/, message: 'Python subprocess with shell=True — command injection', cwe: 'CWE-78', owasp: 'A03', fix: 'Use shell=False with argument list: subprocess.run(["cmd", "arg1"], shell=False).' },
   { id: 'py.os-system', severity: 'high', re: /os\.system\s*\(\s*(?:f['"]|['"].*%|['"].*format|['"].*\+)/, message: 'Python os.system with string formatting — command injection', cwe: 'CWE-78', owasp: 'A03', fix: 'Use subprocess.run with shell=False and argument list.' },
   { id: 'py.yaml-load', severity: 'high', re: /yaml\.load\s*\(\s*[^,)]+\)(?!\s*,\s*(?:Loader|FullLoader|SafeLoader))/, message: 'Python yaml.load() without SafeLoader — RCE risk', cwe: 'CWE-502', owasp: 'A08', fix: 'Use yaml.safe_load() instead.' },
@@ -2442,8 +2472,9 @@ const powerRulesExtra = [
   { id: 'injection.formula-injection', severity: 'high', re: /(?:write|create|append)\s*\(\s*[^)]*(?:csv|xlsx|excel)[^)]*(?:req|user|input|body|query)/i, message: 'CSV/Excel formula injection — user input written to spreadsheet', cwe: 'CWE-1236', owasp: 'A03', fix: 'Prefix cell values with single quote or sanitize = + - @ characters.' },
   { id: 'injection.pdf-injection', severity: 'medium', re: /PDFDocument\s*\(\s*\{[^}]*(?:req|user|input|body|query)/i, message: 'PDF generation with unsanitized user input — injection', cwe: 'CWE-94', owasp: 'A03', fix: 'Escape user input in PDF generation. Validate all dynamic content.' },
   { id: 'injection.xss-angular-bypass', severity: 'high', re: /DomSanitizer(?:Provider)?\s*\(\s*\)|bypassSecurityTrust(?:Html|ResourceUrl|ScriptUrl|Style)/, message: 'Angular DomSanitizer bypass — XSS', cwe: 'CWE-79', owasp: 'A03', fix: 'Never bypass Angular sanitization. Use safe pipes or component templates.' },
-  { id: 'injection.xss-vue-v-html', severity: 'high', re: /v-html\s*=\s*['"]?\{?\{?\s*(?:req|user|input|data|params|query|body|response)/, message: 'Vue v-html with user data — XSS', cwe: 'CWE-79', owasp: 'A03', fix: 'Never use v-html with user input. Use v-text or sanitize with DOMPurify.' },
-  { id: 'injection.xss-angular-innerHTML', severity: 'high', re: /innerHTML\s*=\s*(?:this\.)?(?:data|user|input|response|result|body|query)\./i, fileFilter: '\\.(?:ts|js)$', message: 'Angular innerHTML with user data — XSS', cwe: 'CWE-79', owasp: 'A03', fix: 'Use Angular sanitization. Set [innerHTML] with sanitized content.' },
+    // Note: injection.xss-vue-v-html moved to a file rule (cross-line) in rules.js — it
+    // now catches both `v-html="req..."` and variable aliases like `const html = req.body.html; v-html="${html}"`.
+    { id: 'injection.xss-angular-innerHTML', severity: 'high', re: /innerHTML\s*=\s*(?:this\.)?(?:data|user|input|response|result|body|query)\./i, fileFilter: '\.(?:ts|js)$', message: 'Angular innerHTML with user data — XSS', cwe: 'CWE-79', owasp: 'A03', fix: 'Use Angular sanitization. Set [innerHTML] with sanitized content.' },
   { id: 'injection.xss-innerhtml-direct', severity: 'high', re: /\.innerHTML\s*=\s*(?:req|request|params|query|body|userInput|location\.search|location\.hash|new\s+URLSearchParams|URLSearchParams|document\.URL|document\.location|window\.location)/i, fileFilter: '\\.(?:js|ts|jsx|tsx)$', message: 'innerHTML assigned from user-controllable input — XSS', cwe: 'CWE-79', owasp: 'A03', fix: 'Use textContent instead of innerHTML. If HTML is needed, sanitize with DOMPurify.' },
   { id: 'injection.xss-outerhtml', severity: 'high', re: /\.outerHTML\s*=\s*(?:req|request|params|query|body|userInput|location\.search|location\.hash|new\s+URLSearchParams|URLSearchParams|document\.URL|window\.location)/i, fileFilter: '\\.(?:js|ts|jsx|tsx)$', message: 'outerHTML assigned from user-controllable input — XSS', cwe: 'CWE-79', owasp: 'A03', fix: 'Use textContent. Never set outerHTML from user input.' },
   { id: 'injection.xss-insertadjacent', severity: 'high', re: /insertAdjacentHTML\s*\(\s*['"](?:beforebegin|afterbegin|beforeend|afterend)['"]\s*,\s*(?:req|request|params|query|body|userInput|location\.search|location\.hash|new\s+URLSearchParams|URLSearchParams|document\.URL|window\.location)/i, fileFilter: '\\.(?:js|ts|jsx|tsx)$', message: 'insertAdjacentHTML with user-controllable input — XSS', cwe: 'CWE-79', owasp: 'A03', fix: 'Use insertAdjacentText or sanitize with DOMPurify before insertAdjacentHTML.' },
