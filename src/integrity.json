@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-08-05T18:15:26.904Z",
+  "generatedAt": "2026-08-07T14:27:20.211Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "5b6bc868643909c8ba4edee717590b9896488eb0720636ed58a87a98e1f2d7ac",
@@ -8,7 +8,7 @@
     "interceptor.js": "0a137e2b8a50398973e93913cf6feb22c9ac6d70b0f0d075a46a28f1a804827a",
     "firewall.js": "61b31a2a55d63503c6bdcf888394b7a713678ea0e0b656e0d2179c91f66444a9",
     "pii.js": "51ea76de52b2c15d2cb34ab8125a5f67f725d1e7de43a4cef39136e25b276025",
-    "rules.js": "7b2c056ba4eacd5a7faa5e73da82b3b57067ed09273902682fed238b15681bff",
+    "rules.js": "02bcd06af3784bd93546ea4f4261bff2839966c50f1cc73fa8c775ae7676791c",
     "scanner.js": "e96fb8de37d623dc5f953b2e549a529e13ce025ee903c7e4177af5627284d79f",
     "engine.js": "f16bf283f06fe6fdf198a99fbc63971de9665da82f93f2688f86c4ac2a0a0ad2",
     "mcp-audit.js": "8f38b2738ffedc23f61601a1c03d3cbaac8a38fb19390a898ffe32b30bf8ffc4",

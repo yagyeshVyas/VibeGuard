@@ -1325,6 +1325,12 @@ const fileRules = [
         if (/permissions:\s*write-all/i.test(l)) {
           out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'permissions: write-all grants the token full write access to the repo.', fix: 'Set least-privilege permissions per job (e.g. contents: read).' });
         }
+        if (/pull_request_target/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'high', confidence: 'medium', snippet: l.trim().slice(0, 100), message: 'pull_request_target runs the target-repo workflow with a writable GITHUB_TOKEN against PR code — a classic CI take-over when combined with untrusted checkout or script injection.', fix: 'Prefer pull_request, or add an explicit environment/approval gate and never checkout the PR head with a writable token.' });
+        }
+        if (/curl[^|\n]*\|\s*(?:bash|sh)\b|wget[^|\n]*-O-[^|\n]*\|\s*(?:bash|sh)\b/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'Piping a remote installer into a shell executes unverifiable code on the runner (supply-chain risk).', fix: 'Download the installer to a file, verify its signature/checksum, then run it — or use a maintained package manager action.' });
+        }
         const uses = /^\s*-?\s*uses:\s*([\w.\-]+\/[\w.\-]+)@([\w.\-]+)\s*$/.exec(l);
         if (uses && !/^[0-9a-f]{40}$/.test(uses[2])) {
           out.push({ line: i + 1, column: 1, severity: 'low', snippet: l.trim().slice(0, 100), message: `Action ${uses[1]} is pinned to a tag/branch (@${uses[2]}), not a commit SHA — a moved tag can inject malicious code.`, fix: 'Pin third-party actions to a full commit SHA.' });
@@ -1351,6 +1357,63 @@ const fileRules = [
         }
         if (/"(?:Action|Resource)"\s*:\s*"\*"|actions?\s*=\s*\[\s*"\*"\s*\]/.test(l)) {
           out.push({ line: i + 1, column: 1, severity: 'medium', confidence: 'medium', snippet: l.trim().slice(0, 100), message: 'IAM policy uses a wildcard "*" for Action/Resource — over-broad privileges.', fix: 'Scope IAM policies to the specific actions and resources needed.' });
+        }
+      }
+      return out;
+    },
+  },
+  {
+    id: 'iac.kubernetes',
+    severity: 'high',
+    confidence: 'high',
+    title: 'Kubernetes manifest security context',
+    run(content, lines, relPath) {
+      if (!/\.(?:ya?ml)$/.test(relPath || '')) return [];
+      if (!/\b(?:apiVersion|kind):\s*(?:Deployment|Pod|StatefulSet|DaemonSet|Job|CronJob)\b/.test(content)) return [];
+      const out = [];
+      const blockUntil = /^\s{0,6}\S/;
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (/privileged:\s*true/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'high', snippet: l.trim().slice(0, 100), message: 'Container runs privileged — it can escape the sandbox and touch the host kernel/devices (the classic K8s container-escape).', fix: 'Set securityContext.privileged: false (or omit it) and drop capabilities instead of running privileged.' });
+        }
+        if (/runAsUser:\s*0\b/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'runAsUser: 0 runs the container as root — a compromise gets immediate root in the pod.', fix: 'Use a non-zero runAsUser plus runAsNonRoot: true to force a non-root container UID.' });
+        }
+        if (/hostNetwork:\s*true|hostPID:\s*true|hostIPC:\s*true/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'hostNetwork/hostPID/hostIPC: true shares the host network/process/IPC namespace — the pod can sniff traffic and see host processes.', fix: 'Remove these unless the workload truly needs host namespaces (most do not).' });
+        }
+        if (/allowPrivilegeEscalation:\s*true/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'allowPrivilegeEscalation: true lets a setuid binary inside the container gain more privileges than its parent.', fix: 'Set allowPrivilegeEscalation: false.' });
+        }
+        if (/default-token|automountServiceAccountToken:\s*true/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'A service-account token is auto-mounted into the pod — code in the pod can talk to the K8s API as that account.', fix: 'Set automountServiceAccountToken: false unless the pod really needs API access, and use a minimal RBAC role.' });
+        }
+        if (/capabilities:[\s\S]{0,80}?add:[\s\S]{0,40}?(?:ALL|SYS_ADMIN|NET_ADMIN)/.test(l) || /add:\s*\[\s*(?:ALL|SYS_ADMIN|NET_ADMIN)/.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'A dangerous Linux capability (ALL / SYS_ADMIN / NET_ADMIN) is added — near-privileged without the flag.', fix: 'Drop all capabilities and add back only the specific ones the workload needs.' });
+        }
+      }
+      return out;
+    },
+  },
+  {
+    id: 'iac.docker-compose',
+    severity: 'high',
+    confidence: 'high',
+    title: 'Docker Compose security misconfiguration',
+    run(content, lines, relPath) {
+      if (!/(?:^|\/)(?:docker-)?compose\.(?:ya?ml)$/.test(relPath || '') && !/docker-compose\.(?:ya?ml|yml)/.test(relPath || '')) return [];
+      const out = [];
+      for (let i = 0; i < lines.length; i++) {
+        const l = lines[i];
+        if (/(?:^|[\s"':])v[^\s"']*\/var\/run\/docker\.sock|docker\.sock/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'high', snippet: l.trim().slice(0, 100), message: 'Mounting /var/run/docker.sock gives the container full root control of the Docker daemon (host take-over).', fix: 'Do not mount the Docker socket into containers; use a rootless builder or a dedicated, least-privileged service.' });
+        }
+        if (/network_mode:\s*["']?host["']?/i.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'medium', snippet: l.trim().slice(0, 100), message: 'network_mode: host removes network isolation — the container shares the host network stack and can sniff host traffic.', fix: 'Use a bridge or overlay network unless the workload truly needs host networking.' });
+        }
+        if (/\b(?:[A-Z_]*?(?:PASSWORD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|CREDENTIAL)[A-Z_]*?)\s*[:=]\s*[^$"'*\s]/.test(l) && !/^\s*#/.test(l)) {
+          out.push({ line: i + 1, column: 1, severity: 'high', snippet: l.trim().slice(0, 100), message: 'A hardcoded secret/credential sits in docker-compose — it ends up in the image, the Compose spec, and often version control.', fix: 'Move secrets to an env_file, Docker secrets, or a .env file that is gitignored.' });
         }
       }
       return out;
