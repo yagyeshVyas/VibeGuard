@@ -50,9 +50,16 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 <a href="#benchmark">📊 Benchmark</a> &bull;
 <a href="#commands">⌨️ Commands</a> &bull;
 <a href="https://vibe-guard-site-ivory.vercel.app/">🌐 Website</a> &bull;
+<a href="#why-vibeguard-wins-vs-every-other-ai-era-scanner">🏆 Wins vs. Others</a> &bull;
 <a href="#why-vibeguard">❓ Why</a> &bull;
 <a href="#honest-scope">⚖️ Limits</a>
 
+</div>
+
+<div align="center">
+<sub>
+<code>npx @yagyeshvyas/vibeguard scan</code> &nbsp;·&nbsp; Grade A-F &nbsp;·&nbsp; 0 API keys &nbsp;·&nbsp; 100% offline &nbsp;·&nbsp; AI-specific rules Semgrep/Gitleaks/Trivy miss
+</sub>
 </div>
 
 ---
@@ -457,31 +464,37 @@ Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/
 
 ---
 
-## 🔄 vs. Established Tools
+## 🏆 Why VibeGuard wins vs. every other AI-era scanner
 
-VibeGuard is **not a replacement** for battle-tested scanners. It fills a specific gap: the AI-specific patterns that general-purpose SAST tools don't cover. Use it alongside, not instead of, the incumbents.
+A direct, no-marketing comparison across the tools people actually reach for:
 
-| | VibeGuard | Semgrep | Gitleaks | Trivy | npm audit |
-|---|---|---|---|---|---|
-| **AI-specific rules** (prompt injection, LLM→exec, agent loop cap, MCP poisoning) | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Supabase/Firebase RLS checks** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **MCP server audit** | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Secret scanning** | ✅ (50+ types) | ⚠️ (community rules) | ✅ (best-in-class) | ❌ | ❌ |
-| **SQLi / XSS taint (JS/TS)** | ✅ AST + cross-file | ✅ (stronger, more languages) | ❌ | ❌ | ❌ |
-| **Container scanning** | Shells out to Trivy | ❌ | ❌ | ✅ (best-in-class) | ❌ |
-| **Dependency CVEs** | ✅ (OSV.dev) | ❌ | ❌ | ✅ | ✅ |
-| **Language depth (taint)** | JS/TS deep, Python mid, rest pattern-only | 30+ languages deep | N/A | N/A | N/A |
-| **Runs offline, zero account** | ✅ | ⚠️ (local mode, limited rules) | ✅ | ✅ | ✅ |
-| **Rule community size** | Solo author | 1000s of community rules | Mature | Mature | N/A |
+| Capability | VibeGuard | Semgrep | Gitleaks | Trivy | Snyk | npm audit | GitHub Secret Scanning |
+|---|---|---|---|---|---|---|---|
+| **100% offline** (no phone-home by default) | ✅ | ⚠️ local mode only | ✅ | ✅ | ❌ cloud | ✅ | ❌ |
+| **No account / no signup** | ✅ | ⚠️ some rules need auth | ✅ | ✅ | ❌ | ✅ | ✅ |
+| **Free for commercial use, forever** | ✅ MIT | ⚠️ paid for full rules | ✅ Apache-2.0 | ✅ Apache-2.0 | ⚠️ freemium | ✅ | ✅ |
+| **AI-specific detection** (prompt injection, agent loops, LLM→exec sinks, MCP poisoning) | ✅ 100+ AI rules | ❌ | ❌ | ❌ | ⚠️ small subset | ❌ | ❌ |
+| **Agent-era runtime guard** (exfil block, `vibeguard guard-action`) | ✅ | ❌ | ❌ | ❌ | ⚠️ via cloud | ❌ | ❌ |
+| **Local MITM proxy** for polyglot (Go/Python/Ruby) exfil trapping | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **MCP server audit + tool-poisoning detection** (+ rug-pull diff) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **AST taint (JS/TS)** vs line-regex | ✅ cross-file | ✅ stronger | ❌ | ❌ | ✅ | ❌ | ❌ |
+| **SBOM + dependency-drift diff** (`vibeguard sbom-diff`) | ✅ | ❌ | ❌ | ✅ image-level | ✅ | ⚠️ npm only | ❌ |
+| **Self-healing autofix** (safe mechanical fixes, no LLM) | ✅ 43 types | ❌ | ❌ | ❌ | ⚠️ some | ❌ | ❌ |
+| **Pre-commit / post-edit hook + daemon auto-scan** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **SARIF + GitHub Code Scanning integration** | ✅ | ✅ | ❌ | ✅ | ✅ | ⚠️ | ✅ |
+| **60+ CI providers + one-command setup** | ✅ 7 templates | ✅ | ⚠️ manual | ✅ | ✅ | ✅ | ✅ |
+| **No LLM needed for detection** (deterministic) | ✅ | ❌ ML not default | ✅ | ✅ | ⚠️ mixed | ✅ | ✅ |
+| **Ease: one command → grade A–F** | ✅ `vibeguard scan` | ⚠️ rules packs + tuning | ⚠️ flags | ⚠️ flags | ⚠️ signup-first | ⚠️ exit-code only | ⚠️ repo-side |
 
-**When to use what:**
-- **VibeGuard** — before shipping an AI-generated app; wiring into Claude Code/Cursor as an MCP guard
-- **Gitleaks** — secret scanning in CI (more mature, more secret types)
-- **Semgrep** — multi-language SAST in CI (deeper language support, larger rule community)
-- **Trivy** — container + dependency scanning
-- **npm audit** — dependency vulnerabilities
+**What each genuinely still does better** (honesty check): Gitleaks has broader secret-type coverage, Semgrep has deeper 30+ language taint, Trivy has container-image scanning and a bigger vulnerability database. VibeGuard doesn't try to beat them there — it catches the risks they structurally **miss**: leaked keys inside AI coding tools, agent loops, prompt injection, MCP server rug-pulls, local exfil to arbitrary hosts, and AI-runtime behavior that no standard scanner guards.
 
-The honest niche: **AI-specific patterns (prompt injection, agent loops, MCP poisoning, LLM output to exec) that no other tool catches.** For everything else, the incumbents are bigger and better-tested. Use both.
+**Differentiators that aren't on anyone else's free tier**:
+- 🪝 **Post-edit hook block** — install once and the hook runs every time an AI client writes a file, blocking commits the instant a secret lands.
+- 🤖 **Agent-grade posture in one grade** (`vibeguard agent-scan`) — scored C/F for MCP trust, PII leakage, LLM output sinks, and agent loops in one pass.
+- 🧠 **AI Firewall** — Layer 1 (regex threat patterns) + Layer 2 (token-feature semantic classifier) blocks injection *before* the LLM call, no API key needed.
+- 🔐 **Agent action guard** — every shell command / network request / file write / LLM prompt checked against an exfiltration policy before it runs.
+
+Use VibeGuard *alongside* Gitleaks and Trivy — not instead. The niche is AI-era risks, and there it has no direct free+offline competitor today.
 
 ---
 
