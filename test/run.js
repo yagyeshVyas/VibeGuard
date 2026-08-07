@@ -4525,8 +4525,29 @@ test('sbom-diff: reports dependency drift across two snapshots', () => {
   assert.strictEqual(diffSBOM('.', '.').counts.added + diffSBOM('.', '.').counts.removed + diffSBOM('.', '.').counts.changed, 0, 'same dir should diff empty');
 });
 
-// --- Phase 5: Supply-chain drift via sbom-diff + externally-validated benchmark gate ---
-// The benchmark gate is verified via CI: node test/benchmark/run.js --gate exits(2) on regression.
+test('gif: routes queries to keyless open backends (offline)', () => {
+  const { backendFor } = require('../src/gif');
+  // cat-family queries must route to cataas with a valid gif url
+  const cat = backendFor('cat');
+  assert.strictEqual(cat.source, 'cataas', 'cat routes to cataas');
+  assert(cat.url.startsWith('https://cataas.com/cat/gif'), 'cataas url');
+  // cat-says must produce an encoded overlay url
+  const says = backendFor('cat says hello');
+  assert(/\/cat\/gif\/says\/hello/.test(says.url), 'cataas says overlay');
+  // yes/no queries route to yesno.wtf
+  const yn = backendFor('yes');
+  assert.strictEqual(yn.source, 'yesno', 'yes routes to yesno.wtf');
+  assert(yn.url.includes('yesno.wtf/api'), 'yesno api url');
+  // any long phrase falls to cataas says overlay (meme-like), never a key-walled API
+  const phrase = backendFor('all tests passed');
+  assert.strictEqual(phrase.source, 'cataas', 'phrase routes to cataas');
+  assert(phrase.url.includes('/cat/gif/says/'), 'phrase uses text overlay');
+  // the dead backends must never be selected
+  for (const q of ['cat', 'yes', 'celebration', 'grade a']) {
+    const b = backendFor(q);
+    assert(!/tenor\.googleapis|giphy\.com|klipy\.com/.test(b.url), 'never routes to key-walled backend: ' + q);
+  }
+});
 
 (async function runAll() {
   for (const t of _tests) {

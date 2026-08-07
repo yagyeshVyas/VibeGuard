@@ -5,6 +5,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — Keyless open GIFs (no API key)
+- New `vibeguard gif <query>` CLI command and `gif_search` MCP tool (84th tool).
+  Fetches open GIFs with **zero API keys** using byte-verified open backends:
+  cataas cat GIFs (+ text overlay via `/cat/gif/says/<text>`), yesno.wtf
+  yes/no reactions. Dead/key-walled backends skipped: Tenor (needs key),
+  GIPHY demo key (now 401), Klipy (auth wall), Reddit JSON (IP-blocked).
+- New `src/gif.js` engine: single-redirect HTTPS fetch, GIF magic-byte
+  verification, cataas 500-fallback, `downloadGif()` save-to-disk.
+- Offline regression test for the routing logic (never selects a key-walled
+  backend). Suite 430 → 431 passed.
+
 ### Fixed — Dogfood + dependency hygiene
 - **Autofix bug:** the `error.empty-catch` autofix rewrote `catch {}` as
   `catch { console.error(err); }` — `err` is not bound in an optional catch

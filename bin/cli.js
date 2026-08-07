@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -829,7 +829,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -965,6 +965,7 @@ async function main() {
     else if (cmd === 'detect-pii') code = cmdDetectPII(args, flags);
     else if (cmd === 'sbom') code = cmdSBOM(dir, flags);
     else if (cmd === 'sbom-diff') { const { cmdSbomDiff } = require('./cmd-sbom-diff'); code = cmdSbomDiff(args, flags); }
+    else if (cmd === 'gif') { const { cmdGif } = require('./cmd-gif'); code = await cmdGif(args, flags); }
     else if (cmd === 'reachability') code = await cmdReachability(dir, flags);
     else if (cmd === 'container-scan') code = await cmdContainerScan(args, flags);
     else if (cmd === 'license') code = await cmdLicense(dir, flags);

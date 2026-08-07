@@ -418,6 +418,18 @@ const TOOLS = [
     },
   },
   {
+    name: 'gif_search',
+    description: 'Get a keyless open GIF for a celebration or reaction — no API key required. Uses open backends (cataas cat GIFs, yesno.wtf reactions). Byte-verified before returning so the URL is known-good. Optional savePath downloads the GIF to disk.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'What the GIF is about (e.g. "cat", "yes", "all tests passed", "grade a").' },
+        savePath: { type: 'string', description: 'Optional absolute path to download the GIF to disk.' },
+      },
+      required: ['query'],
+    },
+  },
+  {
     name: 'dep_reachability',
     description: 'Cross-reference CVE results against the actual import graph — determines whether a vulnerable dependency is actually reachable in the code, not just listed in node_modules. Filters noise from transitive-only vulns.',
     inputSchema: DIR_SCHEMA,
@@ -1566,6 +1578,18 @@ async function handleSbomDiff(args) {
   return textResult(JSON.stringify(d, null, 2));
 }
 
+async function handleGifSearch(args) {
+  const query = args.query;
+  if (!query || typeof query !== 'string') return textResult('gif_search requires a "query" string.', true);
+  const { searchGifs, downloadGif } = require('./gif');
+  const g = await searchGifs(query);
+  if (args.savePath) {
+    const d = await downloadGif(query, args.savePath);
+    return textResult(JSON.stringify({ title: g.title, url: g.url, source: g.source, license: g.license, path: d.path, bytes: d.bytes, valid: true }, null, 2));
+  }
+  return textResult(JSON.stringify({ title: g.title, url: g.url, source: g.source, license: g.license, bytes: g.bytes, valid: g.valid }, null, 2));
+}
+
 async function handleDepReachability(args) {
   const dir = args.dir || process.cwd();
   const { generateSBOM, buildImportGraph } = require('./sbom');
@@ -2013,6 +2037,7 @@ async function main() {
       else if (name === 'generate_csp') result = await handleCSP(args);
       else if (name === 'generate_sbom') result = await handleSBOM(args);
       else if (name === 'sbom_diff') result = await handleSbomDiff(args);
+      else if (name === 'gif_search') result = await handleGifSearch(args);
       else if (name === 'dep_reachability') result = await handleDepReachability(args);
       else if (name === 'scan_container_image') result = await handleContainerScan(args);
       else if (name === 'license_compliance') result = await handleLicenseCompliance(args);
