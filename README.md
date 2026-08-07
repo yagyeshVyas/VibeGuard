@@ -1,8 +1,14 @@
 <div align="center">
 
-<img src="website/banner.svg" alt="VibeGuard" width="480" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="website/banner.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="website/banner.svg" />
+  <img src="website/banner.svg" alt="VibeGuard — security scanner + AI agent firewall" width="880" />
+</picture>
 
-<h3>🔒 Security scanner + AI agent firewall for vibe-coded apps.</h3>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;766+rules+%C2%B7+83+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;100%25+offline+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
+
+<h3>🔒 The AI-era security scanner &amp; agent firewall.</h3>
 
 <p>
 Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops.<br/>
@@ -24,7 +30,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-429%20passed-blue?style=flat-square" alt="429 tests pass" />
+  <img src="https://img.shields.io/badge/tests-430%20passed-blue?style=flat-square" alt="430 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -609,6 +615,10 @@ MIT. Free forever. No ads. No tracking. No data collection.
 Found a bug? [🐛 Open an issue](https://github.com/yagyeshVyas/VibeGuard/issues) &bull; Have a question? [💬 Start a discussion](https://github.com/yagyeshVyas/VibeGuard/discussions)
 
 <sub>&copy; 2026 Yagyesh Vyas. Released under the MIT License.</sub>
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:3B82F6,100:22C55E&height=90&section=footer" width="100%" alt="VibeGuard" />
 
 </div>
 

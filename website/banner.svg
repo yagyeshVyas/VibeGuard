@@ -1,64 +1,105 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="480" height="160" viewBox="0 0 480 160">
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="260" viewBox="0 0 960 260">
   <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d0f14"/>
+      <stop offset="55%" stop-color="#0d1117"/>
+      <stop offset="100%" stop-color="#101820"/>
+    </linearGradient>
     <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#3B82F6">
-        <animate attributeName="stop-color" values="#3B82F6;#22C55E;#3B82F6" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="stop-color" values="#3B82F6;#22C55E;#8B5CF6;#3B82F6" dur="9s" repeatCount="indefinite"/>
       </stop>
       <stop offset="100%" stop-color="#22C55E">
-        <animate attributeName="stop-color" values="#22C55E;#3B82F6;#22C55E" dur="6s" repeatCount="indefinite"/>
+        <animate attributeName="stop-color" values="#22C55E;#8B5CF6;#3B82F6;#22C55E" dur="9s" repeatCount="indefinite"/>
       </stop>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
+    <linearGradient id="beam" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#22C55E" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#22C55E" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#22C55E" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="14" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- Shield icon -->
-  <g transform="translate(40, 28)" filter="url(#glow)">
+  <!-- Background -->
+  <rect width="960" height="260" rx="18" fill="url(#bg)"/>
+  <!-- Ambient halo behind shield -->
+  <ellipse cx="150" cy="130" rx="120" ry="90" fill="url(#g1)" opacity="0.10">
+    <animate attributeName="opacity" values="0.07;0.16;0.07" dur="5s" repeatCount="indefinite"/>
+  </ellipse>
+
+  <!-- Grid dots -->
+  <g fill="#1b2430">
+    <g>
+      <circle cx="330" cy="40" r="1.4"/><circle cx="400" cy="40" r="1.4"/><circle cx="470" cy="40" r="1.4"/><circle cx="540" cy="40" r="1.4"/><circle cx="610" cy="40" r="1.4"/><circle cx="680" cy="40" r="1.4"/><circle cx="750" cy="40" r="1.4"/><circle cx="820" cy="40" r="1.4"/>
+      <circle cx="330" cy="220" r="1.4"/><circle cx="400" cy="220" r="1.4"/><circle cx="470" cy="220" r="1.4"/><circle cx="540" cy="220" r="1.4"/><circle cx="610" cy="220" r="1.4"/><circle cx="680" cy="220" r="1.4"/><circle cx="750" cy="220" r="1.4"/><circle cx="820" cy="220" r="1.4"/>
+    </g>
+  </g>
+
+  <!-- Shield -->
+  <g transform="translate(70,38)" filter="url(#glow)">
     <path d="M50 4 L92 20 V54 C92 84 72 104 50 112 C28 104 8 84 8 54 V20 Z"
-          fill="none" stroke="url(#g1)" stroke-width="4" stroke-linejoin="round">
-      <animate attributeName="stroke-width" values="4;5;4" dur="3s" repeatCount="indefinite"/>
+          fill="rgba(13,17,23,0.35)" stroke="url(#g1)" stroke-width="4" stroke-linejoin="round">
+      <animate attributeName="stroke-width" values="4;5.5;4" dur="3s" repeatCount="indefinite"/>
     </path>
-    <!-- Shield checkmark -->
-    <path d="M32 56 L44 68 L70 38" fill="none" stroke="url(#g1)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
-      <animate attributeName="stroke-dasharray" values="0 80;80 0" dur="2s" repeatCount="indefinite"/>
+    <path d="M32 56 L44 68 L70 38" fill="none" stroke="url(#g1)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+      <animate attributeName="stroke-dasharray" values="0 80;80 0;80 80" dur="2.6s" repeatCount="indefinite"/>
     </path>
   </g>
 
+  <!-- Scan beam across shield + beyond -->
+  <rect x="70" y="54" width="92" height="46" fill="url(#beam)" opacity="0.55">
+    <animate attributeName="y" values="54;116;54" dur="3.4s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;0.55;0" dur="3.4s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Radar pings -->
+  <g fill="none" stroke="url(#g1)">
+    <circle cx="120" cy="92" r="10" opacity="0">
+      <animate attributeName="r" values="10;70" dur="3.4s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0" dur="3.4s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="120" cy="92" r="10" opacity="0">
+      <animate attributeName="r" values="10;70" dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.6;0" dur="3.4s" begin="1.7s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
   <!-- Wordmark -->
-  <text x="170" y="68" font-family="-apple-system, system-ui, Segoe UI, sans-serif" font-size="44" font-weight="800" fill="#E5E5E5">
+  <text x="215" y="112" font-family="-apple-system, system-ui, 'Segoe UI', sans-serif" font-size="64" font-weight="800" letter-spacing="-1" fill="#E6E9EE">
     Vibe
-    <tspan fill="url(#g1)">
-      <animate attributeName="fill" values="#3B82F6;#22C55E;#3B82F6" dur="6s" repeatCount="indefinite"/>
+    <tspan fill="url(#g1)" filter="url(#softGlow)">
+      <animate attributeName="opacity" values="0.92;1;0.92" dur="4s" repeatCount="indefinite"/>
       Guard
     </tspan>
-    <animate attributeName="opacity" values="0;1" dur="1s" fill="freeze"/>
+    <animate attributeName="opacity" values="0;1" dur="0.9s" fill="freeze"/>
   </text>
 
   <!-- Tagline -->
-  <text x="170" y="98" font-family="monospace" font-size="13" fill="#888">
-    <tspan>
-      <animate attributeName="opacity" values="0;1" dur="1s" begin="0.5s" fill="freeze"/>
-      security scanner for AI-coded apps
-    </tspan>
+  <text x="217" y="152" font-family="'Cascadia Code', Consolas, monospace" font-size="17" fill="#8b95a3">
+    <tspan>security scanner + AI agent firewall — </tspan>
+    <tspan fill="#22C55E">catches what AI forgets</tspan>
+    <animate attributeName="opacity" values="0;1" dur="1s" begin="0.5s" fill="freeze"/>
   </text>
 
   <!-- Stats line -->
-  <text x="170" y="124" font-family="monospace" font-size="12" fill="#555">
-    <tspan fill="#22C55E">752 rules</tspan>
-    <tspan fill="#333"> · </tspan>
-    <tspan fill="#3B82F6">82 MCP tools</tspan>
-    <tspan fill="#333"> · </tspan>
-    <tspan fill="#22C55E">18 languages</tspan>
-    <tspan fill="#333"> · </tspan>
-    <tspan fill="#3B82F6">100% offline</tspan>
-    <animate attributeName="opacity" values="0;1" dur="1s" begin="0.8s" fill="freeze"/>
+  <text x="217" y="196" font-family="'Cascadia Code', Consolas, monospace" font-size="15.5">
+    <animate attributeName="opacity" values="0;1" dur="1s" begin="0.9s" fill="freeze"/>
+    <tspan fill="#22C55E" font-weight="600">766 rules</tspan>
+    <tspan fill="#2b3542">  ·  </tspan>
+    <tspan fill="#3B82F6" font-weight="600">83 MCP tools</tspan>
+    <tspan fill="#2b3542">  ·  </tspan>
+    <tspan fill="#22C55E" font-weight="600">96.0% benchmark F1</tspan>
+    <tspan fill="#2b3542">  ·  </tspan>
+    <tspan fill="#3B82F6" font-weight="600">100% offline</tspan>
   </text>
 
-  <!-- Scanning line animation across shield -->
-  <rect x="40" y="28" width="92" height="2" fill="url(#g1)" opacity="0.6">
-    <animate attributeName="y" values="28;120;28" dur="3s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="0;0.6;0" dur="3s" repeatCount="indefinite"/>
-  </rect>
+  <text id="cmdline" x="213" y="222" font-family="'Cascadia Code', Consolas, monospace" font-size="14" font-weight="600"><tspan fill="#22C55E">$</tspan><tspan fill="#5a6572" font-weight="400" dx="6">npx @yagyeshvyas/vibeguard scan</tspan><tspan fill="#22C55E" dx="5">▎<animate attributeName="opacity" values="1;0;1" dur="1.1s" begin="0.9s" repeatCount="indefinite"/></tspan></text>
 </svg>
