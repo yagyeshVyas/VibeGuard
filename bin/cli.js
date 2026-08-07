@@ -198,7 +198,7 @@ function detectFramework(dir) {
   return null;
 }
 
-function cmdScan(dir, flags) {
+async function cmdScan(dir, flags) {
   // Auto-detect framework/stack and apply preset if not explicitly set.
   if (!flags.preset && !flags['no-preset']) {
     const detected = detectFramework(dir);
@@ -341,6 +341,21 @@ function cmdScan(dir, flags) {
     }
   }
   outputResult(result, flags);
+
+  // Grade A celebration — print a byte-verified open GIF. Awaited so the line
+  // lands before the process exits (the return below computes the exit code
+  // after this block). Best-effort: opt-out with --no-fun or VG_NO_FUN=1,
+  // auto-silenced in CI (--ci sets CI via GitHub/GitLab/etc.).
+  if (result.grade === 'A' && !flags.json && !flags.sarif && !flags['no-fun'] &&
+      !process.env.VG_NO_FUN && !process.env.CI) {
+    try {
+      const { searchGifs } = require('../src/gif');
+      const g = await searchGifs('grade a');
+      if (g && g.url) {
+        process.stderr.write(`\n${C.magenta}🎉 Grade A — celebrate:${C.reset} ${C.cyan}${g.url}${C.reset}\n`);
+      }
+    } catch { /* offline or backend hiccup — never fail the scan */ }
+  }
 
   if (flags.precommit) {
     // Hook mode: block only on CRITICAL.
@@ -893,7 +908,7 @@ async function main() {
 
   let code = 0;
   try {
-    if (cmd === 'scan') code = cmdScan(dir, flags);
+    if (cmd === 'scan') code = await cmdScan(dir, flags);
     else if (cmd === 'fix') code = cmdFix(dir, flags);
     else if (cmd === 'verify') code = cmdVerify(dir, flags);
     else if (cmd === 'install-hook') code = cmdInstallHook(dir);
