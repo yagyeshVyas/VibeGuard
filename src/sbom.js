@@ -161,4 +161,33 @@ function generateSBOM(dir) {
   return bom;
 }
 
-module.exports = { generateSBOM, parseLockfile, parsePackageJson, buildImportGraph };
+/**
+ * diffSBOM(baseDir, headDir) — compare the dependency sets of two project
+ * snapshots (e.g. main vs. your PR). Returns machine-readable drift: what was
+ * added / removed / version-changed, so a CI or reviewer can spot new
+ * dependencies, unexpected upgrades, or disappearances.
+ */
+function diffSBOM(baseDir, headDir) {
+  const base = generateSBOM(baseDir);
+  const head = generateSBOM(headDir);
+  const bMap = new Map(base.components.map(c => [c.name, c.version]));
+  const hMap = new Map(head.components.map(c => [c.name, c.version]));
+  const added = [], removed = [], changed = [];
+  for (const [name, version] of hMap) {
+    if (!bMap.has(name)) added.push({ name, version });
+    else if (bMap.get(name) !== version) changed.push({ name, from: bMap.get(name), to: version });
+  }
+  for (const [name, version] of bMap) {
+    if (!hMap.has(name)) removed.push({ name, version });
+  }
+  return {
+    base: baseDir,
+    head: headDir,
+    counts: { added: added.length, removed: removed.length, changed: changed.length },
+    added,
+    removed,
+    changed,
+  };
+}
+
+module.exports = { generateSBOM, parseLockfile, parsePackageJson, buildImportGraph, diffSBOM };

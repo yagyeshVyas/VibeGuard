@@ -406,6 +406,18 @@ const TOOLS = [
     inputSchema: DIR_SCHEMA,
   },
   {
+    name: 'sbom_diff',
+    description: 'Diff the SBOMs of two project snapshots (e.g. base branch vs PR head) to surface supply-chain drift: dependencies added / removed / version-changed. CycloneDX-based, 100% offline. Returns counts + the exact component-level changes a reviewer should look at.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        base: { type: 'string', description: 'Base project directory (e.g. "." or a checked-out ref)' },
+        head: { type: 'string', description: 'Head project directory to diff against base' },
+      },
+      required: ['base', 'head'],
+    },
+  },
+  {
     name: 'dep_reachability',
     description: 'Cross-reference CVE results against the actual import graph — determines whether a vulnerable dependency is actually reachable in the code, not just listed in node_modules. Filters noise from transitive-only vulns.',
     inputSchema: DIR_SCHEMA,
@@ -1546,6 +1558,14 @@ async function handleSBOM(args) {
   return textResult(JSON.stringify(bom, null, 2));
 }
 
+async function handleSbomDiff(args) {
+  const baseDir = args.base || '.';
+  const headDir = args.head || '.';
+  const { diffSBOM } = require('./sbom');
+  const d = diffSBOM(baseDir, headDir);
+  return textResult(JSON.stringify(d, null, 2));
+}
+
 async function handleDepReachability(args) {
   const dir = args.dir || process.cwd();
   const { generateSBOM, buildImportGraph } = require('./sbom');
@@ -1992,6 +2012,7 @@ async function main() {
       else if (name === 'generate_privacy_policy') result = await handlePrivacyPolicy(args);
       else if (name === 'generate_csp') result = await handleCSP(args);
       else if (name === 'generate_sbom') result = await handleSBOM(args);
+      else if (name === 'sbom_diff') result = await handleSbomDiff(args);
       else if (name === 'dep_reachability') result = await handleDepReachability(args);
       else if (name === 'scan_container_image') result = await handleContainerScan(args);
       else if (name === 'license_compliance') result = await handleLicenseCompliance(args);

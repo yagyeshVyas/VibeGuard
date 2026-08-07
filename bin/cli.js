@@ -829,7 +829,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -964,6 +964,7 @@ async function main() {
     else if (cmd === 'redact') code = cmdRedact(args, flags);
     else if (cmd === 'detect-pii') code = cmdDetectPII(args, flags);
     else if (cmd === 'sbom') code = cmdSBOM(dir, flags);
+    else if (cmd === 'sbom-diff') { const { cmdSbomDiff } = require('./cmd-sbom-diff'); code = cmdSbomDiff(args, flags); }
     else if (cmd === 'reachability') code = await cmdReachability(dir, flags);
     else if (cmd === 'container-scan') code = await cmdContainerScan(args, flags);
     else if (cmd === 'license') code = await cmdLicense(dir, flags);

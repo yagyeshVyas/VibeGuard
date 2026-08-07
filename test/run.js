@@ -4507,6 +4507,27 @@ test('proxy: CLI commands exist', () => {
   assert(code.includes('cmdProxyStart'), 'should have cmdProxyStart handler');
 });
 
+test('sbom-diff: reports dependency drift across two snapshots', () => {
+  const { diffSBOM } = require('../src/sbom');
+  const os = require('os');
+  const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-sbom-base-'));
+  const headDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-sbom-head-'));
+  fs.writeFileSync(path.join(baseDir, 'package-lock.json'),
+    JSON.stringify({ packages: { '': { name: 'base' }, 'node_modules/lodash': { version: '4.17.20' }, 'node_modules/axios': { version: '1.0.0' } } }));
+  fs.writeFileSync(path.join(headDir, 'package-lock.json'),
+    JSON.stringify({ packages: { '': { name: 'head' }, 'node_modules/lodash': { version: '4.17.21' }, 'node_modules/axios': { version: '1.0.0' }, 'node_modules/express': { version: '4.18.2' } } }));
+  const d = diffSBOM(baseDir, headDir);
+  assert.strictEqual(d.counts.added, 1, 'express should be added');
+  assert.strictEqual(d.counts.removed, 0, 'nothing removed');
+  assert.strictEqual(d.counts.changed, 1, 'lodash should be changed');
+  assert.strictEqual(d.changed[0].from, '4.17.20', 'from version');
+  assert.strictEqual(d.changed[0].to, '4.17.21', 'to version');
+  assert.strictEqual(diffSBOM('.', '.').counts.added + diffSBOM('.', '.').counts.removed + diffSBOM('.', '.').counts.changed, 0, 'same dir should diff empty');
+});
+
+// --- Phase 5: Supply-chain drift via sbom-diff + externally-validated benchmark gate ---
+// The benchmark gate is verified via CI: node test/benchmark/run.js --gate exits(2) on regression.
+
 (async function runAll() {
   for (const t of _tests) {
     try {
