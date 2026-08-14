@@ -80,51 +80,6 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 </details>
 
 ---
-## 🆕 What's New — v1.4.0
-
-<details open>
-<summary><strong>Jump to: git-history scanning · runtime LLM guard proxy · evasion decoders · entropy upgrade · custom rules</strong></summary>
-
-```mermaid
-%%{init:{'theme':'dark'}}%%
-flowchart LR
-    A["v1.3\n96.0% F1"] --> B["v1.4\nruntime guard + history scan"]
-```
-
-- 🕵️ **`vibeguard git-scan` — secrets in your ENTIRE git history** (Gitleaks-class). A key committed months ago and deleted yesterday is still compromised — now it's found, with the exact commit that introduced it. Blob-level scan via `git cat-file --batch`, `--since` / `--max-commits` / `--max-blobs`, `--json`.
-- 🛡️ **`vibeguard llm-proxy` — a free offline OpenAI-compatible guard proxy** (Lakera Guard-class, 100% local). Point any LLM client's `base_url` at `http://localhost:8443/v1`; every prompt AND response is scanned for secrets, PII, and prompt injection — **block** (403), **redact**, or **report**. Streaming (SSE) is scanned chunk-by-chunk and a violating stream is killed mid-flight — something no commercial guard does. Optional `--system-prompt-file` catches the model echoing YOUR system prompt (prompt-leakage exfiltration).
-- 🧩 **Prompt-injection evasion decoders** — base64, hex/unicode escapes, ROT13, zero-width chars, and homoglyph substitution (`1gn0re prev10us instruct10ns`) are decoded and detected deterministically, phrase-gated for near-zero false positives.
-- 🔑 **Entropy detection upgraded (TruffleHog-class)** — unquoted `.env`-style tokens and hex-charset secrets now covered on top of the existing quoted-string detector; BaaS keys (Firebase/Supabase) and hashes still excluded.
-- 🧰 **Custom user rules** — Semgrep-style regex rules via `.vibeguardrc.json` → `"customRules"`, zero code changes.
-- 🏷️ **CWE/OWASP metadata** added to core rules.js groups — consistent SARIF for GitHub/GitLab/SLSA consumers (rules-pack already had it).
-- 🧪 **480 tests, 0 failures** · **771 rules** · **84 MCP tools** · 13 layers · Grade A self-scan on 291 files.
-
-</details>
-
----
-
-## 🆕 What's New — v1.3.0
-
-<details open>
-<summary><strong>Jump to: 96.0% benchmark · Grade A self-scan · Zero-dep audit · hardening</strong></summary>
-
-```mermaid
-%%{init:{'theme':'dark'}}%%
-flowchart LR
-    A["v1.0\n89.1%"] --> B["v1.1\n92.9%"] --> C["v1.2\n94.6%"] --> D["v1.3\n96.0%"]
-```
-
-- 🐶 **Dogfooded our own scanner** — `vibeguard scan .` on this repo returns **Grade A, 0 findings** across 275 files. We ate our own cooking so the polish is real.
-- 📈 **Benchmark 89.1% → 96.0% F1** — secrets 100% & xss 100%, ai-safety 96.8%, false positives cut ~69% (15 → 4). Runs unchanged in `npm run benchmark` (see [Benchmark](#-benchmark)).
-- 🔌 **84 MCP tools all verified** — a live JSON-RPC stdio handshake + a per-tool audit caught and fixed 3 crashes; **0 bugs**, 78 graceful. `scripts/mcp-audit-tools.js` ships with the repo.
-- 🔧 **Self-healing autofix** — `error.empty-catch` fixer no longer emits unbound `err` (it would throw `ReferenceError`); adds/reuses a real binding. Verified in a VM.
-- 🧹 **Zero-dep audit clean** — `@hono/node-server` → 2.1.0, plus 4 transitive CVEs pinned to safe versions via `overrides` (`ip-address`, `brace-expansion`, `fast-uri`, `hono`). `npm audit` → **0 vulnerabilities**.
-- 🧪 **480 tests, 0 failures** · AI-safety F1 **96.8%** · **771 rules** · 16 AI clients (now incl. **Hermes Agent**).
-- ☸️ **IaC hardening (Kubernetes + Compose + Actions)** — closes the biggest gap vs. Trivy/Checkov/KubeLinter.
-- 🎞️ **Keyless open GIF celebration** — `vibeguard gif <query>` & the `gif_search` MCP tool hand back a byte-verified open GIF with **zero API keys**. Open backends only (cataas cats + text overlay, yesno.wtf) — Tenor/GIPHY need keys, so we skip them.
-</details>
-
----
 
 ## 🤔 Why VibeGuard
 
