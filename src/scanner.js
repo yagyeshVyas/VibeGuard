@@ -175,6 +175,7 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
   // regex on every line. Compiled fileFilters are cached on the rule object.
   const activeRules = [];
   for (const rule of lineRules) {
+    if (!rule.re) continue; // match()-based line rules (no regex) — inert until a line-level match hook exists
     if (rule.fileFilter) {
       let ff = rule._ffRe;
       if (!ff) {
@@ -258,7 +259,21 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
     for (const rule of fileRules) {
       let hits = [];
       try {
-        hits = rule.run(content, lines, relPath, findings) || [];
+        if (typeof rule.match === 'function') {
+          // Function-based rule (no regex): match(content, ctx) -> [{ index, match }].
+          const raw = rule.match(content, { lines, relPath, findings }) || [];
+          hits = raw.map((h) => {
+            const before = content.slice(0, h.index);
+            const ln = before.split('\n').length - 1;
+            return {
+              line: ln + 1,
+              column: before.length - before.lastIndexOf('\n'),
+              snippet: redactSnippet((lines[ln] || '').trim(), h.match),
+            };
+          });
+        } else {
+          hits = rule.run(content, lines, relPath, findings) || [];
+        }
       } catch (err) {
         noteDegraded(`file-rule:${rule.id || 'unknown'}`, err);
         hits = [];

@@ -5,6 +5,37 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — v1.4 power pass (git history · runtime LLM guard · evasion decoders)
+- **`vibeguard git-scan`** — scans a repo's ENTIRE git history for leaked secrets
+  (Gitleaks/TruffleHog parity). Blob-level enumeration via `git rev-list --objects --all`
+  + streaming `git cat-file --batch`, dedupe by blob sha, binary skip, commit attribution
+  for every finding. Flags: `--since`, `--max-commits`, `--max-blobs`, `--json`.
+  Suite: 431 → 435 tests.
+- **`vibeguard llm-proxy`** — OpenAI-compatible local guard proxy (Lakera-class, free,
+  offline, zero deps). `POST /v1/chat/completions` (JSON + SSE streaming), `GET /v1/models`,
+  `POST /v1/completions` + `/v1/embeddings` passthrough. Scans prompts AND responses for
+  secrets (`secret.*` rules), PII (`pii.js`), prompt injection (deterministic patterns).
+  Modes: `block` (403), `redact` (in-place masking incl. streaming deltas), `report`.
+  Streaming SSE is scanned per chunk; a violating stream is destroyed mid-flight.
+  `--system-prompt-file` detects the model echoing your own system prompt.
+  Suite: +12 tests (incl. `testSystemPromptLeak`).
+- **`src/injection-decode.js`** — deterministic evasion decoders: base64, `\xNN`/`\uNNNN`
+  escapes, ROT13 (whole-line), zero-width chars + homoglyph normalization. 4 new rules:
+  `ai.prompt-injection-encoded-base64`, `-escapes`, `-rot13`, `ai.prompt-injection-obfuscated`.
+  Phrase-gated: fires only when decoded text contains a canonical injection phrase.
+- **Entropy upgrade** — `src/entropy.js` + `secret.high-entropy-token` rule: catches
+  unquoted `.env`-style tokens (key-like context gate, ±2 lines) and hex-charset secrets;
+  keeps the existing quoted-string `secret.high-entropy` rule; dedupes against specific
+  `secret.*` findings and excludes public BaaS keys (Firebase `AIza…`, Supabase anon).
+  Scanner fileRules loop now supports `match(content, ctx)` function rules.
+- **Custom user rules** — `.vibeguardrc.json` → `"customRules": [{ id, severity, title, re,
+  message, fix }]`; compiled at configure() time, invalid regexes skipped (never crash),
+  re-added on every scan, cleared between scans (no config leakage).
+- **CWE/OWASP metadata** on rules.js core groups (secret/injection/ai/pii) — SARIF parity
+  with Semgrep/Bearer metadata consumers.
+- Suite: 435 → **468 tests** (entropy +21, llm-proxy +12, git-scan +4). Rules: 766 → **771**.
+
+
 ### Added — Keyless open GIFs (no API key)
 - New `vibeguard gif <query>` CLI command and `gif_search` MCP tool (84th tool).
   Fetches open GIFs with **zero API keys** using byte-verified open backends:

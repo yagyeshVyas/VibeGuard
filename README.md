@@ -6,13 +6,13 @@
   <img src="website/banner.svg" alt="VibeGuard — security scanner + AI agent firewall" width="880" />
 </picture>
 
-<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;766+rules+%C2%B7+83+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;100%25+offline+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;771+rules+%C2%B7+84+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;100%25+offline+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
 
 <h3>🔒 The AI-era security scanner &amp; agent firewall.</h3>
 
 <p>
 Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops.<br/>
-<strong>766 rules</strong> · <strong>84 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
+<strong>771 rules</strong> · <strong>84 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
 100% offline · Zero telemetry · No paid APIs · Free forever.
 </p>
 
@@ -24,7 +24,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 
 <p>
   <img src="https://img.shields.io/badge/coverage-96.0%25%20F1-brightgreen?style=flat-square" alt="96.0% F1" />
-  <img src="https://img.shields.io/badge/rules-766-blue?style=flat-square" alt="766 rules" />
+  <img src="https://img.shields.io/badge/rules-771-blue?style=flat-square" alt="771 rules" />
   <img src="https://img.shields.io/badge/MCP%20tools-84-purple?style=flat-square" alt="84 MCP tools" />
   <img src="https://img.shields.io/badge/languages-18-green?style=flat-square" alt="18 languages" />
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
@@ -64,6 +64,29 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 
 ---
 
+## 🆕 What's New — v1.4.0
+
+<details open>
+<summary><strong>Jump to: git-history scanning · runtime LLM guard proxy · evasion decoders · entropy upgrade · custom rules</strong></summary>
+
+```mermaid
+%%{init:{'theme':'dark'}}%%
+flowchart LR
+    A["v1.3\n96.0% F1"] --> B["v1.4\nruntime guard + history scan"]
+```
+
+- 🕵️ **`vibeguard git-scan` — secrets in your ENTIRE git history** (Gitleaks-class). A key committed months ago and deleted yesterday is still compromised — now it's found, with the exact commit that introduced it. Blob-level scan via `git cat-file --batch`, `--since` / `--max-commits` / `--max-blobs`, `--json`.
+- 🛡️ **`vibeguard llm-proxy` — a free offline OpenAI-compatible guard proxy** (Lakera Guard-class, 100% local). Point any LLM client's `base_url` at `http://localhost:8443/v1`; every prompt AND response is scanned for secrets, PII, and prompt injection — **block** (403), **redact**, or **report**. Streaming (SSE) is scanned chunk-by-chunk and a violating stream is killed mid-flight — something no commercial guard does. Optional `--system-prompt-file` catches the model echoing YOUR system prompt (prompt-leakage exfiltration).
+- 🧩 **Prompt-injection evasion decoders** — base64, hex/unicode escapes, ROT13, zero-width chars, and homoglyph substitution (`1gn0re prev10us instruct10ns`) are decoded and detected deterministically, phrase-gated for near-zero false positives.
+- 🔑 **Entropy detection upgraded (TruffleHog-class)** — unquoted `.env`-style tokens and hex-charset secrets now covered on top of the existing quoted-string detector; BaaS keys (Firebase/Supabase) and hashes still excluded.
+- 🧰 **Custom user rules** — Semgrep-style regex rules via `.vibeguardrc.json` → `"customRules"`, zero code changes.
+- 🏷️ **CWE/OWASP metadata** added to core rules.js groups — consistent SARIF for GitHub/GitLab/SLSA consumers (rules-pack already had it).
+- 🧪 **468 tests, 0 failures** · **771 rules** · **84 MCP tools** · 13 layers · Grade A self-scan on 286 files.
+
+</details>
+
+---
+
 ## 🆕 What's New — v1.3.0
 
 <details open>
@@ -80,7 +103,7 @@ flowchart LR
 - 🔌 **84 MCP tools all verified** — a live JSON-RPC stdio handshake + a per-tool audit caught and fixed 3 crashes; **0 bugs**, 78 graceful. `scripts/mcp-audit-tools.js` ships with the repo.
 - 🔧 **Self-healing autofix** — `error.empty-catch` fixer no longer emits unbound `err` (it would throw `ReferenceError`); adds/reuses a real binding. Verified in a VM.
 - 🧹 **Zero-dep audit clean** — `@hono/node-server` → 2.1.0, plus 4 transitive CVEs pinned to safe versions via `overrides` (`ip-address`, `brace-expansion`, `fast-uri`, `hono`). `npm audit` → **0 vulnerabilities**.
-- 🧪 **429 tests, 0 failures** · AI-safety F1 **96.8%** · **766 rules** · 16 AI clients (now incl. **Hermes Agent**).
+- 🧪 **468 tests, 0 failures** · AI-safety F1 **96.8%** · **771 rules** · 16 AI clients (now incl. **Hermes Agent**).
 - ☸️ **IaC hardening (Kubernetes + Compose + Actions)** — closes the biggest gap vs. Trivy/Checkov/KubeLinter.
 - 🎞️ **Keyless open GIF celebration** — `vibeguard gif <query>` & the `gif_search` MCP tool hand back a byte-verified open GIF with **zero API keys**. Open backends only (cataas cats + text overlay, yesno.wtf) — Tenor/GIPHY need keys, so we skip them.
 </details>
@@ -640,5 +663,5 @@ Found a bug? [🐛 Open an issue](https://github.com/yagyeshVyas/VibeGuard/issue
 
 <!-- COUNTS:START -->
 <!-- Auto-generated by scripts/counts.js — do not edit manually -->
-<!-- Rules: 766 | MCP Tools: 84 | Defense Layers: 13 -->
+<!-- Rules: 771 | MCP Tools: 84 | Defense Layers: 13 -->
 <!-- COUNTS:END -->

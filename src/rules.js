@@ -157,7 +157,7 @@ const secretRules = [
     id: 'secret.github-token',
     severity: 'critical',
     confidence: 'high',
-    title: 'GitHub token',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'GitHub token',
     re: /\bgh[posur]_[A-Za-z0-9]{36,}\b/,
     message: 'Hardcoded GitHub token (personal access / OAuth / app token).',
     fix: 'Remove it, load from an environment variable, and revoke it in GitHub settings.',
@@ -166,7 +166,7 @@ const secretRules = [
     id: 'secret.slack-token',
     severity: 'critical',
     confidence: 'high',
-    title: 'Slack token',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'Slack token',
     re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/,
     message: 'Hardcoded Slack token.',
     fix: 'Remove it, load from an environment variable, and rotate it in the Slack app settings.',
@@ -175,7 +175,7 @@ const secretRules = [
     id: 'secret.gitlab-token',
     severity: 'critical',
     confidence: 'high',
-    title: 'GitLab personal access token',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'GitLab personal access token',
     re: /\bglpat-[A-Za-z0-9_\-]{20,}\b/,
     message: 'Hardcoded GitLab personal access token.',
     fix: 'Remove it, load from an environment variable, and revoke it in GitLab.',
@@ -184,7 +184,7 @@ const secretRules = [
     id: 'secret.twilio-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'Twilio API key',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'Twilio API key',
     re: /\bSK[0-9a-f]{32}\b/,
     message: 'Hardcoded Twilio API key.',
     fix: 'Remove it, load from an environment variable, and rotate it in the Twilio console.',
@@ -193,7 +193,7 @@ const secretRules = [
     id: 'secret.sendgrid-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'SendGrid API key',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'SendGrid API key',
     re: /\bSG\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}\b/,
     message: 'Hardcoded SendGrid API key.',
     fix: 'Remove it, load from an environment variable, and rotate it in SendGrid.',
@@ -202,7 +202,7 @@ const secretRules = [
     id: 'secret.mailgun-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'Mailgun API key',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'Mailgun API key',
     re: /\bkey-[0-9a-f]{32}\b/,
     message: 'Hardcoded Mailgun API key.',
     fix: 'Remove it, load from an environment variable, and rotate it in Mailgun.',
@@ -230,7 +230,7 @@ const secretRules = [
     id: 'secret.npm-token',
     severity: 'critical',
     confidence: 'high',
-    title: 'npm access token',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'npm access token',
     re: /\bnpm_[A-Za-z0-9]{36}\b/,
     message: 'Hardcoded npm access token (also flagged in .npmrc).',
     fix: 'Remove it, use an environment variable / CI secret, and revoke it on npmjs.com.',
@@ -239,7 +239,7 @@ const secretRules = [
     id: 'secret.resend-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'Resend API key',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'Resend API key',
     re: /\bre_[A-Za-z0-9]{20,}\b/,
     message: 'Hardcoded Resend API key.',
     fix: 'Remove it, load from an environment variable, and rotate it in Resend.',
@@ -252,7 +252,7 @@ const secretRules = [
     id: 'secret.connection-string',
     severity: 'critical',
     confidence: 'high',
-    title: 'Connection string with embedded credentials',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'Connection string with embedded credentials',
     re: /\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|mariadb|redis|amqps?):\/\/[^\s:@/]+:[^\s:@/]+@/,
     message: 'A database/broker connection string embeds a username and password.',
     fix: 'Load the connection string from an environment variable; never commit credentials.',
@@ -273,7 +273,7 @@ const secretRules = [
     id: 'secret.public-llm-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'AI/secret key exposed to the browser via a public env prefix',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'AI/secret key exposed to the browser via a public env prefix',
     // NEXT_PUBLIC_/VITE_/EXPO_PUBLIC_ on an LLM provider key or anything named *SECRET*.
     re: /\b(?:NEXT_PUBLIC_|VITE_|EXPO_PUBLIC_|REACT_APP_|PUBLIC_)[A-Z0-9_]*(?:OPENAI|ANTHROPIC|GROQ|MISTRAL|COHERE|GEMINI|HUGGINGFACE|REPLICATE|TOGETHER|OPENROUTER|PERPLEXITY|DEEPSEEK)[A-Z0-9_]*|\b(?:NEXT_PUBLIC_|VITE_|EXPO_PUBLIC_)[A-Z0-9_]*SECRET[A-Z0-9_]*/i,
     message: 'A public env prefix exposes an AI provider key or a secret to the browser bundle — anyone can read it.',
@@ -283,7 +283,7 @@ const secretRules = [
     id: 'secret.anthropic-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'Anthropic API key',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'Anthropic API key',
     // Must be checked before the OpenAI rule (sk- prefix overlap).
     re: /\bsk-ant-[A-Za-z0-9_\-]{20,}\b/,
     message: 'Hardcoded Anthropic API key.',
@@ -293,7 +293,7 @@ const secretRules = [
     id: 'secret.openai-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'OpenAI API key',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'OpenAI API key',
     // sk- or sk-proj-, but NOT sk-ant- (Anthropic) and NOT sk_live_ (Stripe uses _).
     re: /\bsk-(?!ant-)(?:proj-)?[A-Za-z0-9_\-]{20,}\b/,
     message: 'Hardcoded OpenAI API key.',
@@ -303,7 +303,7 @@ const secretRules = [
     id: 'secret.stripe-live-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'Stripe live secret key',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'Stripe live secret key',
     // Live secret keys start sk_live_ (full account access). Restricted keys
     // (rk_live_) are a separate, less-privileged class covered by
     // secret.stripe-restricted-key — don't double-report them as full live keys.
@@ -315,7 +315,7 @@ const secretRules = [
     id: 'secret.aws-access-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'AWS access key id',
+    cwe: 'CWE-798', owasp: 'A07',    title: 'AWS access key id',
     re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/,
     message: 'Hardcoded AWS access key id.',
     fix: 'Remove it, use an IAM role or environment variables, and deactivate/rotate the key in AWS IAM.',
@@ -631,6 +631,8 @@ const BASE_SHAPING = [
   'toSafe\\w*', 'toPublic\\w*', 'serialize\\w*', 'toJSON', 'select', 'only', 'except',
 ];
 let extraShaping = [];
+// User-defined rules from .vibeguardrc.json { "customRules": [...] } — see configure().
+let customRules = [];
 
 function buildRedactRe() {
   return new RegExp('\\b(?:' + [...BASE_SHAPING, ...extraShaping].join('|') + ')\\s*\\(', 'i');
@@ -644,6 +646,45 @@ function configure(cfg) {
     .filter((s) => typeof s === 'string' && /^[\w\\*]+$/.test(s));
   extraShaping = fns;
   REDACT_RE = buildRedactRe();
+  // User-defined regex rules (Semgrep-style custom rules, zero code changes):
+  // .vibeguardrc.json { "customRules": [{ "id": "mycorp.no-eval", "severity": "high",
+  //   "title": "...", "re": "pattern", "message": "...", "fix": "..." }] }
+  if (customRules.length) {
+    fileRules.length -= customRules.length; // drop previous customs before re-adding
+    customRules = [];
+  }
+  if (cfg && Array.isArray(cfg.customRules)) {
+    for (const r of cfg.customRules) {
+      if (!r || typeof r.id !== 'string' || typeof r.re !== 'string' || !r.re) continue;
+      let compiled;
+      try { compiled = new RegExp(r.re, 'gi'); } catch { continue; } // bad regex = skip, never crash
+      const rule = {
+        id: String(r.id).slice(0, 64).replace(/[^A-Za-z0-9._-]/g, '-'),
+        severity: ['critical', 'high', 'medium', 'low'].includes(r.severity) ? r.severity : 'high',
+        confidence: r.confidence || 'medium',
+        title: String(r.title || r.id),
+        re: compiled,
+        // The fileRules loop only executes run()/match() rules — wrap the regex
+        // so custom rules ride the same hook (no scanner changes needed).
+        match(content) {
+          const out = [];
+          compiled.lastIndex = 0;
+          let mm;
+          while ((mm = compiled.exec(content)) !== null) {
+            out.push({ index: mm.index, match: mm[0] });
+            if (mm.index === compiled.lastIndex) compiled.lastIndex++;
+          }
+          return out;
+        },
+        message: String(r.message || 'Custom rule matched.'),
+        fix: String(r.fix || 'Review this match.'),
+        cwe: String(r.cwe || 'CWE-710'), owasp: String(r.owasp || 'A09'),
+        custom: true,
+      };
+      customRules.push(rule);
+      fileRules.push(rule);
+    }
+  }
 }
 
 function isRedacted(line) {
@@ -698,7 +739,7 @@ const piiRules = [
     id: 'pii.secret-in-log',
     severity: 'high',
     confidence: 'medium',
-    title: 'Secret written to logs',
+    cwe: 'CWE-359', owasp: 'A01',    title: 'Secret written to logs',
     re: LOG_SINK,
     skipComments: true,
     message: 'A secret/credential is written to logs. Logs get shipped to files, consoles, and log aggregators — this leaks it.',
@@ -709,7 +750,7 @@ const piiRules = [
     id: 'pii.personal-data-in-log',
     severity: 'medium',
     confidence: 'low',
-    title: 'Personal data written to logs',
+    cwe: 'CWE-359', owasp: 'A01',    title: 'Personal data written to logs',
     re: LOG_SINK,
     skipComments: true,
     message: 'Personal data (PII) is written to logs. Confirm this is intended and compliant — logs are often less protected than your DB.',
@@ -720,7 +761,7 @@ const piiRules = [
     id: 'pii.secret-in-response',
     severity: 'high',
     confidence: 'medium',
-    title: 'Secret/credential sent in an HTTP response',
+    cwe: 'CWE-359', owasp: 'A01',    title: 'Secret/credential sent in an HTTP response',
     re: RES_SINK,
     skipComments: true,
     message: 'A secret/credential field is included in an HTTP response body — it will be sent to the client.',
@@ -731,7 +772,7 @@ const piiRules = [
     id: 'pii.request-body-echoed',
     severity: 'medium',
     confidence: 'low',
-    title: 'Raw request body returned to the client',
+    cwe: 'CWE-359', owasp: 'A01',    title: 'Raw request body returned to the client',
     re: /\bres\.(?:json|send)\s*\(\s*req\.body\s*\)/i,
     skipComments: true,
     message: 'The raw request body is echoed back in the response. Combined with mass-assignment this can reflect or expose unintended fields.',
@@ -878,7 +919,7 @@ const aiRules = [
     id: 'ai.browser-api-key',
     severity: 'critical',
     confidence: 'high',
-    title: 'AI SDK configured to run in the browser',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'AI SDK configured to run in the browser',
     re: /dangerouslyAllowBrowser\s*:\s*true/,
     skipComments: true,
     message: 'dangerouslyAllowBrowser: true ships your AI provider API key to the browser, where anyone can steal it.',
@@ -888,7 +929,7 @@ const aiRules = [
     id: 'ai.disabled-sandbox',
     severity: 'high',
     confidence: 'high',
-    title: 'AI agent sandbox / permission check disabled',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'AI agent sandbox / permission check disabled',
     re: /dangerouslyDisableSandbox\s*:\s*true|dangerouslySkipPermissions|--dangerously-skip-permissions|bypassPermissions\s*:\s*true/,
     skipComments: true,
     message: 'A sandbox or permission gate for an AI agent/tool is disabled — the model can run unrestricted actions.',
@@ -898,7 +939,7 @@ const aiRules = [
     id: 'ai.eval-llm-output',
     severity: 'high',
     confidence: 'medium',
-    title: 'Executing LLM output as code',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'Executing LLM output as code',
     re: /\b(?:eval|Function)\s*\(\s*[^)]*(?:completion|response|llmOutput|aiResponse|message\.content|choices\[0\]|\.text\b|generatedCode)/i,
     skipComments: true,
     message: 'Model output is executed as code (eval/Function). A prompt-injected response becomes remote code execution.',
@@ -908,7 +949,7 @@ const aiRules = [
     id: 'ai.prompt-injection-marker',
     severity: 'medium',
     confidence: 'low',
-    title: 'Prompt-injection phrase in code / tool description',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'Prompt-injection phrase in code / tool description',
     re: /ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions|disregard\s+(?:the\s+)?(?:above|previous)|jailbreak\s+mode|\bDAN\s+mode\b|you\s+are\s+now\s+(?:in\s+)?developer\s+mode/i,
     skipComments: false,
     message: 'A classic prompt-injection phrase appears here (e.g. in an MCP tool description or system prompt). If this text can reach an LLM, it can hijack it.',
@@ -925,7 +966,7 @@ const injectionRules = [
     id: 'injection.prototype-pollution',
     severity: 'high',
     confidence: 'medium',
-    title: 'Prototype pollution via deep merge of request data',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'Prototype pollution via deep merge of request data',
     re: /\b(?:_\.)?(?:merge|mergeWith|defaultsDeep|extend|set|setWith)\s*\([^)]*\breq\.(?:body|query|params)\b|deepmerge\s*\([^)]*\breq\.(?:body|query|params)\b|Object\.assign\s*\([^)]*\breq\.(?:body|query|params)\b/i,
     skipComments: true,
     message: 'A deep-merge/set of request data can set __proto__/constructor keys — prototype pollution.',
@@ -935,7 +976,7 @@ const injectionRules = [
     id: 'injection.redos-user-regex',
     severity: 'high',
     confidence: 'high',
-    title: 'RegExp built from user input (ReDoS)',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'RegExp built from user input (ReDoS)',
     re: /new\s+RegExp\s*\(\s*[^)]*\breq\.(?:body|query|params)\b/,
     skipComments: true,
     message: 'A RegExp is constructed from user input — a crafted pattern causes catastrophic backtracking (ReDoS) and can DoS the process.',
@@ -945,7 +986,7 @@ const injectionRules = [
     id: 'injection.xxe',
     severity: 'high',
     confidence: 'medium',
-    title: 'XML parser with external entities enabled',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'XML parser with external entities enabled',
     re: /noent\s*:\s*true|resolveExternalEntities\s*:\s*true|expandEntities\s*:\s*true|XMLParser\([^)]*processEntities\s*:\s*true/i,
     skipComments: true,
     message: 'XML external entity expansion is enabled — XXE lets attackers read files and reach internal services.',
@@ -955,7 +996,7 @@ const injectionRules = [
     id: 'injection.crlf',
     severity: 'medium',
     confidence: 'low',
-    title: 'User input written to a response header',
+    cwe: 'CWE-94', owasp: 'A03',    title: 'User input written to a response header',
     re: /\bres\.(?:setHeader|writeHead|header)\s*\([^)]*\breq\.(?:body|query|params|headers)\b/,
     skipComments: true,
     message: 'User input is used in a response header — CRLF injection can split headers or set arbitrary cookies.',
@@ -996,6 +1037,9 @@ const ENTROPY_SKIP_FILE = /(?:package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Carg
 // Prefixes already covered by specific secret rules (avoid double-reporting) or
 // known-public tokens.
 const ENTROPY_SKIP_PREFIX = /^(?:sk-|sk_live_|sk_test_|rk_live_|pk_live_|pk_test_|AKIA|ASIA|AIza|eyJ|ghp_|gho_|xox[baprs]-)/;
+
+// Entropy engine for the high-entropy-token rule (pure functions, see src/entropy.js).
+const { findHighEntropyTokens } = require('./entropy');
 
 const fileRules = [
   {
@@ -1051,6 +1095,40 @@ const fileRules = [
       }
       return out;
     },
+  },
+  {
+    id: 'secret.high-entropy-token',
+    severity: 'high',
+    confidence: 'medium',
+    title: 'High-entropy secret-like token',
+    // Function-based rule: no `re`, a `match(content, ctx)` instead (the scanner
+    // calls it in the fileRules loop). Catches random-looking tokens (24-80
+    // chars, entropy >= 4.0) assigned to key-like names — schemes NO known
+    // regex rule owns. Lines a specific secret.* rule (or the sibling
+    // high-entropy rule) already flagged are suppressed so it never
+    // double-reports; ctx.findings is the scanner's live accumulator.
+    match(content, ctx) {
+      const priorSecretLines = new Set();
+      if (ctx && Array.isArray(ctx.findings)) {
+        for (const f of ctx.findings) {
+          if (f && typeof f.ruleId === 'string' && f.ruleId.startsWith('secret.') && typeof f.line === 'number') {
+            priorSecretLines.add(f.line);
+          }
+        }
+      }
+      const hits = [];
+      for (const t of findHighEntropyTokens(content)) {
+        if (priorSecretLines.has(t.line)) continue;
+        // Public-by-design BaaS keys (Firebase AIza..., anon/publishable-named)
+        // must never fire — same FP guard the sibling rule applies.
+        const line = (ctx && ctx.lines && ctx.lines[t.line - 1]) || '';
+        if (isPublicBaaSKey(line, t.match)) continue;
+        hits.push({ index: t.index, match: t.match });
+      }
+      return hits;
+    },
+    message: 'High-entropy string assigned to a key-like name — possible hardcoded API key or token.',
+    fix: 'Remove it, load from an environment variable, and rotate the key if real.',
   },
   {
     id: 'pii.full-record-response',
@@ -1558,6 +1636,53 @@ const fileRules = [
       }
       return out;
     },
+  },
+  {
+    id: 'ai.prompt-injection-encoded-base64',
+    severity: 'high',
+    confidence: 'medium',
+    title: 'Base64-encoded prompt-injection payload',
+    match(content) {
+      return require('./injection-decode').matchBase64Encoded(content);
+    },
+    message: 'A base64-encoded prompt-injection payload is hidden here — the decoded text contains a classic instruction-override phrase. If this text can reach an LLM, the decode defeats naive filters.',
+    fix: 'Remove the encoded payload; treat tool descriptions and external content as data, not instructions.',
+    cwe: 'CWE-94', owasp: 'A03',
+  },
+  {
+    id: 'ai.prompt-injection-encoded-escapes',
+    severity: 'high',
+    confidence: 'medium',
+    title: 'Hex/unicode-escaped prompt-injection payload',
+    match(content) {
+      return require('./injection-decode').matchEscapedEncoded(content);
+    },
+    message: 'A \\xNN / \\uNNNN-escaped prompt-injection phrase is hidden here. Escapes are a classic evasion against plain-text filters.',
+    fix: 'Remove the escaped payload; treat tool descriptions and external content as data, not instructions.',
+    cwe: 'CWE-94', owasp: 'A03',
+  },
+  {
+    id: 'ai.prompt-injection-encoded-rot13',
+    severity: 'high',
+    confidence: 'medium',
+    title: 'ROT13-obfuscated prompt-injection payload',
+    match(content) {
+      return require('./injection-decode').matchRot13Encoded(content);
+    },
+    message: 'A ROT13-obfuscated prompt-injection payload is hidden here — the rotated text contains a classic instruction-override phrase.',
+    fix: 'Remove the obfuscated payload; treat tool descriptions and external content as data, not instructions.',
+    cwe: 'CWE-94', owasp: 'A03',
+  },
+  {
+    id: 'ai.prompt-injection-obfuscated',
+    severity: 'high',
+    confidence: 'medium',
+    title: 'Obfuscated prompt-injection (zero-width/homoglyph)',
+    match(content, ctx) {
+      return require('./injection-decode').matchObfuscated(content, ctx);
+    },
+    message: 'A prompt-injection payload obfuscated with zero-width characters or homoglyphs (digit-substituted words) appears here.',
+    fix: 'Remove the obfuscated payload; treat tool descriptions and external content as data, not instructions.',
   },
 ];
 

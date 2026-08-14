@@ -4549,6 +4549,89 @@ test('gif: routes queries to keyless open backends (offline)', () => {
   }
 });
 
+// --- git-scan ---
+const cp = require('child_process');
+
+function git(dir, args) {
+  return cp.execFileSync('git', args, { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+}
+function gitTmpRepo(files) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vgs-'));
+  git(dir, ['init', '-q']);
+  git(dir, ['config', 'user.name', 'test']);
+  git(dir, ['config', 'user.email', 't@t']);
+  git(dir, ['config', 'commit.gpgsign', 'false']);
+  for (const [name, content] of Object.entries(files)) {
+    const full = path.join(dir, name);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, content);
+  }
+  git(dir, ['add', '-A']);
+  git(dir, ['-c', 'user.name=test', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'init']);
+  return dir;
+}
+
+test('git-scan: clean repo yields 0 findings and exits 0', async () => {
+  const dir = gitTmpRepo({ 'readme.md': '# demo\nnothing secret here\n' });
+  const { scanGitHistory } = require('../src/gitscan');
+  const r = await scanGitHistory(dir);
+  assert.strictEqual(r.findings.length, 0, 'clean history should have no findings');
+  assert(r.stats.blobs >= 1, 'should enumerate blobs');
+  assert(typeof r.stats.durationMs === 'number', 'durationMs should be a number');
+  const cli = path.join(__dirname, '..', 'bin', 'cli.js');
+  const res = cp.spawnSync(process.execPath, [cli, 'git-scan', dir], { encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, 'clean repo exits 0');
+  assert(res.stdout.includes('no secrets in git history'), 'clean summary printed');
+});
+
+test('git-scan: finds a secret committed then deleted, with commit sha', async () => {
+  const dir = gitTmpRepo({ 'secret.txt': 'token = ghp_' + 'A'.repeat(36) + '\n' });
+  const sha1 = git(dir, ['rev-parse', 'HEAD']).trim();
+  fs.unlinkSync(path.join(dir, 'secret.txt'));
+  git(dir, ['add', '-A']);
+  git(dir, ['-c', 'user.name=test', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'remove secret']);
+  const { scanGitHistory } = require('../src/gitscan');
+  const r = await scanGitHistory(dir);
+  assert.strictEqual(r.findings.length, 1, 'deleted secret must still be found');
+  const f = r.findings[0];
+  assert.strictEqual(f.ruleId, 'secret.github-token', 'github token rule');
+  assert.strictEqual(f.path, 'secret.txt', 'finding carries the path');
+  assert.strictEqual(f.commit, sha1, 'finding carries the introducing commit sha');
+  assert(!f.match.includes('A'.repeat(10)), 'match must be masked');
+});
+
+test('git-scan: not-a-repo dir errors with code 2, no crash', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vgs-norepo-'));
+  const { scanGitHistory } = require('../src/gitscan');
+  await assert.rejects(() => scanGitHistory(dir), /not a git repository/);
+  const cli = path.join(__dirname, '..', 'bin', 'cli.js');
+  const res = cp.spawnSync(process.execPath, [cli, 'git-scan', dir], { encoding: 'utf8' });
+  assert.strictEqual(res.status, 2, 'not-a-repo exits 2');
+});
+
+test('git-scan: --json output parses with ruleId + path fields', async () => {
+  const dir = gitTmpRepo({ 'cfg.js': 'const KEY = "glpat-' + 'a'.repeat(20) + '";\n' });
+  const cli = path.join(__dirname, '..', 'bin', 'cli.js');
+  let out = '';
+  let status = 0;
+  try {
+    out = cp.execFileSync(process.execPath, [cli, 'git-scan', dir, '--json'], { encoding: 'utf8' });
+  } catch (e) {
+    out = e.stdout || '';
+    status = e.status;
+  }
+  const arr = JSON.parse(out);
+  assert(Array.isArray(arr) && arr.length >= 1, 'json parses to findings array');
+  assert(arr[0].ruleId && arr[0].path, 'finding has ruleId + path');
+  assert.strictEqual(status, 1, 'findings exit 1');
+  assert.strictEqual(arr[0].ruleId, 'secret.gitlab-token', 'gitlab token rule');
+});
+// --- merged standalone suites (entropy + llm-proxy) ---
+const entropySuite = require('./entropy-tests');
+for (const t of entropySuite.tests) test('entropy: ' + t.name, t);
+const llmSuite = require('./llm-proxy-test');
+for (const t of llmSuite.tests) test('llm-proxy: ' + t.name, t);
+
 (async function runAll() {
   for (const t of _tests) {
     try {
