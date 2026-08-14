@@ -42,7 +42,7 @@ async function testDiffOnlyReportsAddedLines() {
     'legacy.js': 'const KEY = ' + JSON.stringify(TOKEN) + ';\n', // pre-existing secret, NOT in diff
   });
   fs.appendFileSync(path.join(dir, 'app.js'), '\nconst apiKey = ' + JSON.stringify(TOKEN) + ';\n');
-  const { runPrScan } = require('D:/vibe guard/bin/cmd-pr-scan');
+  const { runPrScan } = require('../bin/cmd-pr-scan');
   const result = await runPrScan(dir, {});
   const ids = result.findings.map((f) => f.file + ':' + f.line + ':' + f.ruleId);
   assert(result.findings.length >= 1, 'added secret must be reported, got: ' + ids.join(', '));
@@ -53,7 +53,7 @@ async function testDiffOnlyReportsAddedLines() {
 async function testCleanDiffExitZero() {
   const dir = tmpRepo({ 'app.js': 'const x = 1;\n' });
   fs.appendFileSync(path.join(dir, 'app.js'), '\nconst y = 2; // safe addition\n');
-  const { runPrScan } = require('D:/vibe guard/bin/cmd-pr-scan');
+  const { runPrScan } = require('../bin/cmd-pr-scan');
   const result = await runPrScan(dir, {});
   assert.strictEqual(result.findings.length, 0, 'clean diff must have 0 findings');
 }
@@ -62,7 +62,7 @@ async function testStagedScope() {
   const dir = tmpRepo({ 'app.js': 'const x = 1;\n' });
   fs.appendFileSync(path.join(dir, 'app.js'), '\nconst z = ' + JSON.stringify(TOKEN) + ';\n');
   git(dir, ['add', '-A']);
-  const { runPrScan } = require('D:/vibe guard/bin/cmd-pr-scan');
+  const { runPrScan } = require('../bin/cmd-pr-scan');
   const result = await runPrScan(dir, { staged: true });
   assert(result.findings.length >= 1, 'staged secret must be reported');
 }
@@ -73,7 +73,7 @@ async function testBaseRangeScope() {
   fs.appendFileSync(path.join(dir, 'app.js'), '\nconst w = ' + JSON.stringify(TOKEN) + ';\n');
   git(dir, ['add', '-A']);
   git(dir, ['commit', '-q', '-m', 'add secret']);
-  const { runPrScan } = require('D:/vibe guard/bin/cmd-pr-scan');
+  const { runPrScan } = require('../bin/cmd-pr-scan');
   const result = await runPrScan(dir, { base: 'master' });
   assert(result.findings.length >= 1, 'PR-range secret must be reported');
 }
@@ -81,7 +81,7 @@ async function testBaseRangeScope() {
 async function testCliExitCodes() {
   const dir = tmpRepo({ 'app.js': 'const x = 1;\n' });
   fs.appendFileSync(path.join(dir, 'app.js'), '\nconst v = ' + JSON.stringify(TOKEN) + ';\n');
-  const { cmdPrScan } = require('D:/vibe guard/bin/cmd-pr-scan');
+  const { cmdPrScan } = require('../bin/cmd-pr-scan');
   const code = await cmdPrScan({ _: ['pr-scan', dir] }, {});
   assert.strictEqual(code, 2, 'findings must exit 2 (Strix-compatible)');
 
