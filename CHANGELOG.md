@@ -5,6 +5,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — v1.5 active-security pass (beat Strix.ai on the active front)
+- **`vibeguard pentest <url>`** — active web/API probe suite, zero deps, deterministic
+  (Strix.ai-class "autonomous pentesting" without the LLM). ~20 probe families:
+  security headers (CSP/HSTS/XFO/XCTO/RP/PP + HSTS max-age + CSP unsafe-inline),
+  CORS (reflected origin / null / wildcard+creds), open redirect (10 paths × 10
+  params × 4 payloads), exposed files (30+ paths, content-signature + 404-baseline
+  FP guards), GraphQL introspection (`__typename` gate + extended endpoints),
+  verbose errors (≥2 stack markers), rate limiting (auth endpoints, OWASP API8),
+  JWT alg:none (4 case variants) + weak-HMAC (opt-in `--token`), TLS version/cert
+  validity, cookie flags, banner disclosure. Every finding: severity + CWE +
+  evidence + curl reproduction. Exit 0/1/2.
+- **`--verify-ssrf` — out-of-band SSRF proof-of-exploit**: local callback listener
+  + form (action, input) harvesting + query-param fuzzing; target fetching the
+  listener URL = deterministic proof (Strix's "proof for every finding").
+  Live demo: CRITICAL web.ssrf-proof, callback observed, parameter: url.
+- **`vibeguard pr-scan`** — PR review gate, Strix-compatible exit codes
+  (0 clean / 2 findings / 1 fatal). Added-lines-only reporting (full-file taint
+  analysis, findings filtered to changed lines); scopes: working tree, `--staged`,
+  `--base <ref>...HEAD`.
+- **`vibeguard fix --apply --verify`** — retest loop: re-scan after applying
+  snapshot-backed fixes, report ✓/⚠ per finding ("fix verified" parity).
+- **`vibeguard pre-deploy --pentest-url <url>`** — 14th deploy gate: live pentest;
+  critical/high fail the gate, medium warns. runPreDeployGate is now async.
+- **Engine fixes (taint-ast.js):** process.stdout/stderr, console, logger and
+  client/transport objects (req/socket/upstreamReq) are excluded from the
+  res.send/write/end XSS sink — CLI tools logging user input are no longer FPs.
+- Suite: 468 → **480 tests** (pentest +7 incl. pre-deploy gate E2E, pr-scan +5).
+  Self-scan Grade A on 291 files.
+
+
 ### Added — v1.4 power pass (git history · runtime LLM guard · evasion decoders)
 - **`vibeguard git-scan`** — scans a repo's ENTIRE git history for leaked secrets
   (Gitleaks/TruffleHog parity). Blob-level enumeration via `git rev-list --objects --all`

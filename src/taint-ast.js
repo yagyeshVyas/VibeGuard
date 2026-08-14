@@ -150,8 +150,18 @@ const SINKS_AST = [
   },
   {
     match: (call) => {
-      const prop = (call.callee && call.callee.property && call.callee.property.name) || '';
-      return prop === 'send' || prop === 'write' || prop === 'end';
+      const callee = call.callee || {};
+      const prop = (callee.property && callee.property.name) || '';
+      if (prop !== 'send' && prop !== 'write' && prop !== 'end') return false;
+      // process.stdout/stderr and console writes are NOT HTML responses —
+      // CLI tools log user input to stderr routinely; that is not reflected XSS.
+      const root = ast.rootName(callee);
+      if (root === 'process' || root === 'console' || root === 'logger' || root === 'log') return false;
+      // Client/transport-side calls — req.end(), socket.write() — are NOT
+      // HTML responses. Only response-ish objects (res, response, reply,
+      // ctx) are XSS sinks. (req.end() is how a client finishes a request.)
+      if (root === 'req' || root === 'request' || root === 'socket' || root === 'connection' || root === 'clientRequest' || root === 'upstreamReq' || root === 'upstreamRes') return false;
+      return true;
     },
     ruleId: 'taint.xss-reflected',
     severity: 'high',

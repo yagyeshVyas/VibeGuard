@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-08-14T18:41:48.749Z",
+  "generatedAt": "2026-08-14T19:10:21.120Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "5b6bc868643909c8ba4edee717590b9896488eb0720636ed58a87a98e1f2d7ac",
@@ -16,7 +16,7 @@
     "secure-prompt.js": "a4d8203ad2292e57b29f75a700f2837f12ba6c9067fd4d5f6731e55203e184b2",
     "ai-guard.js": "9dd2c524dd704bbba69aacf7076e76ac966c6e0c773ee4b04ed7c8fb889db006",
     "taint.js": "958decf89c32993e2c9a057ef7be9bbe592e7525fd0daa5fc5a278dcafe957af",
-    "taint-ast.js": "80de0594102c40095509e2eb5d79eba4568566b456b6cd7134fcf69fdc83e7ef",
+    "taint-ast.js": "041a8ba646c81c06f661fe3a4e45859944ee71054833e16e3c67be2cd88e8287",
     "ast.js": "18f09f9c082c6a9364f705aa6a1c759923aa14694f192631fc28a817c09cb0f2"
   }
 }

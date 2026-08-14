@@ -1,7 +1,7 @@
 {
   "name": "@yagyeshvyas/vibeguard",
   "version": "1.3.0",
-  "description": "Security scanner + AI agent firewall. Blocks secret/PII exfiltration in real time. 771 rules, 84 MCP tools (agent-scan, mcp-audit, guard-action, generate-sbom, sbom-diff, gif-search, dep-reachability, license-compliance), AST taint analysis. Offline, zero telemetry, zero dependencies.",
+  "description": "Security scanner + AI agent firewall + active pentester. Blocks secret/PII exfiltration in real time. 771 rules, 84 MCP tools, AST taint analysis, git-history scan, runtime LLM guard proxy, active pentest suite (SSRF proof, PR gates). Offline, zero telemetry, zero dependencies.",
   "license": "MIT",
   "type": "commonjs",
   "author": "Yagyesh Vyas <https://www.linkedin.com/in/yagyeshvyas/>",

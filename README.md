@@ -64,6 +64,22 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 
 ---
 
+## 🆕 What's New — v1.5.0
+
+<details open>
+<summary><strong>Jump to: active pentesting (Strix-class) · PR review gate · fix verification · deploy gate</strong></summary>
+
+- 🎯 **`vibeguard pentest <url>` — active web/API security testing** (Strix.ai-class "autonomous pentesting", 100% local, zero deps, deterministic). ~20 probe families: security headers (incl. HSTS max-age + CSP unsafe-inline), CORS reflection/null/wildcard, open redirect (multi-payload), exposed files (`.env`, `.git`, backups, swagger, actuator — 404-baseline FP-guarded), GraphQL introspection, verbose errors (2+ stack markers), rate limiting (auth endpoints), JWT **alg:none + weak-HMAC** (opt-in `--token`), TLS version/cert, cookie flags. **Every finding ships severity + CWE + evidence + a copy-paste curl reproduction.**
+- 📡 **`--verify-ssrf` — out-of-band SSRF proof-of-exploit**: a local callback listener + form/param fuzzing; if the target fetches the listener URL, that IS proof (Strix's "proof for every finding", done deterministically and offline). Live demo: `CRITICAL web.ssrf-proof — callback observed, parameter: url`.
+- 🔀 **`vibeguard pr-scan` — PR review gate with Strix-compatible exit codes** (0 clean / 2 findings / 1 fatal): reviews ONLY the added lines of a diff (working tree, `--staged`, or `--base origin/main`), taint-correct (full file analyzed, findings filtered to changed lines). Sub-second on real diffs vs Strix's minutes.
+- ✅ **`vibeguard fix --apply --verify` — the "fix verified" loop**: applies the snapshot-backed auto-fixes, re-scans, and reports ✓/⚠ per finding (Strix's headline workflow, deterministic).
+- 🚦 **`vibeguard pre-deploy --pentest-url <url>`** — 14th gate: live pentest runs inside the deploy gate; critical/high findings block the deploy.
+- ⚔️ **vs Strix.ai (their own numbers):** their deep scan costs ~$1.7–3.9/run in LLM tokens, takes 30 min–4 h, is non-deterministic, and needs Docker+Kali+an API key. VibeGuard: zero cost, ~1.6 s for the demo run, identical input → identical output, no Docker, no keys — plus runtime AI-agent protection and git-history scanning Strix doesn't have.
+- 🧪 **480 tests, 0 failures** · **771 rules** · **84 MCP tools** · Grade A self-scan on 291 files.
+
+</details>
+
+---
 ## 🆕 What's New — v1.4.0
 
 <details open>
@@ -81,7 +97,7 @@ flowchart LR
 - 🔑 **Entropy detection upgraded (TruffleHog-class)** — unquoted `.env`-style tokens and hex-charset secrets now covered on top of the existing quoted-string detector; BaaS keys (Firebase/Supabase) and hashes still excluded.
 - 🧰 **Custom user rules** — Semgrep-style regex rules via `.vibeguardrc.json` → `"customRules"`, zero code changes.
 - 🏷️ **CWE/OWASP metadata** added to core rules.js groups — consistent SARIF for GitHub/GitLab/SLSA consumers (rules-pack already had it).
-- 🧪 **468 tests, 0 failures** · **771 rules** · **84 MCP tools** · 13 layers · Grade A self-scan on 286 files.
+- 🧪 **480 tests, 0 failures** · **771 rules** · **84 MCP tools** · 13 layers · Grade A self-scan on 291 files.
 
 </details>
 
@@ -103,7 +119,7 @@ flowchart LR
 - 🔌 **84 MCP tools all verified** — a live JSON-RPC stdio handshake + a per-tool audit caught and fixed 3 crashes; **0 bugs**, 78 graceful. `scripts/mcp-audit-tools.js` ships with the repo.
 - 🔧 **Self-healing autofix** — `error.empty-catch` fixer no longer emits unbound `err` (it would throw `ReferenceError`); adds/reuses a real binding. Verified in a VM.
 - 🧹 **Zero-dep audit clean** — `@hono/node-server` → 2.1.0, plus 4 transitive CVEs pinned to safe versions via `overrides` (`ip-address`, `brace-expansion`, `fast-uri`, `hono`). `npm audit` → **0 vulnerabilities**.
-- 🧪 **468 tests, 0 failures** · AI-safety F1 **96.8%** · **771 rules** · 16 AI clients (now incl. **Hermes Agent**).
+- 🧪 **480 tests, 0 failures** · AI-safety F1 **96.8%** · **771 rules** · 16 AI clients (now incl. **Hermes Agent**).
 - ☸️ **IaC hardening (Kubernetes + Compose + Actions)** — closes the biggest gap vs. Trivy/Checkov/KubeLinter.
 - 🎞️ **Keyless open GIF celebration** — `vibeguard gif <query>` & the `gif_search` MCP tool hand back a byte-verified open GIF with **zero API keys**. Open backends only (cataas cats + text overlay, yesno.wtf) — Tenor/GIPHY need keys, so we skip them.
 </details>
@@ -549,6 +565,10 @@ vibeguard container-scan <image>  # trivy container scan
 vibeguard license [dir]           License allowlist check
 vibeguard sbom-diff <base> <head>  Dependency drift between two snapshots
 vibeguard gif <query>              Keyless open GIF (no API key) — cat/yes/text
+vibeguard pentest <url>            Active web/API probe suite (Strix-class) — headers, CORS,
+                                   redirects, exposed files, GraphQL, JWT, SSRF proof, TLS
+vibeguard pr-scan [dir]            PR review gate — added-lines only (exit 0/2/1)
+vibeguard fix <dir> --apply --verify  Auto-fix + re-scan verification loop
 vibeguard proxy-start             # local MITM proxy
 vibeguard proxy-status            # proxy status + audit log
 vibeguard proxy-stop              # stop proxy

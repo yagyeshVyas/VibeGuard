@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -409,6 +409,27 @@ function cmdFix(dir, flags) {
           `${C.dim}Snapshot: ${snapDir}${C.reset}\n` +
           `Undo with: ${C.bold}vibeguard rollback ${dir}${C.reset}\n\n`
       );
+      if (flags.verify) {
+        // Retest loop (Strix "fix verified" parity): re-scan and confirm each
+        // applied fix actually removed its finding.
+        const after = scan(dir);
+        const afterArr = Array.isArray(after) ? after : (after.findings || []);
+        const afterKeys = new Set(afterArr.map((f) => `${f.ruleId}:${f.file}`));
+        let verified = 0;
+        let unverified = 0;
+        for (const c of changes) {
+          const gone = !afterKeys.has(`${c.ruleId}:${c.file}`);
+          if (gone) verified++; else unverified++;
+          process.stdout.write(
+            `  ${gone ? C.green + '✓ fix verified' : C.yellow + '⚠ NOT verified'}${C.reset} ` +
+              `${c.description} [${c.ruleId}] ${C.dim}${c.file}${C.reset}\n`
+          );
+        }
+        process.stdout.write(
+          `\n${C.bold}Verification: ${verified} fixed, ${unverified} still failing.${C.reset}\n` +
+            `${C.dim}(Re-scan after apply — findings re-checked by rule + file.)${C.reset}\n\n`
+        );
+      }
     } else {
       process.stdout.write(
         `${C.yellow}Dry run — nothing written.${C.reset} Apply these with: ` +
@@ -844,7 +865,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -975,7 +996,7 @@ async function main() {
     else if (cmd === 'supply-firewall') code = cmdSupplyFirewall(dir, flags);
     else if (cmd === 'vault') code = cmdVault(args, flags);
     else if (cmd === 'audit-trail') code = cmdAuditTrail(args, flags);
-    else if (cmd === 'pre-deploy') code = cmdPreDeploy(dir, flags);
+    else if (cmd === 'pre-deploy') code = await cmdPreDeploy(dir, flags);
     else if (cmd === 'redact') code = cmdRedact(args, flags);
     else if (cmd === 'detect-pii') code = cmdDetectPII(args, flags);
     else if (cmd === 'sbom') code = cmdSBOM(dir, flags);
@@ -983,6 +1004,8 @@ async function main() {
     else if (cmd === 'gif') { const { cmdGif } = require('./cmd-gif'); code = await cmdGif(args, flags); }
     else if (cmd === 'git-scan') { const { cmdGitScan } = require('./cmd-git-scan'); code = await cmdGitScan(args, flags); }
     else if (cmd === 'llm-proxy') { const { cmdLlmProxy } = require('./cmd-llm-proxy'); code = await cmdLlmProxy(args, flags); }
+    else if (cmd === 'pentest') { const { cmdPentest } = require('./cmd-pentest'); code = await cmdPentest(args, flags); }
+    else if (cmd === 'pr-scan') { const { cmdPrScan } = require('./cmd-pr-scan'); code = await cmdPrScan(args, flags); }
     else if (cmd === 'reachability') code = await cmdReachability(dir, flags);
     else if (cmd === 'container-scan') code = await cmdContainerScan(args, flags);
     else if (cmd === 'license') code = await cmdLicense(dir, flags);
@@ -1629,9 +1652,9 @@ function cmdAuditTrail(args, flags) {
   return 0;
 }
 
-function cmdPreDeploy(dir, flags) {
+async function cmdPreDeploy(dir, flags) {
   const { runPreDeployGate, renderPreDeployReport } = require('../src/pre-deploy');
-  const summary = runPreDeployGate(dir, { strict: flags.strict, json: flags.json });
+  const summary = await runPreDeployGate(dir, { strict: flags.strict, json: flags.json, pentestUrl: flags['pentest-url'] !== undefined && flags['pentest-url'] !== true ? String(flags['pentest-url']) : undefined, pentestVerifySsrf: flags['pentest-verify-ssrf'] === true });
   if (flags.json) {
     process.stdout.write(JSON.stringify(summary, null, 2) + '\n');
   } else {

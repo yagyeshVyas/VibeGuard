@@ -41,13 +41,33 @@ const C = {
   cyan: '\x1b[36m', dim: '\x1b[2m', bold: '\x1b[1m', reset: '\x1b[0m',
 };
 
-function runPreDeployGate(dir, opts = {}) {
+async function runPreDeployGate(dir, opts = {}) {
   const strict = opts.strict || false;
   const json = opts.json || false;
   const results = [];
   let passed = 0;
   let failed = 0;
   let warnings = 0;
+
+  // Opt-in live-target pentest (Gate 14). Run BEFORE the gates so the gate
+  // registration stays synchronous (the gate() wrapper is sync — an async
+  // gate would silently pass).
+  let pentestGate = null;
+  if (opts.pentestUrl) {
+    try {
+      const { runPentest } = require('./pentest');
+      const r = await runPentest(opts.pentestUrl, {
+        timeout: opts.pentestTimeout || 8000,
+        verifySsrf: !!opts.pentestVerifySsrf,
+      });
+      const critical = r.findings.filter((f) => f.severity === 'critical').length;
+      const high = r.findings.filter((f) => f.severity === 'high').length;
+      const medium = r.findings.filter((f) => f.severity === 'medium').length;
+      pentestGate = { r, critical, high, medium };
+    } catch (e) {
+      pentestGate = { error: String(e.message || e) };
+    }
+  }
 
   function gate(name, fn) {
     let result;
@@ -317,6 +337,22 @@ function runPreDeployGate(dir, opts = {}) {
       return { status: strict ? 'fail' : 'warn', detail: `Behavioral check error: ${e.message}` };
     }
   });
+
+  // ─── Gate 14: Active Pentest (opt-in --pentest-url) ──────────────────
+  // Deterministic live-target probe suite (Strix-class active testing) —
+  // fails on critical/high findings, warns on medium, passes when clean.
+  if (pentestGate) {
+    gate('Active Pentest (live target)', () => {
+      if (pentestGate.error) return { status: strict ? 'fail' : 'warn', detail: `Pentest error: ${pentestGate.error}` };
+      if (pentestGate.critical > 0 || pentestGate.high > 0) {
+        return { status: 'fail', detail: `${pentestGate.critical} critical, ${pentestGate.high} high findings on ${opts.pentestUrl}`, findings: pentestGate.r.findings.length };
+      }
+      if (pentestGate.medium > 0) {
+        return { status: strict ? 'fail' : 'warn', detail: `${pentestGate.medium} medium findings on ${opts.pentestUrl}`, findings: pentestGate.r.findings.length };
+      }
+      return { status: 'pass', detail: `No critical/high findings on ${opts.pentestUrl}` };
+    });
+  }
 
   const summary = {
     total: results.length,

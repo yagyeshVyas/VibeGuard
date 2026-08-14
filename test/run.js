@@ -2697,41 +2697,41 @@ test('clean fixture ZERO after all modules', () => {
   assert.strictEqual(result.findings.length, 0, 'clean fixture should have 0 findings, got ' + result.findings.length);
 });
 
-test('pre-deploy: clean fixture passes all gates', () => {
+test('pre-deploy: clean fixture passes all gates', async () => {
   const { runPreDeployGate } = require('../src/pre-deploy');
-  const summary = runPreDeployGate(path.join(__dirname, 'fixtures', 'clean'));
+  const summary = await runPreDeployGate(path.join(__dirname, 'fixtures', 'clean'));
   assert(summary.deployReady, 'clean fixture should be deploy-ready');
   assert(summary.failed === 0, 'should have 0 failed gates, got ' + summary.failed);
   assert(summary.passed >= 10, 'should have 10+ passed gates');
   assert.strictEqual(summary.total, 13, 'should run 13 gates');
 });
 
-test('pre-deploy: catches secrets', () => {
+test('pre-deploy: catches secrets', async () => {
   const { runPreDeployGate } = require('../src/pre-deploy');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-deploy-'));
   fs.writeFileSync(path.join(dir, 'app.js'), 'const key = "sk-proj-FAKEKEY1234567890ABCD";\n');
   fs.writeFileSync(path.join(dir, '.gitignore'), '.env\n');
-  const summary = runPreDeployGate(dir);
+  const summary = await runPreDeployGate(dir);
   assert(!summary.deployReady, 'should not be deploy-ready');
   assert(summary.gates.some(g => g.gate === 'Secret Scan' && g.status === 'fail'), 'secret scan should fail');
 });
 
-test('pre-deploy: catches missing .gitignore', () => {
+test('pre-deploy: catches missing .gitignore', async () => {
   const { runPreDeployGate } = require('../src/pre-deploy');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-deploy2-'));
   fs.writeFileSync(path.join(dir, 'app.js'), 'const x = 1;\n');
-  const summary = runPreDeployGate(dir);
+  const summary = await runPreDeployGate(dir);
   assert(!summary.deployReady, 'should not be deploy-ready without .gitignore');
   assert(summary.gates.some(g => g.gate === 'Config Check' && g.status === 'fail'), 'config check should fail');
 });
 
-test('pre-deploy: --strict fails on warnings', () => {
+test('pre-deploy: --strict fails on warnings', async () => {
   const { runPreDeployGate } = require('../src/pre-deploy');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-strict-'));
   fs.writeFileSync(path.join(dir, 'app.js'), 'const x = 1;\n');
   fs.writeFileSync(path.join(dir, '.gitignore'), '.env\n');
   fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: 'test', license: 'GPL-3.0', dependencies: { lodash: '*' } }));
-  const summary = runPreDeployGate(dir, { strict: true });
+  const summary = await runPreDeployGate(dir, { strict: true });
   // GPL is critical, unpinned is high, so it should fail
   assert(!summary.deployReady, 'should not be deploy-ready in strict mode');
 });
@@ -4631,6 +4631,10 @@ const entropySuite = require('./entropy-tests');
 for (const t of entropySuite.tests) test('entropy: ' + t.name, t);
 const llmSuite = require('./llm-proxy-test');
 for (const t of llmSuite.tests) test('llm-proxy: ' + t.name, t);
+const pentestSuite = require('./pentest-tests');
+for (const t of pentestSuite.tests) test('pentest: ' + t.name, t);
+const prScanSuite = require('./pr-scan-tests');
+for (const t of prScanSuite.tests) test('pr-scan: ' + t.name, t);
 
 (async function runAll() {
   for (const t of _tests) {
