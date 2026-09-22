@@ -27,6 +27,9 @@ const SOURCE_PROPS = new Set([
   'queryStringParameters', 'pathParameters',
 ]);
 
+// The only `process` properties that carry input from outside the program.
+const PROCESS_SOURCE_PROPS = new Set(['argv', 'argv0', 'env']);
+
 function isSourceNode(node) {
   if (!node) return false;
   // process.argv, location.search, location.hash, document.URL
@@ -38,6 +41,13 @@ function isSourceNode(node) {
     if (prop === 'searchParams') return true;
     // location.search, location.hash, document.URL
     if ((root === 'location' || root === 'window' || root === 'document') && SOURCE_PROPS.has(prop)) return true;
+    // `process` is only partly attacker-influenced. argv/env carry outside
+    // input; execPath, platform, version, pid, cwd() and friends are facts
+    // about the running process that no attacker controls. Treating the whole
+    // namespace as a source made `spawn(process.execPath, [script])` — the
+    // standard way to launch a child Node process — look like command
+    // injection.
+    if (root === 'process') return PROCESS_SOURCE_PROPS.has(prop);
     // request.body, req.body etc. — also match deeper: req.body.x
     if (SOURCE_ROOTS.has(root)) return true;
     return false;
@@ -428,6 +438,27 @@ function exprTaintInfo(node, scope) {
       // (We handle this at the assignment site too, but check here for safety.)
       const sanitizers = scope._sanitizers || DEFAULT_SANITIZERS;
       if (isSanitizerCall(node, sanitizers)) return null;
+
+      // Return-value taint through a thin accessor:
+      //   function getId(r) { return r.body.id; }
+      //   db.query(`... ${getId(req)}`)
+      // The helper was recorded as returning a value derived from param N, so
+      // the call is tainted exactly when argument N is a request-like source.
+      // Requiring a real source at the call site keeps `getId(config)` clean.
+      const returnsParam = scope._funcReturnsParam;
+      if (returnsParam) {
+        const calleeName = node.callee && node.callee.type === 'Identifier' ? node.callee.name : null;
+        const slots = calleeName ? returnsParam.get(calleeName) : null;
+        if (slots) {
+          for (const slot of slots) {
+            const arg = (node.arguments || [])[slot];
+            if (arg && exprIsSource(arg)) {
+              return { via: `${calleeName}() returns param:${slot}`, sanitized: false };
+            }
+          }
+        }
+      }
+
       // Check if any argument is tainted (taint through function call, best-effort).
       for (const arg of node.arguments || []) {
         const info = exprTaintInfo(arg, scope);
@@ -499,6 +530,40 @@ function exprTaintInfo(node, scope) {
   }
 }
 
+/*
+ * Is the expression a BARE source — the untouched user value itself, rather
+ * than something built out of it?
+ *
+ *   req.body.id                     -> bare
+ *   req.query.f                     -> bare
+ *   `SELECT ... ${req.body.id}`     -> NOT bare (constructed)
+ *   "SELECT ... " + req.body.id     -> NOT bare (constructed)
+ *
+ * The distinction decides whether the AST taint pass may defer a sink argument
+ * to the regex rules. Deferring is only defensible for a bare source, where the
+ * regex layer sees the same single expression the taint layer would. The moment
+ * the value is interpolated or concatenated into a larger string, the regex
+ * layer is looking at different text and the deferral silently drops the
+ * finding — which is exactly how `db.query(`... ${req.body.id}`)`, the single
+ * most common shape of SQL injection in AI-generated code, used to scan clean.
+ */
+function exprIsBareSource(node) {
+  if (!node) return false;
+  if (isSourceNode(node)) return true;
+  switch (node.type) {
+    // Property access off a source is still the raw value: req.body.user.id.
+    case 'MemberExpression':
+      return exprIsBareSource(node.object);
+    case 'ChainExpression':
+      return exprIsBareSource(node.expression);
+    case 'AwaitExpression':
+      return exprIsBareSource(node.argument);
+    // Everything else builds a NEW value out of the source. Not bare.
+    default:
+      return false;
+  }
+}
+
 // Does the expression directly contain a source?
 function exprIsSource(node) {
   if (!node) return false;
@@ -544,8 +609,12 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
   const sanList = sanitizers || DEFAULT_SANITIZERS;
 
   const findings = [];
+  // funcName -> Set(paramIndex) the function returns a value derived from.
+  // Declared before the root scope because every scope carries a reference.
+  const funcReturnsParam = new Map();
   const rootScope = new TaintScope(null, getScopeDeclarations(tree));
   rootScope._sanitizers = sanList;
+  rootScope._funcReturnsParam = funcReturnsParam;
 
   // Scope stack: maintain current scope as we traverse.
   let currentScope = rootScope;
@@ -684,6 +753,46 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
     if (sinks.length > 0) {
       funcSinkInfo.set(name, sinks);
     }
+
+    // Return-value taint: does this function hand BACK a value derived from one
+    // of its own parameters?
+    //
+    //   function getId(r) { return r.body.id; }
+    //   db.query(`SELECT * FROM u WHERE id = ${getId(req)}`);
+    //
+    // The param->sink analysis above covers taint flowing INTO a helper. This
+    // covers the other direction, which is how request objects are laundered in
+    // practice: a thin accessor pulls the value out and the caller interpolates
+    // it. Recording only the parameter index keeps this precise — the call site
+    // still has to pass an actually-tainted argument for anything to fire, so a
+    // helper called with a constant stays clean.
+    const returnsParams = new Set();
+    function walkForReturns(node) {
+      if (!node || typeof node !== 'object') return;
+      if (node !== info.node && isScopeNode(node) && node.type !== 'BlockStatement') return;
+      const returned =
+        node.type === 'ReturnStatement'
+          ? node.argument
+          : // Expression-bodied arrow: `const getId = (r) => r.body.id;`
+            node === info.node && info.node.type === 'ArrowFunctionExpression' && info.node.body && info.node.body.type !== 'BlockStatement'
+            ? info.node.body
+            : null;
+      if (returned) {
+        const ti = exprTaintInfo(returned, fnScope);
+        if (ti && !ti.sanitized) {
+          const m = /param:(\d+)/.exec(ti.via || '');
+          if (m) returnsParams.add(parseInt(m[1], 10));
+        }
+      }
+      for (const key in node) {
+        if (key === 'type' || key === 'loc' || key === 'start' || key === 'end' || key === 'range') continue;
+        const child = node[key];
+        if (Array.isArray(child)) child.forEach(walkForReturns);
+        else if (child && typeof child === 'object' && child.type) walkForReturns(child);
+      }
+    }
+    walkForReturns(info.node);
+    if (returnsParams.size > 0) funcReturnsParam.set(name, returnsParams);
   }
 
   // Now walk the full tree, maintaining scopes and tracking taint.
@@ -693,6 +802,7 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
     const decls = getScopeDeclarations(node);
     const scope = new TaintScope(currentScope, decls);
     scope._sanitizers = sanList;
+    scope._funcReturnsParam = funcReturnsParam;
     currentScope = scope;
   }
 
@@ -915,11 +1025,33 @@ function analyzeTaintAst(content, lines, relPath, tree, sanitizers) {
       const argsToCheck = isFirstArgOnly ? (call.arguments || []).slice(0, 1) : (call.arguments || []);
 
       for (const arg of argsToCheck) {
-        // Skip if the argument itself is a source — regex rules handle that.
-        // BUT: for PII-to-LLM and XSS-reflected sinks, the source may be nested
-        // deep inside an object (e.g. { messages: [{ content: req.body.x }] })
-        // and regex rules don't catch that — so don't skip for those sinks.
-        if (sinkDef.ruleId !== 'taint.pii-to-llm' && sinkDef.ruleId !== 'taint.xss-reflected' && exprIsSource(arg)) continue;
+        // Defer to the regex rules only when the argument is the BARE source —
+        // there the regex layer sees the same expression we would, so firing
+        // both would just duplicate the finding.
+        //
+        // A CONSTRUCTED argument (template literal, concatenation, object) is a
+        // different matter: the regex layer is matching different text and
+        // routinely misses it, so the taint pass must own that case. Deferring
+        // it is how `db.query(`SELECT ... ${req.body.id}`)` — textbook SQL
+        // injection — used to produce a clean Grade A scan.
+        //
+        // PII-to-LLM and XSS-reflected never defer: their sources nest deep
+        // inside objects (`{ messages: [{ content: req.body.x }] }`) where the
+        // regex layer has no chance at all.
+        //
+        // The three code-execution-grade sinks (SQL / shell / eval) never defer
+        // either. Handing `db.query(req.body.sql)` to the regex layer assumed a
+        // regex rule covers it; none does, so that shape scanned clean too.
+        // Duplicate coverage on a line is resolved by dedupeFindings(), which
+        // keeps the dataflow-confirmed finding and drops the regex one.
+        const NEVER_DEFER = new Set([
+          'taint.pii-to-llm',
+          'taint.xss-reflected',
+          'taint.sql-injection',
+          'taint.command-injection',
+          'taint.code-injection',
+        ]);
+        if (!NEVER_DEFER.has(sinkDef.ruleId) && exprIsBareSource(arg)) continue;
 
         // For PII-to-LLM: only fire if the tainted value is a whole-object source
         // (req.body, JSON.stringify(userProfile)) or a PII-specific field.

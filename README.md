@@ -23,14 +23,14 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 </p>
 
 <p>
-  <img src="https://img.shields.io/badge/coverage-96.0%25%20F1-brightgreen?style=flat-square" alt="96.0% F1" />
+  <img src="https://img.shields.io/badge/benchmark-119%2F119%20cases-brightgreen?style=flat-square" alt="119/119 benchmark cases" />
   <img src="https://img.shields.io/badge/rules-771-blue?style=flat-square" alt="771 rules" />
   <img src="https://img.shields.io/badge/MCP%20tools-85-purple?style=flat-square" alt="85 MCP tools" />
   <img src="https://img.shields.io/badge/languages-18-green?style=flat-square" alt="18 languages" />
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-497%20passed-blue?style=flat-square" alt="497 tests pass" />
+  <img src="https://img.shields.io/badge/tests-508%20passed-blue?style=flat-square" alt="508 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -64,10 +64,32 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 
 ---
 
-## 🆕 What's New — v1.6.0
+## 🆕 What's New — v1.7.0
 
 <details open>
-<summary><strong>Jump to: token-lean agent protocol · budgets · delta scans · <code>vibeguard tokens</code></strong></summary>
+<summary><strong>Jump to: the Grade A bug · laundered-source dataflow · one finding per vulnerability · no more silent fail-open</strong></summary>
+
+**v1.7 started with a bug report against ourselves.** This file:
+
+```js
+db.query(`SELECT * FROM users WHERE id = ${req.body.id}`);
+```
+
+— textbook SQL injection, the single most common shape in AI-generated code — scanned as **`No issues found. Grade A.`** The worst failure a security scanner can have is not a missed finding; it is a *confident all-clear* on live, exploitable code.
+
+- 🎯 **Root cause, fixed.** The AST taint pass deferred any sink argument "containing a source" to the regex layer. That is defensible for a *bare* source (`db.query(req.body.sql)` — same expression, same text), but a **constructed** argument is different text entirely, so the regex layer routinely missed it and the finding fell through the gap. Deferral is now limited to genuinely bare sources, and the three code-execution-grade sinks (SQL / shell / `eval`) never defer at all.
+- 🧪 **Laundered sources now tracked**: destructuring (`const { id } = req.body`), reassignment chains, optional chaining (`req.body?.id`), nested index access (`req.body.filters[0]`), and `spawn("sh", ["-c", ...])`.
+- ↩️ **Return-value taint across functions.** `function getId(r) { return r.body.id }` followed by `db.query(\`...${getId(req)}\`)` is now caught — the direction of cross-function flow that was missing. Precise by construction: it only fires when the call site actually passes a source, so `getId(config)`, a sanitizing helper, and a constant-returning helper all stay clean.
+- 🔁 **One vulnerability, one finding.** A dataflow-confirmed result now supersedes every weaker rule on the same line (including three overlapping Go SQL rules that used to triple-report a single `fmt.Sprintf` injection).
+- 🚨 **No more silent fail-open.** A crash inside the AST taint pass used to drop analysis to the weaker regex engine *silently* — every dataflow finding vanished while the scan still printed a clean grade. It is now recorded as degraded coverage, so the CLI warns and `--strict` refuses to call that scan clean. (Found the honest way: a temporal-dead-zone bug of mine triggered exactly this, and nothing said a word.)
+- 🎯 **`process` is no longer a blanket taint source.** Only `argv`/`argv0`/`env` carry outside input; `process.execPath`, `platform`, `version` and friends do not. Treating the whole namespace as attacker-controlled made `spawn(process.execPath, [script])` — the standard way to launch a child Node process — look like command injection.
+- 📊 **Harder benchmark, honest scoring.** Added 8 laundered-source and 8 adversarial-clean cases. The scorer now runs the same de-duplication the product does, so it measures what a user actually sees instead of raw pre-dedupe rule hits. Result: **119/119 cases, 0 FP, 0 FN** (was 96.0% F1). See the caveat in [Benchmark](#benchmark) — a saturated corpus means the corpus got easy, not that the scanner is perfect.
+- 🧪 **508 tests, 0 failures** (11 new regression tests, all asserted against a *default* scan — a finding only visible under `--all` is not protection) · **771 rules** · **85 MCP tools** · Grade A self-scan on 309 files.
+
+</details>
+
+<details>
+<summary><strong>v1.6.0 — token-lean agent protocol · budgets · delta scans · <code>vibeguard tokens</code></strong></summary>
 
 Every security scanner answers an AI agent with pretty-printed JSON — two-space indentation, repeated object keys, and the same `message` and `fix` string duplicated once per occurrence. On a real repository that is thousands of tokens of pure redundancy, paid for on **every single tool call**. v1.6 fixes that.
 
@@ -454,7 +476,9 @@ Install precision: `npm i -D acorn acorn-walk acorn-typescript`.
 
 ## 📈 Benchmark
 
-Measured against a curated corpus of 120 files (89 vuln + 31 clean). Not a vanity number. VibeGuard also dogfoods itself — `vibeguard scan .` on this repo returns **Grade A**, 0 findings across 275 files.
+Measured against a curated corpus of **136 files (97 vuln + 39 clean)**. VibeGuard also dogfoods itself — `vibeguard scan .` on this repo returns **Grade A**, 0 findings across 309 files.
+
+> **Read the 100% honestly.** It does **not** mean the scanner is perfect — it means *this corpus no longer discriminates*. v1.7 added 8 laundered-source cases (destructuring, reassignment chains, optional chaining, helper accessors, `sh -c`) and 8 adversarial clean cases (`parseInt`, `db.escape`, allowlist ternaries, parameterized queries, `spawn` arg arrays, sanitizing helpers) specifically to make it harder, and the engine handled all of them. The corpus is self-built, so it flatters the tool by construction. Treat it as a regression gate, not a ranking.
 
 <!-- BENCHMARK:START -->
 <!-- Auto-generated by `npm run benchmark` — do not edit manually -->
@@ -463,20 +487,20 @@ Measured against a curated corpus of 120 files (89 vuln + 31 clean). Not a vanit
 
 | Category | TP | FP | FN | Precision | Recall | F1 |
 |----------|----|----|----|-----------|--------|----|
-| injection | 45 | 3 | 4 | 93.8% | 91.8% | 92.8% |
-| secrets | 21 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| injection | 57 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| secrets | 20 | 0 | 0 | 100.0% | 100.0% | 100.0% |
 | xss | 17 | 0 | 0 | 100.0% | 100.0% | 100.0% |
-| path-traversal | 9 | 0 | 1 | 100.0% | 90.0% | 94.7% |
-| ai-safety | 15 | 1 | 0 | 93.8% | 100.0% | 96.8% |
-| **OVERALL** | **107** | **4** | **5** | **96.4%** | **95.5%** | **96.0%** |
+| path-traversal | 10 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| ai-safety | 15 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| **OVERALL** | **119** | **0** | **0** | **100.0%** | **100.0%** | **100.0%** |
 
 _Per-category verdicts and full case list in [test/benchmark/benchmark-results.md](test/benchmark/benchmark-results.md)._
 
-✅ **secrets 100/100** &#183; ✅ **xss 100/100** &#183; 🏅 ai-safety 96.8% &#183; 🏅 injection 92.8% &#183; path-traversal 94.7% — ~96% fewer false positives than v1.0.
+✅ **119 / 119 cases**, 0 false positives, 0 false negatives — on a corpus deliberately hardened in v1.7. Previous release: 96.0% F1 (4 FP, 5 FN).
 
 <!-- BENCHMARK:END -->
 
-Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`. This is a self-built corpus — it flatters the tool. Plans to run against OWASP Benchmark and publish those numbers alongside.
+Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`. The scorer runs the same de-duplication the product does, so it measures what a user actually sees rather than raw pre-dedupe rule hits. Still a self-built corpus — plans to run against OWASP Benchmark and publish those numbers alongside.
 
 ---
 
@@ -600,7 +624,7 @@ VibeGuard catches the mechanical security holes that AI coding tools leave behin
 - Judge business logic flaws
 - Replace a real security review for anything touching money, auth, or personal data
 
-It raises the floor fast — catching the holes that AI tools create by default. The benchmark numbers above are honest: **96.0% F1 means it misses ~4% of real issues and produces few false positives.**
+It raises the floor fast — catching the holes that AI tools create by default. The benchmark above is saturated (119/119), which means **the corpus stopped being the hard part — not that the scanner is complete.** It still only checks high-frequency, well-defined issues, and it cannot prove an app is safe.
 
 ### Honest limits (so the claims stay true)
 

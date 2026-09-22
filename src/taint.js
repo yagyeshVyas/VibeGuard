@@ -182,7 +182,18 @@ function analyzeTaintRegex(content, lines, relPath) {
 
 // Primary entry point: tries AST-based taint first, falls back to regex.
 // Accepts an optional pre-parsed tree to avoid re-parsing (one parse per file).
-function analyzeTaint(content, lines, relPath, tree) {
+/*
+ * `onDegrade` (optional): called when the AST pass fails and analysis silently
+ * drops to the weaker regex engine.
+ *
+ * The fallback itself is correct — regex taint is better than no taint. What is
+ * NOT acceptable is doing it quietly: a crash in the highest-precision pass
+ * makes every dataflow-confirmed finding disappear while the scan still reports
+ * a clean grade. That is a security scanner failing open and telling the user
+ * everything is fine. The scanner wires this to its degraded-coverage
+ * diagnostics so `--strict` can refuse to call such a scan clean.
+ */
+function analyzeTaint(content, lines, relPath, tree, onDegrade) {
   const ext = path.extname(relPath || '').toLowerCase();
   if (!TAINT_EXT.has(ext)) return [];
 
@@ -196,8 +207,9 @@ function analyzeTaint(content, lines, relPath, tree) {
         return analyzeTaintAst(content, lines, relPath, t);
       }
     }
-  } catch {
-    // fall through to regex
+  } catch (err) {
+    // Fall through to regex, but never silently.
+    if (typeof onDegrade === 'function') onDegrade(err);
   }
 
   // Fallback: regex-based taint (no scopes, no AST).

@@ -127,6 +127,30 @@
       ],
       "open-redirect2.js": [
         "taint.open-redirect"
+      ],
+      "sql-destructure.js": [
+        "taint.sql-injection"
+      ],
+      "sql-reassign.js": [
+        "taint.sql-injection"
+      ],
+      "sql-optchain.js": [
+        "taint.sql-injection"
+      ],
+      "sql-nested-index.js": [
+        "taint.sql-injection"
+      ],
+      "sql-helper-fn.js": [
+        "taint.sql-injection"
+      ],
+      "sql-helper-arrow.js": [
+        "taint.sql-injection"
+      ],
+      "cmd-helper-fn.js": [
+        "taint.command-injection"
+      ],
+      "cmd-shell-dash-c.js": [
+        "taint.command-injection"
       ]
     },
     "clean": {
@@ -137,7 +161,15 @@
       "json-parse.js": [],
       "eval-safe.js": [],
       "nosql-safe.js": [],
-      "proto-safe.js": []
+      "proto-safe.js": [],
+      "sql-parseint-tpl.js": [],
+      "sql-escaped-tpl.js": [],
+      "sql-allowlist-col.js": [],
+      "sql-const-table.js": [],
+      "cmd-spawn-array.js": [],
+      "helper-const-return.js": [],
+      "helper-sanitized.js": [],
+      "helper-non-source.js": []
     }
   },
   "secrets": {
@@ -155,8 +187,7 @@
         "secret.github-token"
       ],
       "stripe-key.js": [
-        "secret.stripe-live-key",
-        "secret.generic-credential"
+        "secret.stripe-live-key"
       ],
       "stripe-restricted.js": [
         "secret.stripe-restricted-key"

@@ -7,12 +7,12 @@
 
 | Category | TP | FP | FN | Precision | Recall | F1 |
 |----------|----|----|----|-----------|--------|----|
-| injection | 45 | 3 | 4 | 93.8% | 91.8% | 92.8% |
-| secrets | 21 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| injection | 57 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| secrets | 20 | 0 | 0 | 100.0% | 100.0% | 100.0% |
 | xss | 17 | 0 | 0 | 100.0% | 100.0% | 100.0% |
-| path-traversal | 9 | 0 | 1 | 100.0% | 90.0% | 94.7% |
-| ai-safety | 15 | 1 | 0 | 93.8% | 100.0% | 96.8% |
-| **OVERALL** | **107** | **4** | **5** | **96.4%** | **95.5%** | **96.0%** |
+| path-traversal | 10 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| ai-safety | 15 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| **OVERALL** | **119** | **0** | **0** | **100.0%** | **100.0%** | **100.0%** |
 
 ## Per-Category Details
 
@@ -20,44 +20,41 @@
 
 | File | Rule ID | Verdict |
 |------|---------|---------|
-| sql-concat.js | `code.sql-injection` | TP |
+| sql-concat.js | `code.sql-injection (superseded by taint.sql-injection)` | TP |
 | sql-concat.js | `taint.sql-injection` | TP |
 | sql-concat2.js | `code.sql-injection` | TP |
 | sql-concat2.js | `taint.sql-injection` | TP |
-| sql-concat3.js | `code.sql-injection` | TP |
-| sql-template.js | `db.sql-template-literal` | TP |
-| sql-template.js | `taint.sql-injection` | FN |
-| sql-template2.js | `db.sql-template-literal` | FN |
+| sql-concat3.js | `code.sql-injection (superseded by taint.sql-injection)` | TP |
+| sql-template.js | `db.sql-template-literal (superseded by taint.sql-injection)` | TP |
+| sql-template.js | `taint.sql-injection` | TP |
+| sql-template2.js | `db.sql-template-literal (superseded by taint.sql-injection)` | TP |
 | sql-template2.js | `taint.sql-injection` | TP |
-| sql-template3.js | `db.sql-template-literal` | TP |
-| sql-template3.js | `taint.sql-injection` | FN |
-| sql-raw-rb.js | `code.sql-injection` | TP |
-| sql-raw2.js | `db.sql-template-literal` | TP |
-| sql-knex.js | `code.sql-injection` | TP |
-| sql-sequelize.js | `code.sql-injection` | TP |
+| sql-template3.js | `db.sql-template-literal (superseded by taint.sql-injection)` | TP |
+| sql-template3.js | `taint.sql-injection` | TP |
+| sql-raw-rb.js | `code.sql-injection (superseded by taint.sql-injection)` | TP |
+| sql-raw2.js | `db.sql-template-literal (superseded by taint.sql-injection)` | TP |
+| sql-knex.js | `code.sql-injection (superseded by taint.sql-injection)` | TP |
+| sql-sequelize.js | `code.sql-injection (superseded by taint.sql-injection)` | TP |
 | sql-fstring.py | `py.sql-injection` | TP |
 | sql-fstring2.py | `py.sql-injection` | TP |
 | sql-py-concat.py | `py.sql-injection` | TP |
-| sql-sprintf.go | `go.sql-fmt-sprintf` | TP |
-| sql-sprintf.go | `go.sql-injection` | FP |
-| sql-sprintf2.go | `go.sql-fmt-sprintf` | TP |
-| sql-sprintf2.go | `go.sql-injection` | FP |
+| sql-sprintf.go | `go.sql-fmt-sprintf (superseded by go.sql-injection)` | TP |
+| sql-sprintf2.go | `go.sql-fmt-sprintf (superseded by go.sql-injection)` | TP |
 | sql-kotlin.kt | `kotlin.sql-injection` | TP |
 | sql-csharp.cs | `csharp.sql-injection` | TP |
 | cmd-concat.js | `taint.command-injection` | TP |
-| cmd-concat.js | `ast.command-injection` | TP |
+| cmd-concat.js | `ast.command-injection (superseded by taint.command-injection)` | TP |
 | cmd-template.js | `taint.command-injection` | TP |
-| cmd-template.js | `ast.command-injection` | TP |
+| cmd-template.js | `ast.command-injection (superseded by taint.command-injection)` | TP |
 | cmd-concat2.js | `taint.command-injection` | TP |
-| cmd-concat2.js | `ast.command-injection` | TP |
+| cmd-concat2.js | `ast.command-injection (superseded by taint.command-injection)` | TP |
 | cmd-spawn.js | `taint.command-injection` | TP |
 | cmd-py.py | `py.os-system` | TP |
 | cmd-py2.py | `py.subprocess-shell-true` | TP |
 | cmd-py3.py | `py.os-system` | TP |
 | cmd-go.go | `go.command-injection` | TP |
-| eval-input.js | `ast.eval-dynamic` | TP |
-| eval-template.js | `ast.eval-dynamic` | TP |
-| eval-template.js | `taint.code-injection` | FP |
+| eval-input.js | `ast.eval-dynamic (superseded by taint.code-injection)` | TP |
+| eval-template.js | `ast.eval-dynamic (superseded by taint.code-injection)` | TP |
 | eval-new-function.js | `ast.function-constructor` | TP |
 | nosql.js | `ast.nosql-injection` | TP |
 | nosql2.js | `ast.nosql-injection` | TP |
@@ -68,10 +65,18 @@
 | proto-poll2.js | `injection.prototype-pollution` | TP |
 | proto-poll3.js | `injection.prototype-pollution` | TP |
 | ssrf.js | `ast.ssrf` | TP |
-| ssrf2.js | `ast.ssrf` | FN |
+| ssrf2.js | `ast.ssrf (superseded by taint.ssrf)` | TP |
 | ssrf2.js | `taint.ssrf` | TP |
 | open-redirect.js | `web.open-redirect` | TP |
 | open-redirect2.js | `taint.open-redirect` | TP |
+| sql-destructure.js | `taint.sql-injection` | TP |
+| sql-reassign.js | `taint.sql-injection` | TP |
+| sql-optchain.js | `taint.sql-injection` | TP |
+| sql-nested-index.js | `taint.sql-injection` | TP |
+| sql-helper-fn.js | `taint.sql-injection` | TP |
+| sql-helper-arrow.js | `taint.sql-injection` | TP |
+| cmd-helper-fn.js | `taint.command-injection` | TP |
+| cmd-shell-dash-c.js | `taint.command-injection` | TP |
 
 ### secrets
 
@@ -82,7 +87,6 @@
 | github-token.js | `secret.github-token` | TP |
 | github-token2.js | `secret.github-token` | TP |
 | stripe-key.js | `secret.stripe-live-key` | TP |
-| stripe-key.js | `secret.generic-credential` | TP |
 | stripe-restricted.js | `secret.stripe-restricted-key` | TP |
 | slack-token.js | `secret.slack-token` | TP |
 | gitlab-token.js | `secret.gitlab-token` | TP |
@@ -133,8 +137,8 @@
 | unlink-concat.js | `taint.path-traversal` | TP |
 | create-read-stream.js | `taint.path-traversal` | TP |
 | append-file.js | `taint.path-traversal` | TP |
-| path-join-template.js | `taint.path-traversal` | FN |
-| path-join-template.js | `upload.filename-path-traversal` | TP |
+| path-join-template.js | `taint.path-traversal` | TP |
+| path-join-template.js | `upload.filename-path-traversal (superseded by taint.path-traversal)` | TP |
 
 ### ai-safety
 
@@ -143,7 +147,6 @@
 | user-in-system-prompt.js | `ai.user-input-in-system-prompt` | TP |
 | llm-output-exec.js | `ai.llm-output-exec` | TP |
 | llm-output-exec.js | `taint.command-injection` | TP |
-| llm-output-exec.js | `ast.command-injection` | FP |
 | agent-loop-no-cap.js | `ai.agent-loop-no-cap` | TP |
 | model-id-user-input.js | `ai.model-id-injection` | TP |
 | tool-result-injection.js | `ai.tool-result-injection` | TP |

@@ -217,7 +217,12 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
   // Dataflow/taint analysis: follows user input across lines to a dangerous sink.
   try {
     const { analyzeTaint } = require('./taint');
-    for (const t of analyzeTaint(content, lines, relPath, tree)) findings.push(t);
+    // A crash inside the AST pass falls back to regex taint rather than losing
+    // the file entirely — but it is recorded, because every dataflow-confirmed
+    // finding disappears when that happens and the grade would otherwise look
+    // clean. `--strict` turns this into a hard failure.
+    const onDegrade = (err) => noteDegraded('taint-ast', err);
+    for (const t of analyzeTaint(content, lines, relPath, tree, onDegrade)) findings.push(t);
   } catch (err) {
     noteDegraded('taint', err);
   }
@@ -553,12 +558,33 @@ function computeGrade(findings) {
 // finding land on the same file:line and describe the same vulnerability category,
 // keep only the taint finding (higher confidence) and drop the ast.* duplicate.
 // Map: taint.command-injection ↔ ast.command-injection, etc.
-const TAINT_TO_AST = {
-  'taint.command-injection': 'ast.command-injection',
-  'taint.sql-injection': 'ast.sql-injection',
-  'taint.code-injection': 'ast.eval-dynamic',
-  'taint.path-traversal': 'ast.path-traversal',
-  'taint.ssrf': 'ast.ssrf',
+/*
+ * Which lower-fidelity findings a stronger finding supersedes on the same
+ * file:line.
+ *
+ * Two rules that describe the same vulnerability on the same line are one
+ * finding reported twice. The higher-fidelity rule wins and the rest are
+ * dropped: a taint.* finding proves the path from source to sink, whereas a
+ * regex rule only pattern-matched the text; and among overlapping regex rules
+ * the higher-confidence, more specific one wins.
+ *
+ * Keys are the superseding rule; values are every rule it can shadow.
+ */
+const TAINT_SUPERSEDES = {
+  'taint.command-injection': ['ast.command-injection'],
+  'taint.sql-injection': [
+    'ast.sql-injection',
+    'code.sql-injection',
+    'db.sql-template-literal',
+    'injection.orm-raw-user',
+  ],
+  'taint.code-injection': ['ast.eval-dynamic'],
+  'taint.path-traversal': ['ast.path-traversal', 'upload.filename-path-traversal'],
+  'taint.ssrf': ['ast.ssrf'],
+  // Go: three rules match the same `db.Query(fmt.Sprintf(...))` line. Only the
+  // high-confidence one is shown by default, so the other two were pure noise
+  // for anyone running --all.
+  'go.sql-injection': ['go.sql-format', 'go.sql-fmt-sprintf'],
 };
 
 function dedupeFindings(findings) {
@@ -569,12 +595,11 @@ function dedupeFindings(findings) {
     }
   }
 
-  // Build a set of taint.* ruleIds that fired, keyed by file:line, so we can
-  // drop the corresponding ast.* finding on the same file:line.
-  const taintKeys = new Set();
+  // Every (file:line:ruleId) that a dataflow-confirmed finding supersedes.
+  const supersededKeys = new Set();
   for (const f of findings) {
-    if (TAINT_TO_AST[f.ruleId]) {
-      taintKeys.add(`${f.file}:${f.line}:${TAINT_TO_AST[f.ruleId]}`);
+    for (const shadowed of TAINT_SUPERSEDES[f.ruleId] || []) {
+      supersededKeys.add(`${f.file}:${f.line}:${shadowed}`);
     }
   }
 
@@ -587,11 +612,8 @@ function dedupeFindings(findings) {
     ) {
       continue; // superseded by a more specific rule
     }
-    // Drop ast.* finding when a taint.* finding already covers the same file:line.
-    const astCounterpart = Object.entries(TAINT_TO_AST).find(([, ast]) => ast === f.ruleId);
-    if (astCounterpart && taintKeys.has(`${f.file}:${f.line}:${f.ruleId}`)) {
-      continue; // superseded by the dataflow-confirmed taint finding
-    }
+    // Drop a pattern-match when a dataflow-confirmed finding covers the line.
+    if (supersededKeys.has(`${f.file}:${f.line}:${f.ruleId}`)) continue;
     const key = `${f.ruleId}:${f.file}:${f.line}:${f.column}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -891,4 +913,9 @@ module.exports = {
   walk,
   shouldScanFile,
   SKIP_DIRS,
+  // Exported so the benchmark scorer measures exactly what a user sees: the
+  // same supersession relation and the same de-duplication the scan pipeline
+  // applies, rather than a second hand-maintained copy that drifts.
+  TAINT_SUPERSEDES,
+  dedupeFindings,
 };

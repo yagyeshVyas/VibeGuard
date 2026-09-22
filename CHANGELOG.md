@@ -5,6 +5,75 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed — v1.7 dataflow-depth pass (a clean grade on live SQL injection)
+- **CRITICAL: textbook SQL injection scanned as `Grade A, no issues`.**
+  `db.query(`SELECT * FROM users WHERE id = ${req.body.id}`)` — the most common
+  shape of SQLi in AI-generated code — produced a confident all-clear on a
+  default scan. Root cause: the AST taint pass skipped any sink argument for
+  which `exprIsSource()` was true, deferring to the regex layer. That predicate
+  returns true for a TemplateLiteral or concatenation that merely *interpolates*
+  a source, so the taint pass stepped aside for constructed strings while the
+  regex layer — matching different text — either missed them or rated them below
+  the default medium-confidence floor. Nobody reported the finding.
+  Fix: new `exprIsBareSource()` limits deferral to a source used verbatim, and
+  the three code-execution-grade sinks (`taint.sql-injection`,
+  `taint.command-injection`, `taint.code-injection`) never defer at all.
+  `db.query(req.body.sql)` was invisible for the same reason and is now caught.
+- **Laundered sources now tracked**: destructuring, reassignment chains,
+  optional chaining, nested index access, and `spawn("sh", ["-c", ...])`.
+- **Return-value taint across function boundaries.** The engine already followed
+  taint INTO a helper (param → sink); it now follows it back OUT
+  (`function getId(r) { return r.body.id }` → `db.query(...getId(req)...)`).
+  Records only the parameter index, so it fires only when the call site passes
+  an actual source — sanitizing helpers, constant-returning helpers, and calls
+  with non-source arguments stay clean.
+- **`process` is no longer a blanket taint source.** Only `argv`, `argv0` and
+  `env` carry outside input. Treating every `process.*` property as attacker
+  input made `spawn(process.execPath, [script])` — the standard way to launch a
+  child Node process — report as command injection. Caught by dogfooding: it was
+  the scanner's own worst false positive after the deferral fix.
+- **The AST taint pass no longer fails open silently.** A crash there dropped
+  analysis to the weaker regex engine with no signal at all — every
+  dataflow-confirmed finding disappeared while the scan still printed a clean
+  grade. `analyzeTaint()` now takes an `onDegrade` callback and the scanner
+  records it as a `taint-ast` degraded pass, so the CLI warns and `--strict`
+  refuses to report clean. (Discovered by causing it: a temporal-dead-zone bug
+  wiped every taint finding and nothing said a word.)
+
+### Changed
+- `TAINT_TO_AST` → **`TAINT_SUPERSEDES`**, generalised from "taint shadows ast"
+  to "the higher-fidelity finding shadows every weaker counterpart on the same
+  line". One vulnerability now yields one finding: `taint.sql-injection` covers
+  `ast.sql-injection`, `code.sql-injection`, `db.sql-template-literal` and
+  `injection.orm-raw-user`; `taint.path-traversal` covers
+  `upload.filename-path-traversal`; and `go.sql-injection` collapses
+  `go.sql-format` + `go.sql-fmt-sprintf`, which used to triple-report a single
+  `fmt.Sprintf` injection.
+- Exported `TAINT_SUPERSEDES` and `dedupeFindings` from `src/scanner.js`.
+
+### Added
+- **Harder benchmark corpus** (120 → 136 files): 8 laundered-source recall cases
+  and 8 adversarial precision cases (`parseInt`, `db.escape`, allowlist
+  ternaries, parameterized queries, `spawn` arg arrays, constant table names,
+  sanitizing and constant-returning helpers) — every one puts `req.` inside or
+  beside a dangerous sink without being a bug.
+- **Benchmark scorer now measures what users see.** It applies `dedupeFindings`
+  (previously it scored raw pre-dedupe rule hits, counting both halves of a
+  deliberately de-duplicated pair) and credits an expected rule when a rule that
+  supersedes it fired instead — which cannot excuse a real miss, since a finding
+  that is neither present nor superseded still scores FN.
+  Result: **119/119 cases, 0 FP, 0 FN** (previously 96.0% F1, 4 FP, 5 FN).
+  A saturated corpus means the corpus stopped being hard, not that the scanner
+  is complete — stated as such in the README.
+- 11 regression tests (`test/taint-depth-tests.js`), all asserted against a
+  DEFAULT scan: a finding only visible under `--all` is not protection.
+  **508 tests total, 0 failures.**
+- Corrected `stripe-key.js` benchmark expectation, which required
+  `secret.generic-credential` alongside `secret.stripe-live-key`.
+  `dedupeFindings` has always suppressed the generic rule when a specific one
+  covers the line; the expectation described pre-dedupe output.
+
+
 ### Added — v1.6 token-lean pass (TLAP: treat the agent's context window as a budget)
 - **`src/tokenlean.js` — TLAP, the Token-Lean Agent Protocol.** Every scanner in
   this space answers an AI agent with pretty-printed JSON: two-space indentation,

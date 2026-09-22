@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-09-22T17:38:27.998Z",
+  "generatedAt": "2026-09-22T18:27:17.703Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "5b6bc868643909c8ba4edee717590b9896488eb0720636ed58a87a98e1f2d7ac",
@@ -9,14 +9,14 @@
     "firewall.js": "61b31a2a55d63503c6bdcf888394b7a713678ea0e0b656e0d2179c91f66444a9",
     "pii.js": "51ea76de52b2c15d2cb34ab8125a5f67f725d1e7de43a4cef39136e25b276025",
     "rules.js": "df4c5685dad079550d62d91e94913ac27542e28ab4fab402a8c24d2199328753",
-    "scanner.js": "5e48cb22595c754dd0f0a6400416960add04eef046051cd144d9ee3610aeab80",
+    "scanner.js": "50733a2b6cd4a1a961bbc9a2db5f40bce0d629a1774fa6a27fc10127c93391ed",
     "engine.js": "f16bf283f06fe6fdf198a99fbc63971de9665da82f93f2688f86c4ac2a0a0ad2",
     "mcp-audit.js": "8f38b2738ffedc23f61601a1c03d3cbaac8a38fb19390a898ffe32b30bf8ffc4",
     "agent-scan.js": "018813166eb1e370bf452efaa92020cd4baea0a20f3826fed3f95ded312aa5c7",
     "secure-prompt.js": "a4d8203ad2292e57b29f75a700f2837f12ba6c9067fd4d5f6731e55203e184b2",
     "ai-guard.js": "9dd2c524dd704bbba69aacf7076e76ac966c6e0c773ee4b04ed7c8fb889db006",
-    "taint.js": "958decf89c32993e2c9a057ef7be9bbe592e7525fd0daa5fc5a278dcafe957af",
-    "taint-ast.js": "041a8ba646c81c06f661fe3a4e45859944ee71054833e16e3c67be2cd88e8287",
+    "taint.js": "27f41c6d39c5ef399b8471b7efc472dae5fd9e9b776ada17deeb59959f92415f",
+    "taint-ast.js": "5bbdddbf11ad82f6c84c62a8803953679119fa85b74f7e026b86046fe78ff5f4",
     "ast.js": "18f09f9c082c6a9364f705aa6a1c759923aa14694f192631fc28a817c09cb0f2"
   }
 }

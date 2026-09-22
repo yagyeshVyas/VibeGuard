@@ -22,9 +22,22 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..', '..');
 const MANIFEST_PATH = path.join(__dirname, 'manifest.json');
 
+// Single source of truth for the supersession relation — imported from the
+// scanner so the scorer can never drift from what the product actually does.
+const { scanFileContent, TAINT_SUPERSEDES, dedupeFindings } = require(path.join(ROOT, 'src', 'scanner'));
+
+/*
+ * Scan one corpus file the way the product does.
+ *
+ * scanFileContent() is the raw rule pass; a real `vibeguard scan` then runs
+ * dedupeFindings(), which drops a pattern match when a dataflow-confirmed
+ * finding already covers the same line. Skipping that step here made the
+ * benchmark score output no user ever sees — counting both halves of a
+ * deliberately de-duplicated pair, and penalising the scanner for the weaker
+ * one it had already suppressed.
+ */
 function scanFile(relPath, content) {
-  const { scanFileContent } = require(path.join(ROOT, 'src', 'scanner'));
-  return scanFileContent(path.join(ROOT, relPath), relPath, content, null);
+  return dedupeFindings(scanFileContent(path.join(ROOT, relPath), relPath, content, null));
 }
 
 function runBenchmark() {
@@ -49,10 +62,34 @@ function runBenchmark() {
       const firedRuleIds = new Set(findings.map((f) => f.ruleId));
       const expectedSet = new Set(expectedRules);
 
+      // A dataflow-confirmed taint.* finding deliberately SUPERSEDES its
+      // pattern-matching counterpart (see TAINT_SUPERSEDES in src/scanner.js);
+      // dedupeFindings drops the weaker one, so it cannot appear here. Scoring
+      // that as a miss AND a false alarm would penalise the scanner twice for
+      // producing the strictly better finding on the same line of the same
+      // vulnerability. Credit the expectation, and don't count the superseding
+      // rule as unexpected.
+      //
+      // This only ever substitutes a STRONGER rule for a weaker one on a file
+      // already declared vulnerable. It can never excuse a missed finding: if
+      // neither the expected rule nor something that supersedes it fired, it
+      // still scores as FN.
+      const supersededByFired = new Set();
+      for (const fired of firedRuleIds) {
+        for (const shadowed of TAINT_SUPERSEDES[fired] || []) supersededByFired.add(shadowed);
+      }
+      const accepted = new Set(expectedSet);
+
       for (const ruleId of expectedRules) {
         if (firedRuleIds.has(ruleId)) {
           tp++;
           details.push({ file: filename, ruleId, verdict: 'TP' });
+        } else if (supersededByFired.has(ruleId)) {
+          tp++;
+          // Record which stronger rule stood in, so the report stays auditable.
+          const via = [...firedRuleIds].find((r) => (TAINT_SUPERSEDES[r] || []).includes(ruleId));
+          accepted.add(via);
+          details.push({ file: filename, ruleId: `${ruleId} (superseded by ${via})`, verdict: 'TP' });
         } else {
           fn++;
           details.push({ file: filename, ruleId, verdict: 'FN' });
@@ -62,7 +99,7 @@ function runBenchmark() {
       // Findings on vuln files with unexpected ruleIds are false positives.
       // Low-confidence findings are hints, not alerts — exclude from FP count.
       for (const f of findings) {
-        if (!expectedSet.has(f.ruleId) && f.confidence !== 'low') {
+        if (!accepted.has(f.ruleId) && f.confidence !== 'low') {
           fp++;
           details.push({ file: filename, ruleId: f.ruleId, verdict: 'FP' });
         }

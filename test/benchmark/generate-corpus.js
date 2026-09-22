@@ -36,6 +36,21 @@ const corpus = {
       ['sql-raw2.js', 'const data = await db.raw(`SELECT * FROM products WHERE name LIKE \'%${req.query.q}%\'`);', ['db.sql-template-literal']],
       ['sql-knex.js', 'knex.raw("SELECT * FROM users WHERE id = " + req.body.id);', ['code.sql-injection']],
       ['sql-sequelize.js', 'sequelize.query("SELECT * FROM users WHERE email=\'" + req.body.email + "\'");', ['code.sql-injection']],
+      // --- Recall stress: laundered sources -------------------------------
+      // Each of these is the same SQL/shell injection wearing a disguise that
+      // defeats text matching. They exist to keep the corpus discriminating:
+      // a scanner that only greps for `req.` next to `query(` fails all of them.
+      ['sql-destructure.js', 'const { id } = req.body;\ndb.query(`SELECT * FROM u WHERE id = ${id}`);', ['taint.sql-injection']],
+      ['sql-reassign.js', 'let a = req.query.q;\nlet b = a;\ndb.query(`SELECT * FROM u WHERE n = ${b}`);', ['taint.sql-injection']],
+      ['sql-optchain.js', 'db.query(`SELECT * FROM u WHERE id = ${req.body?.id}`);', ['taint.sql-injection']],
+      ['sql-nested-index.js', 'db.query(`SELECT * FROM u WHERE f = ${req.body.filters[0]}`);', ['taint.sql-injection']],
+      // Source laundered through a thin accessor — the return-value direction
+      // of cross-function taint.
+      ['sql-helper-fn.js', 'function getId(r) { return r.body.id; }\ndb.query(`SELECT * FROM u WHERE id = ${getId(req)}`);', ['taint.sql-injection']],
+      ['sql-helper-arrow.js', 'const getId = (r) => r.body.id;\ndb.query(`SELECT * FROM u WHERE id = ${getId(req)}`);', ['taint.sql-injection']],
+      ['cmd-helper-fn.js', 'function getCmd(r) { return r.body.cmd; }\nrequire("child_process").exec(getCmd(req));', ['taint.command-injection']],
+      // spawn() is normally safe, but a shell binary plus -c re-enables the shell.
+      ['cmd-shell-dash-c.js', 'const { spawn } = require("child_process");\nspawn("sh", ["-c", `ls ${req.body.d}`]);', ['taint.command-injection']],
       // SQL injection — Python
       ['sql-fstring.py', 'cursor.execute(f"SELECT * FROM users WHERE id = {request.form[\'id\']}")', ['py.sql-injection']],
       ['sql-fstring2.py', 'cursor.execute(f"DELETE FROM logs WHERE msg = \'{request.form[\'msg\']}\'")', ['py.sql-injection']],
@@ -79,6 +94,18 @@ const corpus = {
     ],
     clean: [
       ['sql-parameterized.js', 'const id = req.body.id;\ndb.query("SELECT * FROM users WHERE id = $1", [id]);', []],
+      // --- Precision stress: user input present, but neutralised -----------
+      // Every one of these puts `req.` inside (or next to) a dangerous sink.
+      // A scanner that pattern-matches without understanding sanitizers,
+      // allowlists or argument position flags all of them. None is a bug.
+      ['sql-parseint-tpl.js', 'const id = parseInt(req.body.id, 10);\ndb.query(`SELECT * FROM u WHERE id = ${id}`);', []],
+      ['sql-escaped-tpl.js', 'db.query(`SELECT * FROM u WHERE n = \'${db.escape(req.body.n)}\'`);', []],
+      ['sql-allowlist-col.js', 'const A = ["id", "name"];\nconst col = A.includes(req.query.s) ? req.query.s : "id";\ndb.query(`SELECT * FROM u ORDER BY ${col}`);', []],
+      ['sql-const-table.js', 'const T = "users";\ndb.query(`SELECT * FROM ${T} WHERE id = ?`, [req.body.id]);', []],
+      ['cmd-spawn-array.js', 'const { spawn } = require("child_process");\nspawn("git", ["log", req.body.ref]);', []],
+      ['helper-const-return.js', 'function label(r) { return "fixed"; }\ndb.query(`SELECT * FROM u WHERE n = \'${label(req)}\'`);', []],
+      ['helper-sanitized.js', 'function getId(r) { return parseInt(r.body.id, 10); }\ndb.query(`SELECT * FROM u WHERE id = ${getId(req)}`);', []],
+      ['helper-non-source.js', 'function getId(o) { return o.body.id; }\nconst cfg = { body: { id: 1 } };\ndb.query(`SELECT * FROM u WHERE id = ${getId(cfg)}`);', []],
       ['sql-py-safe.py', 'cursor.execute("SELECT * FROM users WHERE id = %s", [request.form["id"]])', []],
       ['cmd-array.js', 'const name = req.body.name;\nexecFile("ls", ["-la", name]);', []],
       ['cmd-py-safe.py', 'subprocess.run(["ls", request.form["dir"]], shell=False)', []],

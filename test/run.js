@@ -706,9 +706,18 @@ test('AST supersede covers command/path/ssrf regex rules', () => {
     'a.js': 'cp.exec("ls " + req.body.d);\nfs.readFile(path.join(b, req.query.f), cb);\nfetch(req.query.u);',
   });
   const ids = new Set(scan(dir).findings.map((f) => f.ruleId));
-  assert(ids.has('ast.command-injection') && !ids.has('code.command-injection'), 'command superseded');
-  assert(ids.has('ast.path-traversal') && !ids.has('upload.path-traversal'), 'path superseded');
-  assert(ids.has('ast.ssrf') && !ids.has('web.ssrf'), 'ssrf superseded');
+  // The guarantee under test is supersession: exactly one rule reports each
+  // vulnerability, and it is never the weak regex one. Which strong rule wins
+  // depends on how far dataflow analysis gets — a directly-interpolated source
+  // now reaches taint.* (dataflow-confirmed) where it used to stop at ast.*.
+  // Both are acceptable; the regex counterpart appearing alongside is not.
+  const strong = (a, b) => ids.has(a) || ids.has(b);
+  assert(strong('taint.command-injection', 'ast.command-injection'), 'command detected');
+  assert(!ids.has('code.command-injection'), 'command superseded');
+  assert(strong('taint.path-traversal', 'ast.path-traversal'), 'path detected');
+  assert(!ids.has('upload.path-traversal'), 'path superseded');
+  assert(strong('taint.ssrf', 'ast.ssrf'), 'ssrf detected');
+  assert(!ids.has('web.ssrf'), 'ssrf superseded');
 });
 
 test('interprocedural taint (if acorn): request -> function -> sink', () => {
@@ -4637,6 +4646,8 @@ const prScanSuite = require('./pr-scan-tests');
 for (const t of prScanSuite.tests) test('pr-scan: ' + t.name, t);
 const tokenLeanSuite = require('./tokenlean-tests');
 for (const t of tokenLeanSuite.tests) test('tokenlean: ' + t.name, t);
+const taintDepthSuite = require('./taint-depth-tests');
+for (const t of taintDepthSuite.tests) test('taint-depth: ' + t.name, t);
 
 (async function runAll() {
   for (const t of _tests) {

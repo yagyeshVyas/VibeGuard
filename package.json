@@ -1,7 +1,7 @@
 {
   "name": "@yagyeshvyas/vibeguard",
-  "version": "1.6.0",
-  "description": "Security scanner + AI agent firewall + active pentester with a token-lean agent protocol. 771 rules, 85 MCP tools, AST taint analysis, git-history scan, runtime LLM guard proxy, active pentest suite. Cuts agent context cost 55-90% vs JSON scanner output. Offline, zero telemetry, zero dependencies.",
+  "version": "1.7.0",
+  "description": "Security scanner + AI agent firewall + active pentester with a token-lean agent protocol. 771 rules, 85 MCP tools, cross-function AST taint analysis, git-history scan, runtime LLM guard proxy, active pentest suite. Cuts agent context cost 55-90% vs JSON scanner output. Offline, zero telemetry, zero dependencies.",
   "license": "MIT",
   "type": "commonjs",
   "author": "Yagyesh Vyas <https://www.linkedin.com/in/yagyeshvyas/>",
