@@ -34,8 +34,32 @@ const { trace } = require('./trace');
 const { buildAuthCoverage, getChangedFiles, analyzePythonTaint } = require('./engine');
 const { scanCVEs } = require('./cve-intel');
 const { allRules } = require('./rules');
+const tokenlean = require('./tokenlean');
 const fs = require('fs');
 const path = require('path');
+
+// ─── TLAP: Token-Lean Agent Protocol ────────────────────────────────────────
+// Every tool answer here is paid for out of an agent's context window. TLAP is
+// the compression layer: scan payloads are emitted in the lean dialect instead
+// of pretty JSON, and a global ceiling clamps any tool that would otherwise
+// blow the window. See src/tokenlean.js for the encoding and the rationale.
+const GLOBAL_BUDGET = Number(process.env.VIBEGUARD_TOKEN_BUDGET || 0) || 0;
+
+// Which dialect a scan-shaped tool should answer in. Lean is the default
+// because the consumer is an agent; `json` stays available for programmatic
+// callers that parse the payload.
+function outputFormat(args) {
+  const f = String((args && args.format) || process.env.VIBEGUARD_MCP_FORMAT || 'lean').toLowerCase();
+  return f === 'json' ? 'json' : 'lean';
+}
+
+function callBudget(args) {
+  const b = Number((args && args.budget) || 0);
+  return b > 0 ? b : GLOBAL_BUDGET;
+}
+
+// Snapshot read/write lives in tokenlean.js; both entry points share it.
+const { readSnapshot, writeSnapshot } = tokenlean;
 
 const DIR_SCHEMA = {
   type: 'object',
@@ -51,8 +75,29 @@ const DIR_SCHEMA = {
 const TOOLS = [
   {
     name: 'scan_project',
-    description: 'Scan a project for security issues. Returns findings with letter grade.',
-    inputSchema: { type: 'object', properties: { dir: DIR_SCHEMA.properties.dir, saveBaseline: { type: 'boolean' } }, required: [] },
+    description:
+      'Scan a project for security issues. Returns findings with letter grade in the token-lean dialect (rule text de-duplicated, paths dictionary-coded, highest-risk findings first) — typically 55-90% fewer tokens than JSON. Set delta=true in an edit/scan loop to get only what changed. Set format="json" if you need to parse the payload.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: DIR_SCHEMA.properties.dir,
+        saveBaseline: { type: 'boolean' },
+        format: { type: 'string', enum: ['lean', 'json'], description: 'Output dialect. Default lean.' },
+        budget: { type: 'number', description: 'Hard token ceiling. Highest-risk findings are kept; anything cut is reported as a rollup.' },
+        delta: { type: 'boolean', description: 'Report only findings new since the last scan. Unchanged answers in one line.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'token_report',
+    description:
+      'Measure how many context tokens the token-lean dialect saves on this project versus the pretty-JSON payload other scanners return. Reports both counts, the saving, and the clustering ratio.',
+    inputSchema: {
+      type: 'object',
+      properties: { dir: DIR_SCHEMA.properties.dir, budget: { type: 'number' } },
+      required: [],
+    },
   },
   {
     name: 'suggest_fixes',
@@ -609,6 +654,26 @@ async function handleScan(args) {
   const dir = args.dir || process.cwd();
   const result = scan(dir);
   if (args.saveBaseline) writeBaseline(dir, result);
+
+  // ── Lean dialect (default) ────────────────────────────────────────────
+  // Same information, ~55-90% fewer tokens: rule text de-duplicated across
+  // occurrences, directory prefixes dictionary-coded, budget spent on the
+  // highest-risk findings first, and an explicit rollup of anything cut.
+  if (outputFormat(args) === 'lean') {
+    const budget = callBudget(args);
+    // Delta mode answers "nothing changed" in one line — the cheapest correct
+    // answer an agent can get, and the common case in an edit/scan loop.
+    if (args.delta) {
+      const prev = readSnapshot(dir);
+      const d = tokenlean.deltaReport(result, prev, { budget });
+      writeSnapshot(dir, d.snapshot);
+      return textResult(d.text);
+    }
+    const lean = tokenlean.renderLean(result, { budget });
+    writeSnapshot(dir, tokenlean.snapshotOf(result));
+    return textResult(lean.text);
+  }
+
   const payload = {
     grade: result.grade,
     counts: result.counts,
@@ -635,11 +700,34 @@ async function handleScan(args) {
   );
 }
 
+async function handleTokenReport(args) {
+  const dir = args.dir || process.cwd();
+  const result = scan(dir);
+  const s = tokenlean.leanStats(result, { budget: callBudget(args) });
+  const lines = [
+    `VibeGuard token report — ${dir}`,
+    `findings ${s.findings} in ${s.clusters} rule cluster(s) across ${result.scannedFiles} files`,
+    `pretty-JSON payload : ~${s.jsonTokens} tokens (${s.jsonChars} chars)`,
+    `token-lean payload  : ~${s.leanTokens} tokens (${s.leanChars} chars)`,
+    `saved               : ~${s.saved} tokens (${s.savedPct}%) per scan call`,
+    '',
+    'Token counts are estimates from an offline model (no tokenizer dependency),',
+    'accurate to roughly ±10%. Savings scale with repository size: the more times',
+    'one rule fires, the more redundant rule text the lean dialect removes.',
+  ];
+  return textResult(lines.join('\n'));
+}
+
 async function handleSuggest(args) {
   const dir = args.dir || process.cwd();
   const result = scan(dir);
   if (result.findings.length === 0) {
     return textResult('No issues found — nothing to fix.');
+  }
+  // Lean fix plan: remediation stated once per rule instead of once per site.
+  // In a fix loop, that difference is paid on every iteration.
+  if (outputFormat(args) === 'lean') {
+    return textResult(tokenlean.renderLeanFixPlan(result, { budget: callBudget(args) }));
   }
   return textResult(
     summarize(result) +
@@ -2055,6 +2143,7 @@ async function main() {
       else if (name === 'vault_manage') result = await handleVaultManage(args);
       else if (name === 'audit_log') result = await handleAuditLog(args);
       else if (name === 'pre_deploy') result = await handlePreDeploy(args);
+      else if (name === 'token_report') result = await handleTokenReport(args);
       else result = textResult(`Unknown tool: ${name}`, true);
 
       // ─── LAYER 5: OUTPUT GUARD — auto-sanitize any text result ────
@@ -2067,6 +2156,21 @@ async function main() {
             audit.log('output_guard', { tool: name, blocked: sanitized.blockedCount });
           }
         } catch {}
+      }
+
+      // ─── LAYER 14: TOKEN BUDGET — clamp any payload to the window ──
+      // Applies to every tool, not just the scanners. A tool that would dump
+      // 40k tokens of dependency tree into an agent's context is a denial of
+      // service on the context window; this is the backstop. Truncation is
+      // always announced, so a clipped answer is never read as an all-clear.
+      const budget = callBudget(args);
+      if (budget > 0 && result && result.content && result.content[0] && result.content[0].text) {
+        const clamped = tokenlean.compactText(result.content[0].text, budget);
+        if (clamped !== result.content[0].text) {
+          const wasError = !!result.isError;
+          result = textResult(clamped, wasError);
+          audit.log('token_budget', { tool: name, budget });
+        }
       }
 
       // ─── LAYER 13: AUDIT TRAIL — log every tool call ───────────────

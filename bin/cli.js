@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -122,9 +122,14 @@ Advanced:
   vibeguard proxy-stop              Stop the local proxy.
   vibeguard proxy-status            Show proxy status and blocked request audit log.
 
+  vibeguard tokens [dir]           Measure agent-context tokens saved by --lean vs JSON.
+
 Options:
   --json                      JSON output.
   --sarif                     SARIF 2.1.0 (GitHub code scanning).
+  --lean                      Token-lean output for AI agents (55-90% fewer tokens than JSON).
+  --budget <n>                Token ceiling for --lean; keeps highest-risk findings, reports the rest.
+  --delta                     With --lean: only findings new since the last scan.
   --fix-prompt                Print only the fix prompt block.
   --apply                     (fix) Apply safe auto-fixes.
   --all                       Show all findings (ignore baseline, show low-confidence).
@@ -151,6 +156,24 @@ misconfig) and helps you fix them. It does NOT prove an app is safe.
 }
 
 function outputResult(result, flags) {
+  // --lean: the dialect written for an AI agent's context window rather than a
+  // human terminal. Snapshot persistence lives in src/tokenlean.js so the CLI
+  // and the MCP server share one notion of "already reported".
+  if (flags.lean) {
+    const tokenlean = require('../src/tokenlean');
+    const budget = Number(flags.budget || process.env.VIBEGUARD_TOKEN_BUDGET || 0) || 0;
+    const root = result.root || process.cwd();
+    if (flags.delta) {
+      const d = tokenlean.deltaReport(result, tokenlean.readSnapshot(root), { budget });
+      tokenlean.writeSnapshot(root, d.snapshot);
+      process.stdout.write(d.text + '\n');
+      return;
+    }
+    const lean = tokenlean.renderLean(result, { budget });
+    tokenlean.writeSnapshot(root, tokenlean.snapshotOf(result));
+    process.stdout.write(lean.text + '\n');
+    return;
+  }
   if (flags.json) {
     process.stdout.write(renderJson(result) + '\n');
     return;
@@ -198,6 +221,48 @@ function detectFramework(dir) {
   return null;
 }
 
+/*
+ * `vibeguard tokens` — how much agent context the lean dialect saves here.
+ *
+ * Published as a command rather than a marketing claim so anyone can reproduce
+ * the number on their own repository.
+ */
+function cmdTokens(dir, flags) {
+  const tokenlean = require('../src/tokenlean');
+  const result = scan(dir, { deps: flags.deps !== false && !flags['no-deps'] });
+  const budget = Number(flags.budget || 0) || 0;
+  const s = tokenlean.leanStats(result, { budget });
+  if (flags.json) {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          findings: s.findings,
+          clusters: s.clusters,
+          scannedFiles: result.scannedFiles,
+          jsonTokens: s.jsonTokens,
+          leanTokens: s.leanTokens,
+          saved: s.saved,
+          savedPct: s.savedPct,
+        },
+        null,
+        2
+      ) + '\n'
+    );
+    return 0;
+  }
+  const pad = (n) => String(n).padStart(8);
+  process.stdout.write(
+    `\n${C.bold}${C.cyan}VibeGuard${C.reset} ${C.dim}token report${C.reset}\n` +
+      `${C.dim}${result.root}${C.reset}\n\n` +
+      `  findings        ${pad(s.findings)}  in ${s.clusters} rule cluster(s), ${result.scannedFiles} files\n` +
+      `  pretty JSON     ${pad(s.jsonTokens)} tokens   ${C.dim}(what other scanners hand an agent)${C.reset}\n` +
+      `  token-lean      ${pad(s.leanTokens)} tokens   ${C.dim}(--lean)${C.reset}\n` +
+      `  ${C.green}${C.bold}saved           ${pad(s.saved)} tokens   (${s.savedPct}%) per scan call${C.reset}\n\n` +
+      `${C.dim}Counts are estimates from an offline model (no tokenizer dependency), ~±10%.${C.reset}\n`
+  );
+  return 0;
+}
+
 async function cmdScan(dir, flags) {
   // Auto-detect framework/stack and apply preset if not explicitly set.
   if (!flags.preset && !flags['no-preset']) {
@@ -205,7 +270,7 @@ async function cmdScan(dir, flags) {
     if (detected) {
       const { applyPreset } = require('../src/presets');
       const applied = applyPreset(detected);
-      if (applied && !flags.json && !flags.sarif) {
+      if (applied && !flags.json && !flags.sarif && !flags.lean) {
         process.stderr.write(`${C.dim}detected: ${detected} — applied preset${C.reset}\n`);
       }
     }
@@ -221,7 +286,7 @@ async function cmdScan(dir, flags) {
     noSuppress: !!flags['no-suppress'],
   });
 
-  if (flags.staged && result.staged && !flags.json && !flags.sarif) {
+  if (flags.staged && result.staged && !flags.json && !flags.sarif && !flags.lean) {
     process.stderr.write(
       `${C.dim}staged: scanned ${result.staged.scanned} staged file(s) of ${result.staged.total} ` +
         `(cross-file analysis skipped — run a full scan for that)${C.reset}\n`
@@ -230,7 +295,7 @@ async function cmdScan(dir, flags) {
 
   // Incremental mode note: report how much work was skipped, and be explicit
   // that cross-file analysis is not run (per-file only).
-  if (flags.changed && result.incremental && !flags.json && !flags.sarif) {
+  if (flags.changed && result.incremental && !flags.json && !flags.sarif && !flags.lean) {
     const inc = result.incremental;
     process.stderr.write(
       `${C.dim}incremental: scanned ${inc.scanned}/${inc.total} changed file(s), ${inc.cached} unchanged skipped ` +
@@ -239,7 +304,7 @@ async function cmdScan(dir, flags) {
   }
 
   // Engine-mode + coverage transparency. Never let a degraded scan look clean.
-  if (!flags.json && !flags.sarif) {
+  if (!flags.json && !flags.sarif && !flags.lean) {
     if (result.engine && result.engine.mode === 'regex-only') {
       process.stderr.write(
         `${C.yellow}⚠ engine: regex-only — acorn not installed, AST/taint precision disabled. ` +
@@ -290,7 +355,7 @@ async function cmdScan(dir, flags) {
 
   // Baseline auto-suppression: if a baseline file exists and the user didn't
   // explicitly pass --new-only or --all, default to new-only and inform them.
-  if (!flags.baseline && !flags['new-only'] && !flags.all && !flags.json && !flags.sarif) {
+  if (!flags.baseline && !flags['new-only'] && !flags.all && !flags.json && !flags.sarif && !flags.lean) {
     const { readBaseline } = require('../src/verify');
     const base = readBaseline(dir);
     if (base && Array.isArray(base.findings) && base.findings.length > 0) {
@@ -326,7 +391,7 @@ async function cmdScan(dir, flags) {
     }
   }
 
-  if (flags.deep && result.externalInfo && !flags.json && !flags.sarif) {
+  if (flags.deep && result.externalInfo && !flags.json && !flags.sarif && !flags.lean) {
     const ran = result.externalInfo.ran || {};
     process.stderr.write(
       `${C.dim}deep: semgrep=${ran.semgrep ? 'ran' : 'skipped'}, gitleaks=${ran.gitleaks ? 'ran' : 'skipped'}` +
@@ -336,7 +401,7 @@ async function cmdScan(dir, flags) {
   }
   if (flags.baseline) {
     const p = writeBaseline(dir, result);
-    if (!flags.json && !flags.sarif) {
+    if (!flags.json && !flags.sarif && !flags.lean) {
       process.stderr.write(`${C.dim}baseline saved: ${p}${C.reset}\n`);
     }
   }
@@ -346,7 +411,7 @@ async function cmdScan(dir, flags) {
   // lands before the process exits (the return below computes the exit code
   // after this block). Best-effort: opt-out with --no-fun or VG_NO_FUN=1,
   // auto-silenced in CI (--ci sets CI via GitHub/GitLab/etc.).
-  if (result.grade === 'A' && !flags.json && !flags.sarif && !flags['no-fun'] &&
+  if (result.grade === 'A' && !flags.json && !flags.sarif && !flags.lean && !flags['no-fun'] &&
       !process.env.VG_NO_FUN && !process.env.CI) {
     try {
       const { searchGifs } = require('../src/gif');
@@ -883,12 +948,12 @@ async function main() {
     (async () => {
       const result = scan(dir, { deps: flags.deps !== false && !flags['no-deps'], deep: !!flags.deep });
       try {
-        if (!flags.json && !flags.sarif) {
+        if (!flags.json && !flags.sarif && !flags.lean) {
           process.stderr.write(`${C.yellow}⚠ --verify-keys sends found keys to their provider APIs (e.g. Stripe, OpenAI) to check if they are live.${C.reset}\n`);
         }
         const { verifyKeys } = require('../src/verifykeys');
         const live = await verifyKeys(dir, result.findings);
-        if (live > 0 && !flags.json && !flags.sarif) {
+        if (live > 0 && !flags.json && !flags.sarif && !flags.lean) {
           process.stderr.write(`${C.red}${live} key(s) CONFIRMED LIVE.${C.reset}\n`);
         }
       } catch (err) {
@@ -930,6 +995,7 @@ async function main() {
   let code = 0;
   try {
     if (cmd === 'scan') code = await cmdScan(dir, flags); // vibeguard-ignore-line [taint.xss-reflected]
+    else if (cmd === 'tokens') code = cmdTokens(dir, flags);
     else if (cmd === 'fix') code = cmdFix(dir, flags);
     else if (cmd === 'verify') code = cmdVerify(dir, flags);
     else if (cmd === 'install-hook') code = cmdInstallHook(dir);

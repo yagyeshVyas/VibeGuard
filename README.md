@@ -6,13 +6,13 @@
   <img src="website/banner.svg" alt="VibeGuard — security scanner + AI agent firewall" width="880" />
 </picture>
 
-<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;771+rules+%C2%B7+84+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;100%25+offline+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;771+rules+%C2%B7+85+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;100%25+offline+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
 
 <h3>🔒 The AI-era security scanner &amp; agent firewall.</h3>
 
 <p>
 Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops.<br/>
-<strong>771 rules</strong> · <strong>84 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
+<strong>771 rules</strong> · <strong>85 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
 100% offline · Zero telemetry · No paid APIs · Free forever.
 </p>
 
@@ -25,12 +25,12 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 <p>
   <img src="https://img.shields.io/badge/coverage-96.0%25%20F1-brightgreen?style=flat-square" alt="96.0% F1" />
   <img src="https://img.shields.io/badge/rules-771-blue?style=flat-square" alt="771 rules" />
-  <img src="https://img.shields.io/badge/MCP%20tools-84-purple?style=flat-square" alt="84 MCP tools" />
+  <img src="https://img.shields.io/badge/MCP%20tools-85-purple?style=flat-square" alt="85 MCP tools" />
   <img src="https://img.shields.io/badge/languages-18-green?style=flat-square" alt="18 languages" />
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-430%20passed-blue?style=flat-square" alt="430 tests pass" />
+  <img src="https://img.shields.io/badge/tests-497%20passed-blue?style=flat-square" alt="497 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -64,10 +64,32 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 
 ---
 
-## 🆕 What's New — v1.5.0
+## 🆕 What's New — v1.6.0
 
 <details open>
-<summary><strong>Jump to: active pentesting (Strix-class) · PR review gate · fix verification · deploy gate</strong></summary>
+<summary><strong>Jump to: token-lean agent protocol · budgets · delta scans · <code>vibeguard tokens</code></strong></summary>
+
+Every security scanner answers an AI agent with pretty-printed JSON — two-space indentation, repeated object keys, and the same `message` and `fix` string duplicated once per occurrence. On a real repository that is thousands of tokens of pure redundancy, paid for on **every single tool call**. v1.6 fixes that.
+
+- 🪶 **TLAP — the Token-Lean Agent Protocol** (`vibeguard scan --lean`, and the default dialect for the MCP server). Same information, no findings dropped, encoded for a context window instead of a terminal: rule text stated once per rule rather than once per site, directory prefixes dictionary-coded, line-oriented instead of nested JSON. **Measured on this repo: 64,076 → 5,492 tokens, a 91.4% cut per scan call.**
+- 🎯 **Hard token budgets** (`--budget 2000`, or `VIBEGUARD_TOKEN_BUDGET`). The budget is spent on the highest-**risk** findings first — severity × confidence, with dataflow-confirmed and exploitable rules outranking pattern-only matches at equal severity. Anything cut is reported as an explicit rollup that states `NOT an all-clear`. A clipped scan can never be misread as a clean one.
+- ⚡ **Delta scans** (`--lean --delta`). In an edit→scan→fix loop, the common answer is "nothing changed" — and that answer now costs **~20 tokens instead of ~5,000**. New findings are shown; already-reported ones are not repeated. Resolved findings are counted.
+- 🔧 **Lean fix plans** — `suggest_fixes` states each remediation once per rule and drops the diagnosis, because when the task is "apply the fix" the diagnosis is not what the agent needs.
+- 🛡️ **Context-window DoS protection** — a 14th defense layer clamps *any* of the 85 MCP tools to the budget, so one dependency-tree dump can't evict an agent's working memory. Truncation is always disclosed.
+- 📐 **`vibeguard tokens [dir]`** — reproduce the savings claim on your own repository. No marketing number you have to take on faith.
+- 🔒 **Zero new dependencies.** The token estimator is an offline model (~±10% of a real BPE tokenizer), because VibeGuard stays zero-dependency and offline by contract.
+- 🧪 **497 tests, 0 failures** · **771 rules** · **85 MCP tools** · Grade A self-scan on 293 files.
+
+```bash
+vibeguard scan --lean --budget 2000    # fits any context window, highest-risk first
+vibeguard scan --lean --delta          # only what changed since the last scan
+vibeguard tokens                       # prove the saving on your own repo
+```
+
+</details>
+
+<details>
+<summary><strong>v1.5.0 — active pentesting (Strix-class) · PR review gate · fix verification · deploy gate</strong></summary>
 
 - 🎯 **`vibeguard pentest <url>` — active web/API security testing** (Strix.ai-class "autonomous pentesting", 100% local, zero deps, deterministic). ~20 probe families: security headers (incl. HSTS max-age + CSP unsafe-inline), CORS reflection/null/wildcard, open redirect (multi-payload), exposed files (`.env`, `.git`, backups, swagger, actuator — 404-baseline FP-guarded), GraphQL introspection, verbose errors (2+ stack markers), rate limiting (auth endpoints), JWT **alg:none + weak-HMAC** (opt-in `--token`), TLS version/cert, cookie flags. **Every finding ships severity + CWE + evidence + a copy-paste curl reproduction.**
 - 📡 **`--verify-ssrf` — out-of-band SSRF proof-of-exploit**: a local callback listener + form/param fuzzing; if the target fetches the listener URL, that IS proof (Strix's "proof for every finding", done deterministically and offline). Live demo: `CRITICAL web.ssrf-proof — callback observed, parameter: url`.
@@ -75,7 +97,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 - ✅ **`vibeguard fix --apply --verify` — the "fix verified" loop**: applies the snapshot-backed auto-fixes, re-scans, and reports ✓/⚠ per finding (Strix's headline workflow, deterministic).
 - 🚦 **`vibeguard pre-deploy --pentest-url <url>`** — 14th gate: live pentest runs inside the deploy gate; critical/high findings block the deploy.
 - ⚔️ **vs Strix.ai (their own numbers):** their deep scan costs ~$1.7–3.9/run in LLM tokens, takes 30 min–4 h, is non-deterministic, and needs Docker+Kali+an API key. VibeGuard: zero cost, ~1.6 s for the demo run, identical input → identical output, no Docker, no keys — plus runtime AI-agent protection and git-history scanning Strix doesn't have.
-- 🧪 **480 tests, 0 failures** · **771 rules** · **84 MCP tools** · Grade A self-scan on 291 files.
+- 🧪 **497 tests, 0 failures** · **771 rules** · **85 MCP tools** · Grade A self-scan on 291 files.
 
 </details>
 
@@ -477,6 +499,8 @@ A direct, no-marketing comparison across the tools people actually reach for:
 | **Pre-commit / post-edit hook + daemon auto-scan** | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **SARIF + GitHub Code Scanning integration** | ✅ | ✅ | ❌ | ✅ | ✅ | ⚠️ | ✅ |
 | **60+ CI providers + one-command setup** | ✅ 7 templates | ✅ | ⚠️ manual | ✅ | ✅ | ✅ | ✅ |
+| **Token-lean agent output** (`--lean`, budgets, delta) | ✅ **91% fewer tokens** | ❌ raw JSON | ❌ raw JSON | ❌ raw JSON | ❌ raw JSON | ❌ raw JSON | ❌ |
+| **Hard token budget per tool call** (risk-ranked, discloses what it cut) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **No LLM needed for detection** (deterministic) | ✅ | ❌ ML not default | ✅ | ✅ | ⚠️ mixed | ✅ | ✅ |
 | **Ease: one command → grade A–F** | ✅ `vibeguard scan` | ⚠️ rules packs + tuning | ⚠️ flags | ⚠️ flags | ⚠️ signup-first | ⚠️ exit-code only | ⚠️ repo-side |
 
@@ -487,6 +511,7 @@ A direct, no-marketing comparison across the tools people actually reach for:
 - 🤖 **Agent-grade posture in one grade** (`vibeguard agent-scan`) — scored C/F for MCP trust, PII leakage, LLM output sinks, and agent loops in one pass.
 - 🧠 **AI Firewall** — Layer 1 (regex threat patterns) + Layer 2 (token-feature semantic classifier) blocks injection *before* the LLM call, no API key needed.
 - 🔐 **Agent action guard** — every shell command / network request / file write / LLM prompt checked against an exfiltration policy before it runs.
+- 🪶 **Token-lean agent protocol (TLAP)** — the only scanner that treats your agent's context window as a budget. Every other tool hands an agent pretty-printed JSON that repeats the same `message` and `fix` string once per occurrence; VibeGuard states each rule once, dictionary-codes directory prefixes, and spends a hard token budget on the highest-risk findings first. Reproduce the number on your own repo with `vibeguard tokens`.
 
 Use VibeGuard *alongside* Gitleaks and Trivy — not instead. The niche is AI-era risks, and there it has no direct free+offline competitor today.
 
@@ -501,6 +526,10 @@ vibeguard scan --fix              # scan + apply safe auto-fixes
 vibeguard scan --all              # show all findings including low-confidence
 vibeguard scan --patch            # output unified diff for fixes
 vibeguard scan --output sarif     # SARIF output for GitHub Code Scanning
+vibeguard scan --lean             # token-lean output for AI agents (~91% fewer tokens)
+vibeguard scan --lean --budget N  # cap the payload at N tokens, highest-risk first
+vibeguard scan --lean --delta     # only what changed since the last scan
+vibeguard tokens [dir]            # measure the token saving on your own repo
 vibeguard agent-scan [dir]        # AI agent security posture grade
 vibeguard mcp-audit               # audit MCP servers for poisoning/drift
 vibeguard pre-deploy [dir]        # 13-gate deployment check

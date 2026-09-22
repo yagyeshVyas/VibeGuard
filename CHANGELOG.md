@@ -5,6 +5,52 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — v1.6 token-lean pass (TLAP: treat the agent's context window as a budget)
+- **`src/tokenlean.js` — TLAP, the Token-Lean Agent Protocol.** Every scanner in
+  this space answers an AI agent with pretty-printed JSON: two-space indentation,
+  repeated object keys, and the same `message` + `fix` string duplicated once per
+  occurrence. TLAP encodes the same information — no findings dropped silently —
+  in a line-oriented, de-duplicated, dictionary-compressed form. Four levers:
+  no pretty JSON, cluster by rule (rule text is a property of the rule, not of
+  the occurrence), path-prefix dictionary, and a risk-ranked budget.
+  Measured on this repo: **64,076 → 5,492 estimated tokens, a 91.4% cut** on a
+  463-finding / 293-file scan. Zero new dependencies.
+- **`vibeguard scan --lean`** — the lean dialect from the CLI.
+- **`--budget <n>` / `VIBEGUARD_TOKEN_BUDGET`** — a hard token ceiling. The budget
+  is spent highest-risk first: severity × confidence, with dataflow-confirmed,
+  exploitable (taint/secret/idor/auth/ssrf…) and security-hotspot-path findings
+  outranking pattern-only matches at equal severity. Whatever does not fit is
+  reported as an explicit rollup with per-severity counts and the rule ids, and
+  the payload states `NOT an all-clear`. Truncation can never read as clean.
+- **`--lean --delta`** — delta scans against a stored fingerprint snapshot
+  (`.vibeguard/tlap-snapshot.json`, shared by the CLI and the MCP server). When
+  nothing changed the whole answer is one line, ~20 tokens instead of ~5,000;
+  otherwise only new findings are listed and resolved ones are counted.
+- **`vibeguard tokens [dir]`** (+ `token_report` MCP tool) — reproduce the savings
+  claim on any repository. `--json` for machine output.
+- **MCP: lean is now the default dialect** for `scan_project` and `suggest_fixes`
+  (`format: "json"` restores the old payload; `budget` and `delta` are per-call
+  arguments). Lean fix plans state each remediation once per rule and drop the
+  diagnosis — when the task is "apply the fix", the diagnosis is not the payload.
+- **Layer 14 — context-window budget guard.** Any of the 85 MCP tools is clamped
+  to the configured budget before returning, so a single large payload cannot
+  evict an agent's working memory. Truncation is always disclosed.
+- Offline token estimator (no tokenizer dependency, ~±10% of a real BPE count).
+  Deterministic: identical input produces byte-identical output.
+- 17 new tests covering losslessness, budget behaviour, risk ordering, delta
+  mode, determinism, and the "never silently lossy" guarantee. **497 total, 0 failures.**
+
+### Fixed
+- Transitive advisories cleared via `overrides`: `fast-uri` → ^4.2.1 (host
+  confusion / SSRF via IPv6 normalization), `hono` → >=4.13.8 (`toSSG()` path
+  escape, `parseBody()` memory exhaustion), `qs` → >=6.15.4 (array-limit bypass,
+  DoS). Self-scan back to **Grade A** on 293 files.
+- `outputResult`'s lean path no longer joins a user-supplied scan root with a
+  path inside the CLI: snapshot persistence moved into `src/tokenlean.js` behind
+  a resolved-root helper, clearing 5 self-reported `taint.path-traversal`
+  findings at the source rather than suppressing them.
+
+
 ### Added — v1.5 active-security pass (beat Strix.ai on the active front)
 - **`vibeguard pentest <url>`** — active web/API probe suite, zero deps, deterministic
   (Strix.ai-class "autonomous pentesting" without the LLM). ~20 probe families:

@@ -4635,6 +4635,8 @@ const pentestSuite = require('./pentest-tests');
 for (const t of pentestSuite.tests) test('pentest: ' + t.name, t);
 const prScanSuite = require('./pr-scan-tests');
 for (const t of prScanSuite.tests) test('pr-scan: ' + t.name, t);
+const tokenLeanSuite = require('./tokenlean-tests');
+for (const t of tokenLeanSuite.tests) test('tokenlean: ' + t.name, t);
 
 (async function runAll() {
   for (const t of _tests) {
