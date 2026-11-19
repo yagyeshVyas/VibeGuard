@@ -9,12 +9,17 @@ name: Publish
 # Users: this is the MAINTAINER's token (yours), not the user's.
 # VibeGuard itself is 100% free — no API keys, no paid services.
 # The npm token is only used by the maintainer to publish the package.
+#
+# Missing-token behavior: when NPM_TOKEN is not configured the publish and
+# release steps are SKIPPED with a warning instead of failing the run. A
+# missing credential is a setup state, not a broken build; failing every tag
+# push sends noise and hides the real signal. An INVALID token still fails.
 
 on:
   push:
     tags:
       - 'v*'
-  # Manual release path: after refreshing the NPM_TOKEN secret, run this from the
+  # Manual release path: after setting the NPM_TOKEN secret, run this from the
   # default branch (`gh workflow run publish.yml --ref master`). Publishing is
   # idempotent for the release step below, so it can be retried safely.
   workflow_dispatch:
@@ -25,6 +30,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v7
@@ -33,10 +40,19 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm ci
       - run: npm test
-      - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Check npm credentials
+        if: env.NODE_AUTH_TOKEN == ''
+        run: |
+          echo "::warning title=npm publish skipped::The repository secret NPM_TOKEN is not set, so this run published nothing."
+          echo "Add a granular npm token (publish rights on @yagyeshvyas) as NPM_TOKEN, then run: gh workflow run publish.yml --ref master"
+
+      - name: npm publish
+        if: env.NODE_AUTH_TOKEN != ''
+        run: npm publish --provenance --access public
+
       - name: Create GitHub Release
+        if: env.NODE_AUTH_TOKEN != ''
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
