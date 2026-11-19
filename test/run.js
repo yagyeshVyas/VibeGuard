@@ -1548,7 +1548,10 @@ test('website: index.html exists and has content', () => {
   assert(html.includes('VibeGuard'), 'should mention VibeGuard');
   assert(html.includes('playground'), 'should have playground');
   assert(html.includes('scanCode'), 'should have scanCode function');
-  assert(html.includes('752'), 'should mention rule count');
+  // Assert against the LIVE rule count, not a frozen number that rots on every
+  // release (the site shipped 752 long after the scanner reached 861).
+  const liveRules = String(require('../src/rules').allRules().length);
+  assert(html.includes(liveRules), `should mention the live rule count (${liveRules})`);
   assert(html.includes('MCP'), 'should mention MCP tools');
 });
 
