@@ -6,10 +6,10 @@ import Shell from "@/components/Shell";
 import ArcReactor from "@/components/ArcReactor";
 
 const stats = [
-  { num: "752", label: "Detection Rules" },
-  { num: "82", label: "MCP Tools" },
-  { num: "419", label: "Tests Passing" },
-  { num: "89%", label: "F1 Benchmark" },
+  { num: "861", label: "Detection Rules" },
+  { num: "88", label: "MCP Tools" },
+  { num: "564", label: "Tests Passing" },
+  { num: "93%", label: "F1 Benchmark" },
   { num: "18", label: "Languages" },
   { num: "$0", label: "Cost Forever" },
 ];
@@ -18,6 +18,7 @@ const timeline = [
   { phase: "v0.1.0", title: "Initial Release", desc: "Core scanner with secrets, injection, auth, config, PII rules. MCP server with 5 tools. Pre-commit hook. SARIF output. Zero runtime dependencies." },
   { phase: "v1.0.0", title: "Layered Protection Suite", desc: "699 rules, 75 MCP tools, AST taint analysis, cross-file taint tracking, auto-fix, daemon mode, shell guard, multi-client installer. 342 tests." },
   { phase: "v1.3.0", title: "Phase 0-4 Complete", desc: "752 rules, 82 MCP tools, 18 languages, 10 compliance frameworks, Python taint v2, firewall semantic classifier, local MITM proxy, plugin system v2, agentic fix contracts, C/C++/Dart/Scala/Elixir rules. 419 tests. F1 89.1%." },
+  { phase: "v1.9.0", title: "Live-code reachability + exploit chains", desc: "861 rules, 88 MCP tools. Attack-surface graph (route × auth × reachability) with deterministic exploit chains, --live filtering, bundle-scan for secrets inlined in dist/, IDOR/RLS-correctness intelligence, backdoor/obfuscation engine, 564 tests, F1 93.3%." },
 ];
 
 export default function AboutPage() {

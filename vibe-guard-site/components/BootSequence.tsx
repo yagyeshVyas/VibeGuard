@@ -19,7 +19,7 @@ const bootLines = [
   { text: "> [OK] Shell guard interceptor", delay: 540, cls: "ok" },
   { text: "> [OK] Cross-file taint tracker", delay: 610, cls: "ok" },
   { text: "> [OK] Local MITM proxy", delay: 680, cls: "ok" },
-  { text: "> Loading 752 detection rules...", delay: 780, cls: "" },
+  { text: "> Loading 861 detection rules...", delay: 780, cls: "" },
   { text: "> [OK] All systems online.", delay: 920, cls: "ok" },
   { text: "> WELCOME.", delay: 1100, cls: "welcome" },
 ];

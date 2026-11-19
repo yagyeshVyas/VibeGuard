@@ -40,7 +40,7 @@ export default function HudReadout() {
         <div className="font-mono text-[10px] text-[#00f0ff]/40 space-y-0.5">
           <div>SYS://VIBEGUARD.v1.3</div>
           <div>STATUS: <span className="text-[#00ff9d]">ONLINE</span></div>
-          <div>RULES: 752 ACTIVE</div>
+          <div>RULES: 861 ACTIVE</div>
           <div>SCAN#: {String(scan).padStart(4, "0")}</div>
         </div>
       </motion.div>
