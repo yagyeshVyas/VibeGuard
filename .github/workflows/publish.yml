@@ -14,6 +14,10 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual release path: after refreshing the NPM_TOKEN secret, run this from the
+  # default branch (`gh workflow run publish.yml --ref master`). Publishing is
+  # idempotent for the release step below, so it can be retried safely.
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -36,3 +40,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
+          # Updates an existing release instead of failing when a release for
+          # this tag was created manually (recoveries, re-runs).
+          allowUpdates: true
