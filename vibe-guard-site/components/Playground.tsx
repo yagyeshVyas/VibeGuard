@@ -25,7 +25,7 @@ const RULES: { id: string; re: RegExp; sev: Finding["sev"]; msg: string; fix: st
   { id: "ai.llm-output-exec", re: /exec\s*\([^)]*completion/i, sev: "critical", msg: "LLM output passed to exec() — RCE", fix: "Never pass LLM output to exec(). Validate and sanitize." },
 ];
 
-const sampleCode = `const apiKey = 'sk-proj-abc123def456ghi789jkl';
+const sampleCode = `const apiKey = 'process.env.OPENAI_KEY';
 const stripeKey = 'sk_live_51H8xdeadbeef1234';
 
 db.query(\`SELECT * FROM users WHERE id = \${req.body.id}\`);

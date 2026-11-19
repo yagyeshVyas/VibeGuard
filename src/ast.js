@@ -21,7 +21,131 @@ const path = require('path');
 let acorn = null;
 let walk = null;
 let tsParser = null;
+let jsxParser = null;
 let loaded = false;
+
+// JSX walkers. acorn-walk's base has no visitor for JSX node types, so every
+// walk.simple() over a .jsx/.tsx tree threw "No walker function defined for node
+// type JSXElement" — which silently degraded the AST pass for every React/Next
+// component (i.e. most files in the projects this tool exists to scan). These
+// visitors are merged into walk.base so all existing walks (ast pass, intra-file
+// taint, cross-file taint, import graphs) support JSX without touching them.
+const JSX_WALKERS = {
+  JSXElement(node, st, c) {
+    c(node.openingElement, st);
+    for (const child of node.children || []) c(child, st);
+    if (node.closingElement) c(node.closingElement, st);
+  },
+  JSXFragment(node, st, c) {
+    c(node.openingFragment, st);
+    for (const child of node.children || []) c(child, st);
+    if (node.closingFragment) c(node.closingFragment, st);
+  },
+  JSXOpeningElement(node, st, c) {
+    c(node.name, st);
+    for (const attr of node.attributes || []) c(attr, st);
+  },
+  JSXClosingElement(node, st, c) {
+    c(node.name, st);
+  },
+  JSXAttribute(node, st, c) {
+    if (node.value) c(node.value, st);
+  },
+  JSXSpreadAttribute(node, st, c) {
+    c(node.argument, st);
+  },
+  JSXExpressionContainer(node, st, c) {
+    if (node.expression) c(node.expression, st);
+  },
+  JSXMemberExpression(node, st, c) {
+    c(node.object, st);
+    c(node.property, st);
+  },
+  JSXNamespacedName(node, st, c) {
+    c(node.namespace, st);
+    c(node.name, st);
+  },
+  JSXText() {},
+  JSXIdentifier() {},
+  JSXEmptyExpression() {},
+};
+
+// TS/ESTree node types that acorn-walk's base does not know. Type-only nodes
+// are deliberately NOT descended into (their children are type syntax, not code);
+// expression wrappers are unwrapped so taint/analysis still sees the value.
+const EXTRA_WALKERS = {
+  // Expression wrappers produced by acorn-typescript.
+  TSAsExpression: (node, st, c) => c(node.expression, st),
+  TSTypeAssertion: (node, st, c) => c(node.expression, st),
+  TSNonNullExpression: (node, st, c) => c(node.expression, st),
+  TSSatisfiesExpression: (node, st, c) => c(node.expression, st),
+  TSInstantiationExpression: (node, st, c) => c(node.expression, st),
+  TSParameterProperty: (node, st, c) => c(node.parameter, st),
+  // Type-only nodes: nothing executable inside.
+  TSTypeAliasDeclaration() {},
+  TSInterfaceDeclaration() {},
+  TSTypeAnnotation() {},
+  TSTypeReference() {},
+  TSTypeParameterInstantiation() {},
+  TSTypeParameterDeclaration() {},
+  TSTypeParameter() {},
+  TSDeclareFunction() {},
+  TSIndexSignature() {},
+  TSPropertySignature() {},
+  TSMethodSignature() {},
+  TSLiteralType() {},
+  TSUnionType() {},
+  TSIntersectionType() {},
+  TSFunctionType() {},
+  TSArrayType() {},
+  TSTypeQuery() {},
+  TSTypeLiteral() {},
+  TSMappedType() {},
+  TSConditionalType() {},
+  TSInferType() {},
+  TSEnumMember() {},
+  TSAbstractMethodDefinition() {},
+  // Module/namespace: descend into the body when it holds statements.
+  TSModuleDeclaration: (node, st, c) => {
+    if (node.body && node.body.type === 'TSModuleBlock') c(node.body, st);
+  },
+  TSModuleBlock: (node, st, c) => {
+    for (const s of node.body || []) c(s, st);
+  },
+  TSEnumDeclaration: (node, st, c) => {
+    for (const m of node.members || []) c(m, st);
+  },
+  // JSX fragments (opening/closing tags carry no children).
+  JSXOpeningFragment() {},
+  JSXClosingFragment() {},
+  // Newer ESTree fields.
+  PropertyDefinition: (node, st, c) => {
+    if (node.value) c(node.value, st);
+  },
+  AccessorProperty: (node, st, c) => {
+    if (node.value) c(node.value, st);
+  },
+  StaticBlock: (node, st, c) => {
+    for (const s of node.body || []) c(s, st);
+  },
+  Decorator: (node, st, c) => c(node.expression, st),
+  PrivateIdentifier() {},
+};
+
+// Anything still unknown walks its child nodes generically, except type syntax.
+// This is what keeps a future parser node from silently disabling the AST pass.
+function genericWalker(node, st, c) {
+  if (String(node.type).startsWith('TS') && !EXTRA_WALKERS[node.type]) return;
+  for (const key of Object.keys(node)) {
+    if (key === 'type' || key === 'loc' || key === 'range' || key === 'start' || key === 'end') continue;
+    const value = node[key];
+    if (Array.isArray(value)) {
+      for (const item of value) if (item && typeof item.type === 'string') c(item, st);
+    } else if (value && typeof value === 'object' && typeof value.type === 'string') {
+      c(value, st);
+    }
+  }
+}
 
 function load() {
   if (loaded) return acorn && walk;
@@ -32,6 +156,23 @@ function load() {
   } catch {
     acorn = walk = null;
     return false;
+  }
+  Object.assign(walk.base, JSX_WALKERS, EXTRA_WALKERS);
+  // Future-proof fallback: any node type acorn-walk does not know walks its
+  // children instead of throwing and silently disabling the whole AST pass.
+  walk.base = new Proxy(walk.base, {
+    get(target, prop, receiver) {
+      if (prop in target) return target[prop];
+      if (typeof prop === 'string') return genericWalker;
+      return undefined;
+    },
+  });
+  try {
+    const jsx = require('acorn-jsx');
+    const jsxPlugin = jsx.jsx || jsx.default || jsx;
+    jsxParser = acorn.Parser.extend(jsxPlugin());
+  } catch {
+    jsxParser = null; // JSX parsing optional-on-top-of-optional
   }
   try {
     const ts = require('acorn-typescript');
@@ -53,17 +194,28 @@ const TS_EXT = new Set(['.ts', '.tsx', '.mts', '.cts']);
 function parse(content, ext) {
   const opts = { ecmaVersion: 'latest', sourceType: 'module', locations: true, allowReturnOutsideFunction: true };
   const isTs = TS_EXT.has(ext);
-  const parser = isTs ? tsParser : acorn.Parser;
+  const isJsx = ext === '.jsx';
   if (isTs && !tsParser) return null; // no TS plugin -> let regex handle it
-  try {
-    return parser.parse(content, opts);
-  } catch {
+  // .jsx needs the JSX plugin; a .js file may also contain JSX (common in
+  // browser-script code), so it tries plain JS first and JSX as a fallback.
+  const candidates = isTs
+    ? [tsParser]
+    : isJsx
+      ? [jsxParser, acorn.Parser]
+      : [acorn.Parser, jsxParser];
+  for (const parser of candidates) {
+    if (!parser) continue;
     try {
-      return parser.parse(content, Object.assign({}, opts, { sourceType: 'script' }));
+      return parser.parse(content, opts);
     } catch {
-      return null;
+      try {
+        return parser.parse(content, Object.assign({}, opts, { sourceType: 'script' }));
+      } catch {
+        /* next candidate */
+      }
     }
   }
+  return null;
 }
 
 function isDynamic(node) {

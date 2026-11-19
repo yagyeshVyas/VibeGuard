@@ -85,6 +85,8 @@ const TOOLS = [
         format: { type: 'string', enum: ['lean', 'json'], description: 'Output dialect. Default lean.' },
         budget: { type: 'number', description: 'Hard token ceiling. Highest-risk findings are kept; anything cut is reported as a rollup.' },
         delta: { type: 'boolean', description: 'Report only findings new since the last scan. Unchanged answers in one line.' },
+        live: { type: 'boolean', description: 'Only report findings an app entrypoint can reach (drops findings in dead/tooling/example code).' },
+        reachabilityGrade: { type: 'boolean', description: 'Grade dead-code findings one tier lower (off by default).' },
       },
       required: [],
     },
@@ -269,6 +271,39 @@ const TOOLS = [
     name: 'auth_coverage',
     description: 'Enumerate routes → middleware → auth guards. Shows which API routes are unprotected.',
     inputSchema: DIR_SCHEMA,
+  },
+  {
+    name: 'attack_surface',
+    description:
+      'Entrypoint map joined with findings and import reachability: every route / Server Action / tRPC procedure / edge function with its auth state, IDOR signal (object fetched by request id without an owner filter) and the findings actually reachable from it. Returns the exposed endpoints first — this is the "fix this now" list. format="json" for the full object.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: DIR_SCHEMA.properties.dir,
+        format: { type: 'string', enum: ['lean', 'json'], description: 'Output dialect. Default lean.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'scan_backdoors',
+    description:
+      'Obfuscation and backdoor analysis: decoded base64/hex/unicode payloads, javascript-obfuscator fingerprints, fetch→eval loaders, curl|sh bootstrap, anti-analysis overrides, hidden Unicode, and behavioural co-occurrence (exec + network + env = dropper/exfil). Works on source and vendored files.',
+    inputSchema: DIR_SCHEMA,
+  },
+  {
+    name: 'scan_bundle',
+    description:
+      'Scan BUILD artifacts (dist/, build/, out/, .next/static) — the place bundlers inline environment values. Finds known secret formats and high-entropy tokens inside minified bundles plus exposed source maps. Values found here are publicly served to every visitor, so this is the strongest signal that a server-only credential leaked into the client.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: DIR_SCHEMA.properties.dir,
+        dirs: { type: 'string', description: 'Comma-separated build directories to scan (default: dist,build,out,.next/static,…).' },
+        format: { type: 'string', enum: ['lean', 'json'], description: 'Output dialect. Default lean.' },
+      },
+      required: [],
+    },
   },
   {
     name: 'deep_scan',
@@ -652,7 +687,11 @@ function textResult(text, isError) {
 
 async function handleScan(args) {
   const dir = args.dir || process.cwd();
-  const result = scan(dir);
+  const result = scan(dir, {
+    liveOnly: !!args.live,
+    reachabilityGrade: !!args.reachabilityGrade,
+    minConfidence: args.live ? 'medium' : undefined,
+  });
   if (args.saveBaseline) writeBaseline(dir, result);
 
   // ── Lean dialect (default) ────────────────────────────────────────────
@@ -686,11 +725,13 @@ async function handleScan(args) {
       degradedFileCount: result.diagnostics.degradedFileCount,
       parseFailedFiles: result.diagnostics.parseFailedFiles,
     },
+    reach: result.reach,
     findings: result.findings.map((f) => ({
       severity: f.severity,
       ruleId: f.ruleId,
       file: f.file,
       line: f.line,
+      reach: f.surface ? f.surface.reach : undefined,
       message: f.message,
       fix: f.fix,
     })),
@@ -1167,6 +1208,88 @@ async function handleAuthCoverage(args) {
   const { buildAuthCoverage } = require('./engine');
   const coverage = buildAuthCoverage(dir, files);
   return textResult(JSON.stringify(coverage, null, 2));
+}
+
+async function handleAttackSurface(args) {
+  const dir = args.dir || process.cwd();
+  const result = scan(dir, { surface: true });
+  const s = result.surface;
+  if (!s) return textResult('attack-surface: analysis failed', true);
+  if (args.format === 'json') {
+    return textResult(
+      JSON.stringify(
+        {
+          grade: result.grade,
+          counts: result.counts,
+          stats: s.stats,
+          authCoverage: s.authCoverage,
+          middleware: s.middleware,
+          chains: s.chains,
+          entrypoints: s.entrypoints,
+          exposed: s.exposed,
+          byRule: s.byRule,
+          recommendations: s.recommendations,
+        },
+        null,
+        2
+      )
+    );
+  }
+  const { summarizeSurface } = require('./surface');
+  const lines = [summarizeSurface(s)];
+  for (const e of s.entrypoints) {
+    if (e.verdict === 'clean') continue;
+    if (lines.length > 30) {
+      lines.push(`… ${s.exposed.length - 30}+ more exposed endpoints (format="json" for all)`);
+      break;
+    }
+    lines.push(
+      `${e.verdict.toUpperCase()} ${e.method} ${e.path} [${e.framework}] ${e.file}:${e.line} ` +
+        `auth=${e.auth} idor=${e.ownership} writes=${e.writes} ` +
+        `risks=${e.risks.slice(0, 5).map((r) => `${r.ruleId}(${r.reach})`).join(',') || '-'}`
+    );
+  }
+  if (s.recommendations.length) {
+    lines.push('', 'fix first:');
+    for (const r of s.recommendations.slice(0, 6)) lines.push(`- [${r.severity}] ${r.text}`);
+  }
+  if (s.chains.length) {
+    lines.push('', 'exploit chains (precondition → sink → impact):');
+    for (const c of s.chains.slice(0, 6)) lines.push(`- ${c.narrative}`);
+  }
+  return textResult(lines.join('\n'));
+}
+
+async function handleScanBundles(args) {
+  const dir = args.dir || process.cwd();
+  const { scanBundles } = require('./bundles');
+  const dirs = typeof args.dirs === 'string' ? args.dirs.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+  const res = scanBundles(dir, { dirs });
+  if (args.format === 'json') return textResult(JSON.stringify(res, null, 2));
+  if (res.dirs.length === 0) {
+    return textResult(`bundle-scan: no build output found under ${dir} (dist/, build/, out/, .next/static). Build the app first or pass dirs.`);
+  }
+  const lines = [`bundle-scan: ${res.scannedFiles} artifact(s) in ${res.dirs.join(', ')} — ${res.findings.length} finding(s)`];
+  for (const f of res.findings.slice(0, 40)) {
+    lines.push(`${f.severity} ${f.file}:${f.line} [${f.ruleId}] ${f.message.split('.')[0]}.`);
+  }
+  for (const n of res.notes) lines.push(`note: ${n}`);
+  return textResult(lines.join('\n'));
+}
+
+async function handleScanBackdoors(args) {
+  const dir = args.dir || process.cwd();
+  const result = scan(dir, {});
+  const obf = result.findings.filter((f) => String(f.ruleId || '').startsWith('obf.'));
+  if (obf.length === 0) {
+    return textResult(`No obfuscated or backdoor-shaped code found (${result.scannedFiles} files).`);
+  }
+  const lines = [`${obf.length} obfuscation/backdoor finding(s) in ${result.scannedFiles} files:`];
+  for (const f of obf.slice(0, 40)) {
+    lines.push(`${f.severity} ${f.file}:${f.line} [${f.ruleId}] ${f.title} — ${f.message.split('.')[0]}. fix: ${f.fix}`);
+  }
+  if (obf.length > 40) lines.push(`… ${obf.length - 40} more`);
+  return textResult(lines.join('\n'));
 }
 
 async function handleDeepScan(args) {
@@ -2092,6 +2215,9 @@ async function main() {
       else if (name === 'security_stats') result = await handleStats(args);
       else if (name === 'guardvibe_doctor') result = await handleDoctor(args);
       else if (name === 'auth_coverage') result = await handleAuthCoverage(args);
+      else if (name === 'attack_surface') result = await handleAttackSurface(args);
+      else if (name === 'scan_backdoors') result = await handleScanBackdoors(args);
+      else if (name === 'scan_bundle') result = await handleScanBundles(args);
       else if (name === 'deep_scan') result = await handleDeepScan(args);
       else if (name === 'full_audit') result = await handleFullAudit(args);
       else if (name === 'remediation_plan') result = await handleRemediationPlan(args);

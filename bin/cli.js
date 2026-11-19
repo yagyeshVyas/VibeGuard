@@ -87,6 +87,8 @@ Advanced:
   vibeguard trace [dir]             Trace findings to AI prompts.
   vibeguard repl [dir]              Interactive REPL.
   vibeguard auth-coverage [dir]     Enumerate routes -> auth guards.
+  vibeguard attack-surface [dir]    Entrypoints x auth x reachability: what is exposed now.
+  vibeguard bundle-scan [dir]       Scan dist/build/.next artifacts for inlined secrets + source maps.
   vibeguard diff [dir]              Compare vs baseline.
   vibeguard deep-scan [dir]          Full audit: scan + CVE + auth + behavior.
   vibeguard html [dir]              Generate HTML security report.
@@ -284,6 +286,8 @@ async function cmdScan(dir, flags) {
     changed: !!flags.changed,
     staged: !!flags.staged,
     noSuppress: !!flags['no-suppress'],
+    liveOnly: !!flags.live,
+    reachabilityGrade: !!flags['reachability-grade'],
   });
 
   if (flags.staged && result.staged && !flags.json && !flags.sarif && !flags.lean) {
@@ -922,6 +926,18 @@ async function main() {
   const args = parseArgs(argv);
   const flags = args.flags;
 
+  // --version / -V: report the package version without running a scan (the old
+  // behavior fell through to a default scan, which made `--version` slow and
+  // confusing in CI).
+  if (flags.version || argv.includes('--version') || argv.includes('-V') || args._[0] === 'version') {
+    try {
+      process.stdout.write(require('../package.json').version + '\n');
+    } catch {
+      process.stdout.write('unknown\n');
+    }
+    process.exit(0);
+  }
+
   if (flags.help || flags.h || args._[0] === 'help') {
     printHelp();
     process.exit(0);
@@ -1017,6 +1033,8 @@ async function main() {
     else if (cmd === 'trace') code = cmdTrace(dir, flags);
     else if (cmd === 'repl') code = await cmdRepl(dir, flags);
     else if (cmd === 'auth-coverage') code = cmdAuthCoverage(dir, flags);
+    else if (cmd === 'attack-surface' || cmd === 'surface') code = cmdAttackSurface(dir, flags);
+    else if (cmd === 'bundle-scan') code = cmdBundleScan(dir, flags);
     else if (cmd === 'diff') code = cmdDiff(dir, flags);
     else if (cmd === 'deep-scan') code = await cmdDeepScan(dir, flags);
     else if (cmd === 'html') code = cmdHtml(dir, flags);
@@ -1223,6 +1241,147 @@ function cmdAuthCoverage(dir, flags) {
     }
   }
   return coverage.unprotectedRoutes.length > 0 ? 1 : 0;
+}
+
+function cmdAttackSurface(dir, flags) {
+  const { scan } = require('../src/scanner');
+  const { summarizeSurface } = require('../src/surface');
+  const result = scan(dir, {
+    surface: true,
+    baseline: !flags.all,
+    liveOnly: !!flags.live,
+    reachabilityGrade: !!flags['reachability-grade'],
+    minConfidence: flags['min-confidence'] || (flags.all ? 'low' : 'medium'),
+    deps: flags.deps !== false && !flags['no-deps'],
+  });
+  const surface = result.surface;
+  if (!surface) {
+    process.stderr.write('attack-surface: analysis failed (no surface produced)\n');
+    return 2;
+  }
+
+  if (flags.json) {
+    process.stdout.write(
+      JSON.stringify(
+        {
+          root: result.root,
+          grade: result.grade,
+          counts: result.counts,
+          stats: surface.stats,
+          authCoverage: surface.authCoverage,
+          middleware: surface.middleware,
+          chains: surface.chains,
+          entrypoints: surface.entrypoints,
+          exposed: surface.exposed,
+          byRule: surface.byRule,
+          recommendations: surface.recommendations,
+        },
+        null,
+        2
+      ) + '\n'
+    );
+    return surface.stats.unguardedStateChanging > 0 ? 2 : surface.exposed.length > 0 ? 1 : 0;
+  }
+
+  if (flags.lean) {
+    const lines = [summarizeSurface(surface)];
+    const seenRules = new Set();
+    for (const e of surface.entrypoints.slice(0, 40)) {
+      if (e.verdict === 'clean') continue;
+      lines.push(
+        `${e.verdict.toUpperCase()} ${e.method} ${e.path} auth=${e.auth} idor=${e.ownership} ` +
+          `writes=${e.writes} file=${e.file}:${e.line} risks=${e.risks.slice(0, 5).map((r) => r.ruleId).join(',') || '-'}`
+      );
+      for (const r of e.risks) seenRules.add(r.ruleId);
+    }
+    if (seenRules.size > 0) lines.push(`rules: ${[...seenRules].join(', ')}`);
+    for (const c of surface.chains.slice(0, 6)) lines.push(`CHAIN ${c.precondition}: ${c.narrative}`);
+    process.stdout.write(lines.join('\n') + '\n');
+    return surface.stats.unguardedStateChanging > 0 ? 2 : surface.exposed.length > 0 ? 1 : 0;
+  }
+
+  process.stdout.write(`\n${C.bold}VibeGuard attack surface${C.reset}  ${dir}\n`);
+  process.stdout.write(`${C.dim}${summarizeSurface(surface)}${C.reset}\n\n`);
+
+  const shown = surface.entrypoints.filter((e) => e.verdict !== 'clean').slice(0, 25);
+  if (shown.length === 0) {
+    process.stdout.write(`${C.green}No exposed entrypoints with findings.${C.reset}\n`);
+  }
+  for (const e of shown) {
+    const color =
+      e.verdict === 'critical' ? C.red : e.verdict === 'high' ? C.yellow : e.verdict === 'unguarded' ? C.yellow : C.dim;
+    const flag = e.verdict === 'unguarded' ? 'UNGUARDED' : e.verdict.toUpperCase();
+    process.stdout.write(
+      `${color}${flag.padEnd(9)}${C.reset} ${String(e.method).padEnd(8)} ${e.path.padEnd(38)} ` +
+        `${C.dim}[${e.framework}]${C.reset} ${e.file}:${e.line}\n`
+    );
+    const facts = [];
+    facts.push(`auth: ${e.auth}`);
+    if (e.ownership === 'missing') facts.push(`${C.red}IDOR: no ownership filter${C.reset}`);
+    if (e.writes) facts.push('mutates state');
+    if (e.sensitive && !e.rateLimited) facts.push('no rate limit');
+    process.stdout.write(`          ${C.dim}${facts.join(' · ')}${C.reset}\n`);
+    for (const r of e.risks.slice(0, 4)) {
+      process.stdout.write(
+        `          ${C.dim}-${C.reset} ${r.ruleId} ${C.dim}(${r.severity}, ${r.reach}, ${r.file}:${r.line})${C.reset}\n`
+      );
+    }
+  }
+
+  if (surface.chains.length > 0) {
+    process.stdout.write(`\n${C.bold}Exploit chains${C.reset} ${C.dim}(reachable precondition → sink → impact)${C.reset}\n`);
+    for (const c of surface.chains.slice(0, 8)) {
+      const color = c.score >= 60 ? C.red : c.score >= 30 ? C.yellow : C.dim;
+      process.stdout.write(`  ${color}${c.precondition}${C.reset} ${c.narrative} ${C.dim}(${c.cwe || c.kind})${C.reset}\n`);
+    }
+  }
+
+  if (surface.recommendations.length > 0) {
+    process.stdout.write(`\n${C.bold}Fix first${C.reset}\n`);
+    for (const rec of surface.recommendations.slice(0, 8)) {
+      process.stdout.write(`  ${rec.severity === 'critical' ? C.red : C.yellow}${rec.severity}${C.reset} ${rec.text}\n`);
+    }
+  }
+
+  process.stdout.write(
+    `\n${C.dim}Grade ${result.grade} · ${surface.stats.deadFindings} finding(s) outside every entrypoint's reach (fix last)${C.reset}\n`
+  );
+  return surface.stats.unguardedStateChanging > 0 ? 2 : surface.exposed.length > 0 ? 1 : 0;
+}
+
+function cmdBundleScan(dir, flags) {
+  const { scanBundles } = require('../src/bundles');
+  const dirs = typeof flags.dir === 'string' ? flags.dir.split(',').map((s) => s.trim()).filter(Boolean) : undefined;
+  const res = scanBundles(dir, { dirs });
+  if (flags.json) {
+    process.stdout.write(JSON.stringify(res, null, 2) + '\n');
+  } else if (flags.lean) {
+    const lines = [`bundle-scan: ${res.scannedFiles} artifacts in ${res.dirs.join(', ') || '(none)'} — ${res.findings.length} finding(s)`];
+    for (const f of res.findings.slice(0, 30)) lines.push(`${f.severity} ${f.file}:${f.line} [${f.ruleId}] ${f.message.split('.')[0]}.`);
+    for (const n of res.notes) lines.push(`note: ${n}`);
+    process.stdout.write(lines.join('\n') + '\n');
+  } else {
+    process.stdout.write(`\n${C.bold}VibeGuard bundle scan${C.reset}  ${dir}\n`);
+    if (res.dirs.length === 0) {
+      process.stdout.write(`${C.dim}no build output found (looked for dist/, build/, out/, .next/static)${C.reset}\n`);
+    } else {
+      process.stdout.write(
+        `${C.dim}${res.scannedFiles} artifact(s) in ${res.dirs.join(', ')} — values here are PUBLIC to every visitor${C.reset}\n\n`
+      );
+    }
+    for (const f of res.findings) {
+      const color = f.severity === 'critical' ? C.red : f.severity === 'high' ? C.yellow : C.dim;
+      process.stdout.write(`${color}${f.severity.toUpperCase().padEnd(8)}${C.reset} ${f.file}:${f.line} [${f.ruleId}]\n`);
+      process.stdout.write(`          ${f.message}\n`);
+      process.stdout.write(`          ${C.dim}fix: ${f.fix}${C.reset}\n`);
+    }
+    if (res.findings.length === 0 && res.dirs.length > 0) {
+      process.stdout.write(`${C.green}No secrets or exposed source maps in the build output.${C.reset}\n`);
+    }
+    for (const n of res.notes) process.stdout.write(`${C.dim}note: ${n}${C.reset}\n`);
+    process.stdout.write('\n');
+  }
+  return res.findings.some((f) => f.severity === 'critical') ? 2 : res.findings.length > 0 ? 1 : 0;
 }
 
 function cmdDiff(dir, flags) {

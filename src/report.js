@@ -169,7 +169,13 @@ function renderSarif(result) {
     ruleId: f.ruleId,
     ruleIndex: ruleIndex.get(f.ruleId),
     level: SARIF_LEVEL[f.severity] || 'warning',
-    properties: { severity: f.severity, confidence: f.confidence },
+    properties: {
+      severity: f.severity,
+      confidence: f.confidence,
+      // Reachability lets code-scanning dashboards triage without re-running
+      // the scanner: 'dead' means no entrypoint imports the file.
+      ...(f.surface && f.surface.reach ? { reach: f.surface.reach } : {}),
+    },
     partialFingerprints: f.fingerprint ? { vibeguard: f.fingerprint } : undefined,
     message: { text: `${f.message} Fix: ${f.fix}` },
     locations: [

@@ -65,7 +65,7 @@ const SCAN_EXT = new Set([
   '.json', '.yml', '.yaml', '.toml', '.ini', '.xml',
   '.env', '.html', '.vue', '.svelte',
   '.txt', '.md', '.pem', '.key',
-  '.tf', '.hcl', '.dockerfile',
+  '.tf', '.hcl', '.dockerfile', '.rules',
 ]);
 
 // Files without a "normal" extension we still want to read (dotfiles etc.).
@@ -257,6 +257,16 @@ function scanFileContent(absPath, relPath, content, tree, diag) {
     noteDegraded('ast', err);
   }
 
+  // Obfuscation / backdoor analysis: decodes encoded payloads and correlates
+  // capabilities (exec + net + env) that no honest source file needs. Runs on
+  // every text file; the analyzer itself skips minified bundles/lockfiles.
+  try {
+    const { analyzeObfuscation } = require('./obfuscation');
+    for (const o of analyzeObfuscation(content, relPath)) findings.push(o);
+  } catch (err) {
+    noteDegraded('obfuscation', err);
+  }
+
   // File-level rules (need whole-file context). Pass prior findings so rules
     // can suppress noise that a line-level rule already reported (e.g. the
     // high-entropy hint shouldn't double-fire on a line a specific secret rule
@@ -444,11 +454,19 @@ const TIER = ['critical', 'high', 'medium', 'low'];
 // the grade. This keeps a single heuristic hint from tanking an otherwise clean
 // project, while confirmed issues still drive the grade hard.
 function effectiveSeverity(f) {
+  let sev = f.severity;
   if (f.confidence === 'low') {
-    const i = TIER.indexOf(f.severity);
-    return TIER[i + 1] || null; // low-confidence 'low' -> null (ignored)
+    const i = TIER.indexOf(sev);
+    sev = TIER[i + 1] || null; // low-confidence 'low' -> null (ignored)
   }
-  return f.severity;
+  // Optional reachability weighting: dead-code findings grade one tier lower.
+  // A critical sink in code no route imports still lands at 'high' — visible,
+  // just not grade-destroying.
+  if (f._reachDemote && sev) {
+    const idx = TIER.indexOf(sev);
+    if (idx >= 0 && idx < TIER.length - 1) sev = TIER[idx + 1];
+  }
+  return sev;
 }
 
 // Minimal glob -> RegExp: supports *, **, and gitignore-style "**/" (zero+ dirs).
@@ -623,9 +641,14 @@ function dedupeFindings(findings) {
 }
 
 function sortFindings(findings) {
+  const reachRank = (f) => (f.surface && f.surface.reach === 'dead' ? 1 : 0);
   return findings.slice().sort((a, b) => {
     const s = SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity];
     if (s !== 0) return s;
+    // Live code first: a high finding an entrypoint can reach outranks a high
+    // finding in a test fixture or build script at the same severity.
+    const r = reachRank(a) - reachRank(b);
+    if (r !== 0) return r;
     if (a.file !== b.file) return a.file < b.file ? -1 : 1;
     return a.line - b.line;
   });
@@ -690,6 +713,11 @@ function scan(dir, opts = {}) {
   const astAvailable = astMod.isAvailable();
   const diag = { degraded: [] };
   const parseFailed = []; // JS/TS files acorn IS installed for but couldn't parse
+  // Config-ignored paths (rule databases, fixtures, demo code) are not part of
+  // the product surface: their findings are filtered anyway, so a parse failure
+  // there is not a coverage gap and must not be reported as one.
+  const configIgnoreRes = (Array.isArray(config.ignorePaths) ? config.ignorePaths : []).map(globToRe);
+  const isConfigIgnored = (rel) => configIgnoreRes.some((re) => re.test(rel));
 
   for (const abs of files) {
     let buf;
@@ -712,7 +740,7 @@ function scan(dir, opts = {}) {
       if (tree) trees.set(rel, tree);
       // acorn installed but this file didn't parse → AST rules skipped for it.
       // (When acorn is absent entirely that's engine-mode, reported separately.)
-      else if (astAvailable) parseFailed.push(rel);
+      else if (astAvailable && !isConfigIgnored(rel)) parseFailed.push(rel);
     }
     findings = findings.concat(scanFileContent(abs, rel, content, tree, diag));
     contents.push({ rel, content, lines: content.split(/\r?\n/) });
@@ -777,6 +805,16 @@ function scan(dir, opts = {}) {
       }
     }
   } catch { /* plugin cross-file rules are best-effort */ }
+  // Agentic/MCP posture: configs and tool definitions in the repo (not the
+  // developer's laptop). Catches unpinned/remote MCP servers, secrets in config
+  // env, tool-description poisoning, destructive tools without confirmation and
+  // agent loops without caps.
+  try {
+    const { analyzeAgentic } = require('./agentic');
+    for (const a of analyzeAgentic({ root, files: contents })) findings.push(a);
+  } catch (err) {
+    diag.degraded.push({ file: '<project>', pass: 'agentic', error: String((err && err.message) || err) });
+  }
   } // end !incremental cross-file block
 
   findings = findings.concat(projectScan(root));
@@ -821,6 +859,23 @@ function scan(dir, opts = {}) {
     suppressedFindings = supResult.suppressed;
   }
   findings = applyConfigFilters(findings, config);
+
+  // Optional baseline filter: attack-surface and `--new-only` consumers want the
+  // same "known findings are accepted" view the default scan shows.
+  if (opts.baseline) {
+    try {
+      const { readBaseline } = require('./verify');
+      const base = readBaseline(root);
+      if (base && Array.isArray(base.findings) && base.findings.length > 0) {
+        const seen = new Set(
+          base.findings.map((f) => f.fingerprint || `${f.ruleId} ${f.file} ${(f.snippet || '').trim()}`)
+        );
+        findings = findings.filter((f) => !seen.has(f.fingerprint));
+      }
+    } catch {
+      /* baseline is optional */
+    }
+  }
 
   // Merge plugin line rules (file/cross-file rules already applied above)
   try {
@@ -869,6 +924,60 @@ function scan(dir, opts = {}) {
     } catch { /* suppression is best-effort */ }
   }
 
+  // Optional confidence floor (the CLI's default view excludes low-confidence
+  // heuristics). Applied before the surface merge so the entrypoint risks and the
+  // printed grade describe the same finding set the user sees.
+  if (opts.minConfidence) {
+    const order = { low: 0, medium: 1, high: 2 };
+    const floor = order[String(opts.minConfidence).toLowerCase()] ?? 0;
+    findings = findings.filter((f) => (order[f.confidence] ?? 0) >= floor);
+  }
+
+  // Attack-surface merge: joins entrypoints, reachability and the final finding
+  // set. Every finding is annotated with `surface.reach` (direct / imported /
+  // dead), which drives `--live`, reachability-first ordering and the optional
+  // grade demotion for dead code. Cheap enough to run by default (≈0.2 s per
+  // 1000 files); `surface: false` disables it for snippet scanners/tests.
+  let surface = null;
+  if (opts.surface !== false) {
+    try {
+      const { buildSurface } = require('./surface');
+      // Only files the project actually ships: config-ignored paths (fixtures,
+      // rule databases, demo code) must not become "entrypoints".
+      const filesForSurface = contents.filter((c) => !isConfigIgnored(c.rel));
+      surface = buildSurface({ files: filesForSurface, findings });
+    } catch (err) {
+      noteDegraded('surface', err);
+    }
+  }
+
+  // --live: report only findings an entrypoint can actually reach. Dead tooling
+  // and example code stay out of the response entirely (they were never attack
+  // surface), and the grade is computed on the live set. If the project exposes
+  // no entrypoints at all, reachability says nothing — leave the scan untouched.
+  if (opts.liveOnly && surface && surface.stats.entrypoints > 0) {
+    findings = findings.filter((f) => !f.surface || f.surface.reach !== 'dead');
+  }
+
+  // Optional reachability-weighted grading: a finding in code no entrypoint
+  // imports cannot be exploited through the app, so it counts one tier lower.
+  // Off by default because "dead" is a static approximation (dynamic imports,
+  // framework conventions) and a project with no entrypoints has no reachability.
+  if (opts.reachabilityGrade && surface && surface.stats.entrypoints > 0) {
+    for (const f of findings) {
+      f._reachDemote = f.surface && f.surface.reach === 'dead';
+    }
+  }
+
+  const reach = surface
+    ? {
+        direct: findings.filter((f) => f.surface && f.surface.reach === 'direct').length,
+        imported: findings.filter((f) => f.surface && f.surface.reach === 'imported').length,
+        dead: findings.filter((f) => f.surface && f.surface.reach === 'dead').length,
+        unanalyzed: findings.filter((f) => !f.surface).length,
+      }
+    : null;
+
   findings = sortFindings(findings);
   for (const f of findings) f.fingerprint = fingerprintOf(f);
 
@@ -899,6 +1008,8 @@ function scan(dir, opts = {}) {
     externalInfo,
     engine,
     diagnostics,
+    surface,
+    reach,
     incremental, // null on a full scan; {total, scanned, cached} with --changed
     staged, // null unless --staged; {total, scanned}
     generatedAt: new Date().toISOString(),

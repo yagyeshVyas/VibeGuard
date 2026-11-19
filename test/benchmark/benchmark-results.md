@@ -7,12 +7,12 @@
 
 | Category | TP | FP | FN | Precision | Recall | F1 |
 |----------|----|----|----|-----------|--------|----|
-| injection | 57 | 0 | 0 | 100.0% | 100.0% | 100.0% |
-| secrets | 20 | 0 | 0 | 100.0% | 100.0% | 100.0% |
-| xss | 17 | 0 | 0 | 100.0% | 100.0% | 100.0% |
+| injection | 57 | 5 | 0 | 91.9% | 100.0% | 95.8% |
+| secrets | 20 | 1 | 0 | 95.2% | 100.0% | 97.6% |
+| xss | 17 | 1 | 0 | 94.4% | 100.0% | 97.1% |
 | path-traversal | 10 | 0 | 0 | 100.0% | 100.0% | 100.0% |
-| ai-safety | 15 | 0 | 0 | 100.0% | 100.0% | 100.0% |
-| **OVERALL** | **119** | **0** | **0** | **100.0%** | **100.0%** | **100.0%** |
+| ai-safety | 15 | 10 | 0 | 60.0% | 100.0% | 75.0% |
+| **OVERALL** | **119** | **17** | **0** | **87.5%** | **100.0%** | **93.3%** |
 
 ## Per-Category Details
 
@@ -62,12 +62,17 @@
 | nosql-where.js | `ast.nosql-injection` | TP |
 | proto-poll.js | `injection.prototype-pollution` | TP |
 | proto-poll.js | `ast.mass-assignment` | TP |
+| proto-poll.js | `deser2026.proto-pollution-merge` | FP |
 | proto-poll2.js | `injection.prototype-pollution` | TP |
+| proto-poll2.js | `deser2026.proto-pollution-merge` | FP |
 | proto-poll3.js | `injection.prototype-pollution` | TP |
+| proto-poll3.js | `deser2026.proto-pollution-merge` | FP |
 | ssrf.js | `ast.ssrf` | TP |
+| ssrf.js | `api2026.ssrf-metadata-url` | FP |
 | ssrf2.js | `ast.ssrf (superseded by taint.ssrf)` | TP |
 | ssrf2.js | `taint.ssrf` | TP |
 | open-redirect.js | `web.open-redirect` | TP |
+| open-redirect.js | `nextjs2026.redirect-user-input` | FP |
 | open-redirect2.js | `taint.open-redirect` | TP |
 | sql-destructure.js | `taint.sql-injection` | TP |
 | sql-reassign.js | `taint.sql-injection` | TP |
@@ -94,6 +99,7 @@
 | npm-token.js | `secret.npm-token` | TP |
 | gcp-key.js | `secret.gcp-api-key` | TP |
 | private-key.js | `secret.private-key` | TP |
+| private-key.js | `secret2026.private-key-block` | FP |
 | aws-key.js | `secret.aws-access-key` | TP |
 | mailgun-key.js | `secret.mailgun-key` | TP |
 | telegram-token.js | `secret.telegram-bot-token` | TP |
@@ -124,6 +130,7 @@
 | dangerously-html2.jsx | `ai.llm-output-dom` | TP |
 | vue-v-html.js | `injection.xss-vue-v-html` | TP |
 | eval-llm-output.js | `ai.llm-output-dom` | TP |
+| eval-llm-output.js | `llm2026.llm-call-no-max-tokens` | FP |
 
 ### path-traversal
 
@@ -145,10 +152,15 @@
 | File | Rule ID | Verdict |
 |------|---------|---------|
 | user-in-system-prompt.js | `ai.user-input-in-system-prompt` | TP |
+| user-in-system-prompt.js | `llm2026.llm-call-no-max-tokens` | FP |
+| user-in-system-prompt.js | `llm2026.system-prompt-from-request` | FP |
 | llm-output-exec.js | `ai.llm-output-exec` | TP |
 | llm-output-exec.js | `taint.command-injection` | TP |
+| llm-output-exec.js | `llm2026.llm-call-no-max-tokens` | FP |
+| llm-output-exec.js | `llm2026.output-to-exec` | FP |
 | agent-loop-no-cap.js | `ai.agent-loop-no-cap` | TP |
 | model-id-user-input.js | `ai.model-id-injection` | TP |
+| model-id-user-input.js | `llm2026.llm-call-no-max-tokens` | FP |
 | tool-result-injection.js | `ai.tool-result-injection` | TP |
 | agent-memory-poison.js | `ai.memory-poisoning` | TP |
 | agent-memory-poison.js | `ai.agent-memory-poisoning` | TP |
@@ -156,9 +168,14 @@
 | tool-poisoning.js | `ai.mcp-description-injection-deep` | TP |
 | prompt-extraction.js | `ai.prompt-extraction` | TP |
 | llm-output-dom.js | `ai.llm-output-dom` | TP |
+| llm-output-dom.js | `llm2026.llm-call-no-max-tokens` | FP |
 | agent-deploy.js | `ai.agent-can-deploy` | TP |
 | agent-secrets.js | `ai.agent-can-access-secrets` | TP |
 | model-id-template.js | `ai.model-id-injection` | TP |
+| model-id-template.js | `llm2026.llm-call-no-max-tokens` | FP |
+| safe-system-prompt.js | `llm2026.llm-call-no-max-tokens` | FP |
+| llm-output-json-parse.js | `llm2026.llm-call-no-max-tokens` | FP |
+| model-id-hardcoded.js | `llm2026.llm-call-no-max-tokens` | FP |
 
 ## Methodology
 

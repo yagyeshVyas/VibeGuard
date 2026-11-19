@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-09-22T18:27:17.703Z",
+  "generatedAt": "2026-11-19T14:44:31.655Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "5b6bc868643909c8ba4edee717590b9896488eb0720636ed58a87a98e1f2d7ac",
@@ -8,8 +8,8 @@
     "interceptor.js": "0a137e2b8a50398973e93913cf6feb22c9ac6d70b0f0d075a46a28f1a804827a",
     "firewall.js": "61b31a2a55d63503c6bdcf888394b7a713678ea0e0b656e0d2179c91f66444a9",
     "pii.js": "51ea76de52b2c15d2cb34ab8125a5f67f725d1e7de43a4cef39136e25b276025",
-    "rules.js": "df4c5685dad079550d62d91e94913ac27542e28ab4fab402a8c24d2199328753",
-    "scanner.js": "50733a2b6cd4a1a961bbc9a2db5f40bce0d629a1774fa6a27fc10127c93391ed",
+    "rules.js": "52672990b5487c68c9b1268c27730d2c9254a9a217cc436bec28b9631556069f",
+    "scanner.js": "b28d87fde97636df3645ca16399be2fa5c83e9b3f4b951b305f0a076ec4b3111",
     "engine.js": "f16bf283f06fe6fdf198a99fbc63971de9665da82f93f2688f86c4ac2a0a0ad2",
     "mcp-audit.js": "8f38b2738ffedc23f61601a1c03d3cbaac8a38fb19390a898ffe32b30bf8ffc4",
     "agent-scan.js": "018813166eb1e370bf452efaa92020cd4baea0a20f3826fed3f95ded312aa5c7",
@@ -17,6 +17,13 @@
     "ai-guard.js": "9dd2c524dd704bbba69aacf7076e76ac966c6e0c773ee4b04ed7c8fb889db006",
     "taint.js": "27f41c6d39c5ef399b8471b7efc472dae5fd9e9b776ada17deeb59959f92415f",
     "taint-ast.js": "5bbdddbf11ad82f6c84c62a8803953679119fa85b74f7e026b86046fe78ff5f4",
-    "ast.js": "18f09f9c082c6a9364f705aa6a1c759923aa14694f192631fc28a817c09cb0f2"
+    "ast.js": "230b27b1a0e607dd42492739cdaea5d81fefcc321a81bd4e36077c8f6fbe2658",
+    "rules-2026.js": "16a0f53d73ab63aab6eb6829e38eb81a0fa157da0a78a32479e7d358bd288e49",
+    "routes.js": "66056a9fdfdb8150c30fd8de0e794f064466596872baa9ee132a72a93eaa0d58",
+    "surface.js": "3a2b4339b5557359aecf4330e0ff58fca384b11dc9710ac5c7870f576b41bb3e",
+    "obfuscation.js": "e77ea348dc8db1428d0546ff34dd8bb7ee1fadf17befe0030f7927e7ac20b353",
+    "bundles.js": "7c6535e4be4566edd2aec0d9d63c58e200813b621e503ad1d51a5a4840a1b359",
+    "agentic.js": "4b7130e1e15f603df8ceb7ef8284db8d1784e8dd450a8ed332873271f7cec4ee",
+    "suppress.js": "3c34ebbdabb0338fe3bf00d399aaa9ab04fb796067fe33a4a4b52884eb5c4fda"
   }
 }

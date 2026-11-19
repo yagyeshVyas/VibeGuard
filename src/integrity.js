@@ -26,6 +26,10 @@ const CRITICAL_MODULES = [
   'pii.js', 'rules.js', 'scanner.js', 'engine.js',
   'mcp-audit.js', 'agent-scan.js', 'secure-prompt.js', 'ai-guard.js',
   'taint.js', 'taint-ast.js', 'ast.js',
+  // v1.8/v1.9 analyzers: patching any of these could silently suppress findings,
+  // so they are covered by the same manifest as the original guard core.
+  'rules-2026.js', 'routes.js', 'surface.js', 'obfuscation.js',
+  'bundles.js', 'agentic.js', 'suppress.js',
 ];
 
 function hashFile(p) {

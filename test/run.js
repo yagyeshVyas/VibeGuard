@@ -4648,6 +4648,16 @@ const tokenLeanSuite = require('./tokenlean-tests');
 for (const t of tokenLeanSuite.tests) test('tokenlean: ' + t.name, t);
 const taintDepthSuite = require('./taint-depth-tests');
 for (const t of taintDepthSuite.tests) test('taint-depth: ' + t.name, t);
+const v18Suite = require('./v18-tests');
+for (const t of v18Suite.tests) test('v18: ' + t.name, t);
+const agenticSuite = require('./agentic-tests');
+for (const t of agenticSuite.tests) {
+  // Accept both repo conventions: a function carrying a name, or {name, fn}.
+  if (typeof t === 'function') test('agentic: ' + t.name, t);
+  else test('agentic: ' + t.name, () => t.fn());
+}
+const v19Suite = require('./v19-tests');
+for (const t of v19Suite.tests) test('v19: ' + t.name, t);
 
 (async function runAll() {
   for (const t of _tests) {

@@ -1743,6 +1743,29 @@ const crossFileRules = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// 2026 pack — the AI-code-specific classes (authz/IDOR, Next.js, RLS
+// correctness, LLM output handling, crypto, log injection, supply chain, MCP).
+// Kept in its own module: it is the research-driven layer and grows fastest.
+// ---------------------------------------------------------------------------
+try {
+  const pack2026 = require('./rules-2026');
+  const seenIds = new Set([...lineRules, ...fileRules, ...crossFileRules].map((r) => r.id));
+  for (const r of pack2026.lineRules || []) {
+    if (r && r.id && !seenIds.has(r.id)) { lineRules.push(r); seenIds.add(r.id); }
+  }
+  for (const r of pack2026.fileRules || []) {
+    if (r && r.id && !seenIds.has(r.id)) { fileRules.push(r); seenIds.add(r.id); }
+  }
+  for (const r of pack2026.crossFileRules || []) {
+    if (r && r.id && !seenIds.has(r.id)) { crossFileRules.push(r); seenIds.add(r.id); }
+  }
+} catch (err) {
+  // A broken optional pack must never take the scanner down; it simply does not
+  // load, and VIBEGUARD_DEBUG_RULES surfaces why during development.
+  if (process.env.VIBEGUARD_DEBUG_RULES) process.stderr.write(`rules-2026 load failed: ${err.message}\n`);
+}
+
 // Flat registry of every rule (for `vibeguard rules` / `explain`). File/cross
 
       // Flat registry of every rule (for `vibeguard rules` / `explain`). File/cross
