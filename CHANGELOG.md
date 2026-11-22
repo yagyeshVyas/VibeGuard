@@ -3,6 +3,12 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.13.4] - 2026-11-22
+
+### Fixed
+
+- Publish workflow can create GitHub releases (`contents: write`) and no longer passes the removed `allowUpdates` input.
+
 ## [1.13.3] - 2026-11-22
 
 ### Fixed

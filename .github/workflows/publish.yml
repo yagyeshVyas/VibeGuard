@@ -28,7 +28,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     env:
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -56,6 +56,3 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          # Updates an existing release instead of failing when a release for
-          # this tag was created manually (recoveries, re-runs).
-          allowUpdates: true
