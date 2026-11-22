@@ -3,7 +3,11 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [1.13.1] - 2026-11-22
+## [1.13.2] - 2026-11-22
+
+> 1.13.1 was accepted by the registry as a staged version but never became
+> installable (`Cannot publish over previously staged version`), so 1.13.2
+> carries the same content. See npm/cli#9889.
 
 ### Changed
 
