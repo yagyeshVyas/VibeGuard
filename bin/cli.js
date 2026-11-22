@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id', 'anchor']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };

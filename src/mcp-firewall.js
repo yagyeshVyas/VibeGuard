@@ -186,7 +186,7 @@ function createEngine(opts = {}) {
         opts.signedAuditFile
           ? path.resolve(projectRoot, opts.signedAuditFile)
           : path.join(projectRoot, '.vibeguard', 'audit', 'mcp-firewall.signed.jsonl'),
-        { projectRoot, auditKeyFile: opts.auditKeyFile, tenant: opts.tenant, keyId: 'gateway-audit' }
+        { projectRoot, auditKeyFile: opts.auditKeyFile, anchorFile: opts.anchorFile, tenant: opts.tenant, keyId: 'gateway-audit' }
       )
       : createLogger(opts.auditFile ? path.resolve(projectRoot, opts.auditFile) : null)
   );
@@ -693,6 +693,7 @@ function startProxy(opts = {}) {
     signedAudit: opts.signedAudit === true || (opts.strict === true && opts.signedAudit !== false),
     signedAuditFile: opts.signedAuditFile,
     auditKeyFile: opts.auditKeyFile,
+    anchorFile: opts.anchorFile,
     logger: opts.logger,
     strict: opts.strict === true,
   });

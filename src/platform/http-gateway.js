@@ -10,6 +10,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 const { ERROR_CODES, VibeGuardError } = require('./contracts');
 
 const MAX_BODY = 1024 * 1024;
@@ -69,7 +70,11 @@ function createHttpGateway(opts = {}) {
     throw new VibeGuardError(ERROR_CODES.AUTH_INVALID, 'no authenticator configured', { status: 500 });
   }
 
-  const server = http.createServer(async (req, res) => {
+  const server = opts.tls
+    ? https.createServer(opts.tls, async (req, res) => { gatewayHandler(req, res); })
+    : http.createServer(async (req, res) => { gatewayHandler(req, res); });
+
+  async function gatewayHandler(req, res) {
     try {
       if (req.method === 'GET' && req.url === '/health') {
         return json(res, 200, { status: 'ok', gateway: 'vibeguard', version: 1 });
@@ -154,7 +159,7 @@ function createHttpGateway(opts = {}) {
       }
       return json(res, 500, { jsonrpc: '2.0', id: null, error: { code: -32603, message: 'internal error' } });
     }
-  });
+  }
 
   return new Promise((resolve, reject) => {
     server.once('error', reject);
@@ -162,9 +167,10 @@ function createHttpGateway(opts = {}) {
       const addr = server.address();
       resolve({
         server,
+        protocol: opts.tls ? 'https' : 'http',
         host: addr.address,
         port: addr.port,
-        url: `http://${addr.address}:${addr.port}`,
+        url: `${opts.tls ? 'https' : 'http'}://${addr.address}:${addr.port}`,
         close: () => new Promise((res2) => {
           try { if (typeof server.closeAllConnections === 'function') server.closeAllConnections(); } catch { /* ignore */ }
           server.close(res2);

@@ -41,6 +41,11 @@ class ApprovalBroker {
     this.publicKey = publicKey;
     this.now = opts.now || (() => new Date());
     this.defaultTtlSeconds = opts.defaultTtlSeconds || 300;
+    this.approverKeys = new Map();
+    for (const [principal, key] of Object.entries(opts.approverKeys || {})) {
+      this.approverKeys.set(principal, loadPublicKey(key));
+    }
+    this.requireApproverProof = opts.requireApproverProof !== false;
     this.tickets = new Map();
     this.usedTokens = new Set();
   }
@@ -94,6 +99,19 @@ class ApprovalBroker {
     if (tenant(approver) !== this.tenant) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver tenant mismatch');
     if (approver === ticket.principal) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'self-approval is not allowed');
 
+    if (this.requireApproverProof) {
+      const key = this.approverKeys.get(approver);
+      if (!key) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver has no registered verification key');
+      const proof = decision.proof;
+      if (!proof) throw new VibeGuardError(ERROR_CODES.AUTH_REQUIRED, 'signed approver proof is required', { status: 401 });
+      const decoded = verifyJws(proof, key);
+      const pp = decoded.payload;
+      if (decoded.header.typ !== 'VGAPPROVER' || decoded.header.alg !== 'EdDSA') throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'invalid approver proof type');
+      if (pp.aud !== 'vibeguard-approver-proof' || pp.sub !== approver) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver proof identity mismatch');
+      if (pp.ticketId !== ticket.ticketId || pp.actionDigest !== ticket.actionDigest || pp.nonce !== ticket.nonce) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver proof does not bind this ticket/action');
+      if (!Number.isInteger(pp.exp) || pp.exp <= Math.floor(this.now().getTime() / 1000)) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver proof expired');
+    }
+
     if (decision.approve !== true) {
       ticket.status = 'denied';
       ticket.approver = approver;
@@ -120,6 +138,13 @@ class ApprovalBroker {
     ticket.approvalToken = token;
     ticket.decidedAt = this.now().toISOString();
     return { status: 'approved', ticket: publicTicket(ticket), approvalToken: token };
+  }
+
+  static signApproverProof({ ticketId, actionDigest: digest, nonce, approver, privateKey, ttlSeconds = 120, keyId = 'approver' } = {}) {
+    if (!ticketId || !digest || !nonce || !approver || !privateKey) throw new Error('approver proof requires ticketId, actionDigest, nonce, approver, privateKey');
+    const now = Math.floor(Date.now() / 1000);
+    const payload = { iss: approver, sub: approver, aud: 'vibeguard-approver-proof', iat: now, exp: now + Number(ttlSeconds), jti: crypto.randomBytes(12).toString('base64url'), typ: 'VGAPPROVER', ticketId, actionDigest: digest, nonce };
+    return signJws({ alg: 'EdDSA', typ: 'VGAPPROVER', kid: keyId }, payload, loadPrivateKey(privateKey));
   }
 
   verify(ticketId, approvalToken, expectedActionDigest) {
@@ -175,6 +200,7 @@ function publicTicket(t) {
     ticketId: t.ticketId,
     principal: t.principal,
     actionDigest: t.actionDigest,
+    nonce: t.nonce,
     reason: t.reason,
     createdAt: t.createdAt,
     expiresAt: t.expiresAt,

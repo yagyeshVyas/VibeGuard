@@ -53,16 +53,21 @@ test('identity: issue, verify, audience, expiry, tamper and replay', () => {
 
 test('approval: human-only, no self-approval, digest binding and single use', () => {
   const now = new Date('2026-11-21T00:00:00Z');
-  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', now: () => now });
+  const approverPair = generateKeyPair();
+  const approver = 'human:acme/alice@example.com';
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', now: () => now, approverKeys: { [approver]: approverPair.publicKey } });
   const action = { server: 'files', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
   const ticket = broker.request({ principal: 'agent:acme/ci', action, ttlSeconds: 300 }).ticket;
   assert.throws(() => broker.decide(ticket.ticketId, { approver: 'agent:acme/ci', approve: true }), /human/i);
-  const approved = broker.decide(ticket.ticketId, { approver: 'human:acme/alice@example.com', approve: true });
+  assert.throws(() => broker.decide(ticket.ticketId, { approver, approve: true }), /proof/i);
+  const proof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver, privateKey: approverPair.privateKey });
+  const approved = broker.decide(ticket.ticketId, { approver, approve: true, proof });
   assert.strictEqual(approved.status, 'approved');
   assert.strictEqual(broker.verify(ticket.ticketId, approved.approvalToken, actionDigest(action)).approved, true);
   assert.throws(() => broker.verify(ticket.ticketId, approved.approvalToken, actionDigest(action)), /replay/i);
   const ticket2 = broker.request({ principal: 'agent:acme/ci', action, ttlSeconds: 300 }).ticket;
-  const approved2 = broker.decide(ticket2.ticketId, { approver: 'human:acme/alice@example.com', approve: true });
+  const proof2 = ApprovalBroker.signApproverProof({ ticketId: ticket2.ticketId, actionDigest: ticket2.actionDigest, nonce: ticket2.nonce, approver, privateKey: approverPair.privateKey });
+  const approved2 = broker.decide(ticket2.ticketId, { approver, approve: true, proof: proof2 });
   assert.throws(() => broker.verify(ticket2.ticketId, approved2.approvalToken, actionDigest({ ...action, arguments: { path: 'other' } })), /digest/i);
 });
 
@@ -84,6 +89,21 @@ test('signed audit: valid chain, tamper detection, checkpoints and empty log fai
   fs.writeFileSync(file, lines.join('\n') + '\n');
   assert.strictEqual(SignedAuditLog.verifyFile(file, { publicKey: log.publicKey }).valid, false);
   assert.strictEqual(SignedAuditLog.verifyFile(path.join(dir, 'missing.jsonl')).valid, false);
+});
+
+test('signed audit: external anchor detects truncation after sidecar removal', () => {
+  const dir = tmp();
+  const file = path.join(dir, 'audit.jsonl');
+  const anchor = path.join(dir, 'anchor.jsonl');
+  const log = new SignedAuditLog({ file, anchorFile: anchor });
+  for (let i = 0; i < 3; i++) log.append('x', { i });
+  assert.strictEqual(SignedAuditLog.verifyFile(file, { publicKey: log.publicKey, anchorFile: anchor }).valid, true);
+  const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean);
+  fs.writeFileSync(file, lines.slice(0, 2).join('\n') + '\n');
+  try { fs.unlinkSync(file + '.checkpoint.json'); } catch { /* already gone */ }
+  const result = SignedAuditLog.verifyFile(file, { publicKey: log.publicKey, anchorFile: anchor });
+  assert.strictEqual(result.valid, false);
+  assert(result.reasons.some((r) => /anchor/i.test(r)));
 });
 
 test('gateway: strict mode writes signed audit events, not the legacy chain', () => {
@@ -120,6 +140,22 @@ test('delegation graph: attenuation, depth and signature checks', () => {
   assert.throws(() => g.delegate({ parent: 'agent:iv/a', child: 'agent:iv/c', capabilities: ['fs.write'], parentCapabilities: ['fs.read'] }), /escalation/i);
   const verifier = new DelegationGraph({ issuer: 'human:iv/security', tenant: 'iv', publicKey: g.publicKey });
   assert.throws(() => verifier.verify(d.token, { requiredCapabilities: ['fs.write'] }), /lacks capability/i);
+});
+
+test('Windows Job Object backend: process/memory containment when available', async () => {
+  if (process.platform !== 'win32') return;
+  const { WindowsJobSandbox } = require('../src/platform/windows-sandbox');
+  const b = new WindowsJobSandbox();
+  assert.strictEqual(b.available(), true);
+  assert.strictEqual(await b.verify(), true);
+  const r = await b.run('const x = 1 + 2; x', { timeout: 5000 });
+  assert.strictEqual(r.success, true, r.error);
+  assert.strictEqual(String(r.output), '3');
+  assert.strictEqual(r.isolationClass, 'os');
+  assert.strictEqual(r.verified, true);
+  assert(r.limitations.some((x) => /AppContainer|WFP|filesystem/i.test(x)), 'must disclose missing isolation');
+  const timeout = await b.run('while (true) {}', { timeout: 1200 });
+  assert.strictEqual(timeout.success, false);
 });
 
 test('Linux OS namespace backend: network/PID isolation when available', async () => {
@@ -231,10 +267,13 @@ test('stdio principal capabilities and signed approval are enforced end-to-end',
   const noCap = createEngine({ root: tmp(), principal: { ...principal, capabilities: ['fs.read'] }, policy: { allowTools: ['echo'] }, logger: { log() {} } });
   assert.strictEqual(noCap.checkToolCall('s', 'echo', { text: 'x' }).action, 'block');
   const { ApprovalBroker } = require('../src/platform/approval');
-  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: pair.privateKey, keyId: 'a' });
+  const approverPair = generateKeyPair();
+  const approver = 'human:acme/alice';
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: pair.privateKey, keyId: 'a', approverKeys: { [approver]: approverPair.publicKey } });
   const action = { server: 's', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
   const ticket = broker.request({ principal: 'agent:acme/ci', action }).ticket;
-  const approved = broker.decide(ticket.ticketId, { approver: 'human:acme/alice', approve: true });
+  const proof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver, privateKey: approverPair.privateKey });
+  const approved = broker.decide(ticket.ticketId, { approver, approve: true, proof });
   const approvalVerifier = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', publicKey: pair.publicKey, keyId: 'a' });
   const engine = createEngine({ root: tmp(), policy: { defaultAction: 'block', toolRules: [{ match: 'delete_file', action: 'approval' }] }, approvalVerifier, approvalToken: approved.approvalToken, logger: { log() {} } });
   assert.strictEqual(engine.checkToolCall('s', 'delete_file', { path: 'x' }).action, 'allow');

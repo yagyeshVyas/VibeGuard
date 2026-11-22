@@ -83,12 +83,20 @@ class SignedAuditLog {
     this.clock = opts.clock || (() => new Date());
     this.tenant = opts.tenant || null;
     this.checkpointFile = opts.checkpointFile || `${this.file}.checkpoint.json`;
+    this.anchorFile = opts.anchorFile || null;
+    this.anchorLastHash = 'GENESIS';
     this.entries = [];
     this.lastHash = GENESIS;
     this._loadExisting(opts.verifyOnOpen !== false);
   }
 
   _loadExisting(verify) {
+    if (this.anchorFile && fs.existsSync(this.anchorFile)) {
+      const lines = fs.readFileSync(this.anchorFile, 'utf8').split(/\r?\n/).filter(Boolean);
+      if (lines.length) {
+        try { this.anchorLastHash = JSON.parse(lines[lines.length - 1]).hash || 'GENESIS'; } catch { throw new VibeGuardError(ERROR_CODES.AUDIT_INVALID, 'audit anchor is corrupt'); }
+      }
+    }
     if (!fs.existsSync(this.file)) return;
     const raw = fs.readFileSync(this.file, 'utf8');
     const lines = raw.split(/\r?\n/).filter(Boolean);
@@ -152,6 +160,13 @@ class SignedAuditLog {
       const cp = this.checkpoint();
       fs.writeFileSync(this.checkpointFile, JSON.stringify(cp) + '\n', { mode: 0o600 });
       try { fs.chmodSync(this.checkpointFile, 0o600); } catch { /* Windows/best effort */ }
+      if (this.anchorFile) {
+        const record = { schemaVersion: SCHEMA_VERSION, checkpoint: cp, previousAnchor: this.anchorLastHash, timestamp: iso(this.clock) };
+        record.hash = sha256Hex(record);
+        fs.mkdirSync(path.dirname(this.anchorFile), { recursive: true, mode: 0o700 });
+        fs.appendFileSync(this.anchorFile, JSON.stringify(record) + '\n', { mode: 0o600 });
+        this.anchorLastHash = record.hash;
+      }
     } catch (err) {
       throw new VibeGuardError(ERROR_CODES.AUDIT_INVALID, `audit checkpoint write failed: ${err.message}`);
     }
@@ -202,12 +217,26 @@ class SignedAuditLog {
     }
     const result = SignedAuditLog.verifyEntries(entries, { ...opts, requireEntries: opts.requireEntries !== false });
     let checkpoint;
+    let anchor;
     try {
       if (opts.checkpoint) checkpoint = opts.checkpoint;
       else if (opts.publicKey && fs.existsSync(`${path.resolve(file)}.checkpoint.json`)) {
         checkpoint = JSON.parse(fs.readFileSync(`${path.resolve(file)}.checkpoint.json`, 'utf8'));
       }
+      if (opts.anchorFile && fs.existsSync(opts.anchorFile)) {
+        const lines = fs.readFileSync(opts.anchorFile, 'utf8').split(/\r?\n/).filter(Boolean);
+        if (lines.length) anchor = JSON.parse(lines[lines.length - 1]);
+      }
     } catch { /* fall through to checkpoint failure below */ }
+    if (anchor && opts.publicKey) {
+      const cp = anchor.checkpoint;
+      if (!cp) { reasons.push('anchor has no checkpoint'); result.valid = false; }
+      else {
+        const av = SignedAuditLog.verifyCheckpoint(cp, opts.publicKey, entries);
+        if (!av.valid) { reasons.push(`external anchor: ${av.reason}`); result.valid = false; }
+        else if (cp.sequence !== entries.length) { reasons.push('external anchor sequence mismatch'); result.valid = false; }
+      }
+    }
     if (checkpoint && entries.length) {
       if (!opts.publicKey) {
         reasons.push('checkpoint present but no public key supplied; checkpoint signature not verified');

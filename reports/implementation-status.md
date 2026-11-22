@@ -5,11 +5,11 @@ the independent evidence is in `research/`.
 
 ## Verified results
 
-- Full Windows Node24 suite: **623 passed, 0 failed**.
-- Full Windows Node18 suite: **623 passed, 0 failed**.
-- Full Linux WSL Node22 suite: **623 passed, 0 failed**.
-- Platform security suite: **29/29** on Node18/20/22/24 and Linux.
-- Integrity: **45 modules** verified.
+- Full Windows Node24 suite: **625 passed, 0 failed**.
+- Full Windows Node18 suite: **625 passed, 0 failed**.
+- Full Linux WSL Node22 suite: **625 passed, 0 failed**.
+- Platform security suite: **31/31** on Node18/20/22/24 and Linux.
+- Integrity: **46 modules** verified.
 - `npm audit --audit-level=high`: 0 critical/high, 10 moderate.
 - Labeled corpus: precision/recall 1.0 on a small curated set (not representative).
 

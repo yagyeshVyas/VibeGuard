@@ -3,6 +3,22 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.12.0] - 2026-11-22
+
+### Added
+
+- Linux bubblewrap backend with verified network, PID and filesystem isolation.
+- Windows Job Object backend (process/memory containment; AppContainer/WFP still absent).
+- External audit anchor file; `audit verify --anchor`.
+- HTTPS/mTLS server options for the MCP HTTP bridge.
+- Signed approver proof (`ApprovalBroker.signApproverProof`) and registered approver keys.
+
+### Changed — breaking approval behavior
+
+- `ApprovalBroker.decide()` now requires a signed approver proof by default.
+  Register `approverKeys` and pass `proof` from the approver private key. Legacy
+  unauthenticated human strings are rejected.
+
 ## [1.11.2] - 2026-11-22
 
 ### Fixed

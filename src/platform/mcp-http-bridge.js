@@ -167,6 +167,7 @@ async function createMcpHttpBridge(opts = {}) {
   const gateway = await createHttpGateway({
     host: opts.host,
     port: opts.port,
+    tls: opts.tls,
     authority: opts.authority,
     jwt: opts.jwt,
     policy: opts.policy,

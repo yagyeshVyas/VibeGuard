@@ -77,9 +77,9 @@ function cmdPolicy(args, flags) {
 
 function cmdAuditVerify(args, flags) {
   const log = args._[1] || flags.file;
-  if (!log) { process.stderr.write('Usage: vibeguard audit verify <log.jsonl> --pub <key.pem> [--json]\n'); return 2; }
+  if (!log) { process.stderr.write('Usage: vibeguard audit verify <log.jsonl> --pub <key.pem> [--anchor file] [--json]\n'); return 2; }
   const publicKey = flags.pub ? loadPublicKey(fs.readFileSync(path.resolve(flags.pub))) : undefined;
-  const result = SignedAuditLog.verifyFile(path.resolve(log), { publicKey });
+  const result = SignedAuditLog.verifyFile(path.resolve(log), { publicKey, anchorFile: flags.anchor ? path.resolve(flags.anchor) : undefined });
   if (flags.json) out(JSON.stringify({ ...result, signatureChecked: !!publicKey }, null, 2));
   else {
     out(`signed audit: ${publicKey ? (result.valid ? 'VALID' : 'INVALID') : 'UNVERIFIED'} — ${result.entries} entries`);
@@ -92,9 +92,15 @@ function cmdAuditVerify(args, flags) {
 async function cmdSandbox(args, flags) {
   const action = args._[1] || 'backends';
   if (action === 'verify') {
-    const { getLinuxBackend } = require('../src/platform/os-sandbox');
-    const backend = getLinuxBackend();
-    if (!backend.available()) { process.stderr.write('Linux OS namespace backend unavailable on this host\n'); return 2; }
+    let backend;
+    if (process.platform === 'win32') {
+      const { WindowsJobSandbox } = require('../src/platform/windows-sandbox');
+      backend = new WindowsJobSandbox();
+    } else {
+      const { getLinuxBackend } = require('../src/platform/os-sandbox');
+      backend = getLinuxBackend();
+    }
+    if (!backend.available()) { process.stderr.write('OS backend unavailable on this host\n'); return 2; }
     const ok = await backend.verify();
     out(JSON.stringify({ backend: backend.id, verified: ok, verification: backend.verification, limitations: backend.limitations }, null, 2));
     return ok ? 0 : 1;

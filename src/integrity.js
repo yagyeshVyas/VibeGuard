@@ -37,7 +37,7 @@ const CRITICAL_MODULES = [
   'platform/contracts.js', 'platform/canonical.js', 'platform/identity.js',
   'platform/approval.js', 'platform/signed-audit.js', 'platform/policy.js',
   'platform/jwt.js', 'platform/ssrf.js', 'platform/http-gateway.js',
-  'platform/sandbox-manager.js', 'platform/os-sandbox.js',
+  'platform/sandbox-manager.js', 'platform/os-sandbox.js', 'platform/windows-sandbox.js',
   'platform/mcp-http-bridge.js', 'platform/memory-guard.js',
   'platform/delegation.js', 'platform/aisvs.js',
 ];

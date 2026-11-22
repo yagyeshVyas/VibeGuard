@@ -1,7 +1,7 @@
 # VibeGuard — Final Independent Verification Report
 
 **Verification date:** 2026-11-21/22 UTC  
-**Repository:** `D:\vibe guard` (master, v1.11.2; base commit `2ce5b36`)  
+**Repository:** `D:\vibe guard` (master, v1.12.0; base commit `2ce5b36`)  
 **Verifier role:** independent application-security / red-team / release review  
 **Evidence basis:** actual repository inspection, local controlled probes,
 full test suites, dependency audit and local benchmarks. No external systems
@@ -54,7 +54,7 @@ production readiness, complete MCP security, or OS isolation for Windows/macOS.
 - Overrides for vulnerable transitive packages were added.
 - `npm audit --audit-level=high`: **exit 0**; **0 critical/high** residuals,
   **10 moderate** remain.
-- npm package published as `@yagyeshvyas/vibeguard@1.11.2` (latest); no independent provenance/SLSA attestation.
+- npm package published as `@yagyeshvyas/vibeguard@1.12.0` (latest); no independent provenance/SLSA attestation.
 
 ## 3. What was independently tested
 
@@ -112,13 +112,13 @@ Use these as the authoritative recorded runs:
 
 | Environment | Suite | Result |
 |---|---|---|
-| Windows 11, Node v24.14.0 | Full `npm test` | **623 passed, 0 failed** |
-| Windows 11, Node v24.14.0 | Platform suite | **29 passed, 0 failed** |
-| Windows 11, Node 18.20.8 | Full `npm test` | **623 passed, 0 failed** |
-| Windows, Node 18.20.8 / 20.20.2 / 22.23.5 | Platform suite | **29 passed, 0 failed each** |
-| WSL Ubuntu 24.04, Node 22.23.5 | Platform suite | **29 passed, 0 failed** |
-| WSL Ubuntu 24.04, Node 22.23.5 | Full suite | **623 passed, 0 failed** (final run with git + Node on PATH) |
-| macOS | CI platform-security job | **PASS (29/29)**; full suite not run |
+| Windows 11, Node v24.14.0 | Full `npm test` | **625 passed, 0 failed** |
+| Windows 11, Node v24.14.0 | Platform suite | **31 passed, 0 failed** |
+| Windows 11, Node 18.20.8 | Full `npm test` | **625 passed, 0 failed** |
+| Windows, Node 18.20.8 / 20.20.2 / 22.23.5 | Platform suite | **31 passed, 0 failed each** |
+| WSL Ubuntu 24.04, Node 22.23.5 | Platform suite | **31 passed, 0 failed** |
+| WSL Ubuntu 24.04, Node 22.23.5 | Full suite | **625 passed, 0 failed** (final run with git + Node on PATH) |
+| macOS | CI platform-security job | **PASS (31/31)**; full suite not run |
 | MCP stdio | Existing end-to-end proxy suite + platform tests | Pass |
 | MCP HTTP slice | Loopback auth/policy tests | Pass for slice only |
 | Offline/local | Platform tests + scanner/audit | Pass; product still contains explicit network commands |
@@ -129,7 +129,7 @@ Use these as the authoritative recorded runs:
 
 The first Linux full run failed because the WSL invocation did not put Node
 and Git on the child PATH (`spawnSync git ENOENT` in git/pr-scan tests). The
-final run with `/tmp/node.../bin:/usr/bin:...` on PATH passed **623/623**.
+final run with `/tmp/node.../bin:/usr/bin:...` on PATH passed **625/625**.
 This is an environment correction, not a product test pass hidden by changes.
 
 ## 6. Performance (independent comparison)

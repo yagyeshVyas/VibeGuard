@@ -11,15 +11,15 @@
 
 | Command | Result | Notes |
 |---|---|---|
-| `npm test` | **623 passed, 0 failed** | full legacy + platform suite; last local run |
-| `node test/run-platform.js` | **29 passed, 0 failed** | focused v2 security suite |
+| `npm test` | **625 passed, 0 failed** | full legacy + platform suite; last local run |
+| `node test/run-platform.js` | **31 passed, 0 failed** | focused v2 security suite |
 | `node bin/cli.js mcp-firewall --selftest` | **11/11 passed** | firewall scenarios |
 | `node bin/cli.js sandbox backends` | process/legacy-vm `verified=NO` | intentional truthfulness |
 | `node bin/cli.js policy validate docs/security-policy.strict.example.json --pub docs/security-policy.strict.example.pub.pem` | valid, signature verified | signed policy v2 |
 | `node bin/cli.js audit verify <signed-log> --pub <key>` | VALID (when key supplied) | signed chain/checkpoint |
 | `npm audit --audit-level=high` | exit 0 | **0 critical/high**, 10 moderate remain |
 | `node scripts/security-bench.js --out reports/benchmark.json` | success | metrics below |
-| `self-check` | 45/45 modules intact | SHA-256 manifest |
+| `self-check` | 45/46 modules intact | SHA-256 manifest |
 
 > If the exact full-suite count changes after additional commits, rerun the
 > command and update this report; do not infer it from this snapshot.
@@ -59,6 +59,8 @@
 | 27 | Bridge SSE | authenticated server notification forwarded |
 | 28 | Runtime kill | blocked call terminates proxy with exit 3 |
 | 29 | Stdio auth/approval | capability + signed single-use approval enforced |
+| 30 | Windows Job Object | process/memory containment and kill-on-close; limitations disclosed |
+| 31 | External audit anchor | detects truncation after sidecar deletion |
 
 ---
 
@@ -72,7 +74,7 @@ The legacy suite remains green, including:
 - agentic/agent-scan, v18/v19 reachability/bundle, pentest, PR scan, token-lean, taint depth;
 - sandbox legacy tests (vm compatibility tests remain but are labeled unverified);
 - audit trail tests;
-- pre-deploy clean fixture gates (integrity manifest 45 modules).
+- pre-deploy clean fixture gates (integrity manifest 46 modules).
 
 One intentional test change: `test/run.js` plugin v2 test passes
 `{trustPlugins:true}` because target plugin execution is now disabled by

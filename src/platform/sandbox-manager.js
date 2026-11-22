@@ -71,6 +71,11 @@ function defaultManager() {
     const { getLinuxBackend } = require('./os-sandbox');
     const linux = getLinuxBackend();
     if (linux.available()) manager.register(linux);
+    if (process.platform === 'win32') {
+      const { WindowsJobSandbox } = require('./windows-sandbox');
+      const win = new WindowsJobSandbox();
+      if (win.available()) manager.register(win);
+    }
   } catch { /* optional platform backend */ }
   manager.register({
     id: 'process',
