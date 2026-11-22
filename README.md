@@ -3,12 +3,12 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="website/banner.svg" />
   <source media="(prefers-color-scheme: light)" srcset="website/banner.svg" />
-  <img src="website/banner.svg" alt="VibeGuard — security scanner + AI agent firewall" width="880" />
+  <img src="website/banner.svg" alt="VibeGuard — security scanner for code you didn't write" width="880" />
 </picture>
 
 <a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;861+rules+%C2%B7+93+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;offline+by+default+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
 
-<h3>🔒 The AI-era security scanner &amp; agent firewall.</h3>
+<h3>🔒 The AI-era security scanner for code you didn't write.</h3>
 
 <p>
 Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops.<br/>
@@ -688,6 +688,22 @@ _Per-category verdicts and full case list in [test/benchmark/benchmark-results.m
 <!-- BENCHMARK:END -->
 
 Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`. The scorer runs the same de-duplication the product does, so it measures what a user actually sees rather than raw pre-dedupe rule hits. Still a self-built corpus — plans to run against OWASP Benchmark and publish those numbers alongside.
+
+### Independent/third-party testing
+
+The numbers above come from a corpus this project built, so they flatter the
+tool by construction. To give the claims something outside that loop, a scan of
+an externally maintained target is published alongside them:
+**[OWASP Juice Shop](test/third-party-benchmark.md)** (pinned commit, raw human
+output, raw SARIF, and the exact commands).
+
+That page is deliberately not a score. Juice Shop has no line-level
+ground-truth labels, so precision/recall cannot be computed there the way the
+self-built corpus allows; it is a reproducibility and sanity check, and it
+records the false positives the run produced as plainly as the true positives.
+Read it as evidence that the scanner runs end-to-end on code its author did not
+write — not as a ranking, and not as a replacement for the 119/119 regression
+gate.
 
 ---
 
