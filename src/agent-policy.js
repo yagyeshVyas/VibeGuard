@@ -28,7 +28,7 @@ const os = require('os');
 const crypto = require('crypto');
 const { checkCommand } = require('./shell-guard');
 const { checkPackage } = require('./firewall');
-const { scanForLeaks, sanitizeOutbound, isExternalHost, hostOf } = require('./action-guard');
+const { scanForLeaks, scanForLeaksDeep, sanitizeOutbound, isExternalHost, hostOf, shannonEntropy } = require('./action-guard');
 const { scanTextForInjection } = require('./mcp-audit');
 
 const POLICY_FILES = ['.vibeguard-mcp.json', '.vibeguard/mcp-policy.json', 'vibeguard.mcp.json', 'mcp-policy.json'];
@@ -220,7 +220,9 @@ function loadPolicy(root, explicitPath) {
     if (!Array.isArray(policy[key])) policy[key] = policy[key] ? [policy[key]] : [];
   }
 
-  policy.defaultAction = ['allow', 'warn', 'block'].includes(policy.defaultAction) ? policy.defaultAction : 'allow';
+  const validDefaultAction = ['allow', 'warn', 'block'].includes(policy.defaultAction);
+  if (!validDefaultAction) policy.invalidPolicy = true;
+  policy.defaultAction = validDefaultAction ? policy.defaultAction : 'block';
   policy.piiMode = policy.piiMode === 'block' ? 'block' : 'warn';
   policy.projectRoot = projectRoot;
 
@@ -280,15 +282,60 @@ function isInside(root, candidate) {
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
+// Resolve junctions/symlinks and non-existent leaf paths against the nearest
+// existing parent. The policy must decide on the real path, not the lexical one.
+function canonicalPath(root, value) {
+  const resolved = resolveCandidate(root, value);
+  let existing = resolved;
+  const suffix = [];
+  for (let i = 0; i < 32; i++) {
+    try {
+      const real = fs.realpathSync.native(existing);
+      return path.join(real, ...suffix.reverse());
+    } catch {
+      const parent = path.dirname(existing);
+      if (parent === existing) break;
+      suffix.push(path.basename(existing));
+      existing = parent;
+    }
+  }
+  return resolved;
+}
+
+function canonicalRoot(root) {
+  try { return fs.realpathSync.native(root); } catch { return path.resolve(root); }
+}
+
+function policyUrlCheck(url, p, add) {
+  const host = hostOf(url) || String(url).toLowerCase();
+  if (matchesAny(host, p.deniedHosts)) {
+    add('block', 'host-denied', `Tool is trying to reach denied host "${host}".`, 'Cloud metadata services are never a valid agent destination.');
+  }
+  if (p.blockExternalNetwork && isExternalHost(host) && !matchesAny(host, p.allowedHosts)) {
+    add('block', 'external-network-blocked', `Tool is trying to reach external host "${host}" while blockExternalNetwork is on.`, 'Add the host to allowedHosts or turn off blockExternalNetwork.');
+  }
+  if (p.allowedHosts.length > 0 && isExternalHost(host) && !matchesAny(host, p.allowedHosts)) {
+    add('block', 'host-not-allowlisted', `External host "${host}" is not in allowedHosts.`, 'Add the host to allowedHosts to permit egress.');
+  }
+  if (isExternalHost(host) && !matchesAny(host, p.trustedHosts)) {
+    const leaks = scanForLeaks(url);
+    if (leaks.secrets.length) add('block', 'secret-in-url', `${leaks.secrets.join(', ')} embedded in URL to ${host}.`, 'Never put credentials in a URL.');
+  }
+}
+
 function inspectText(text, policy, add, context) {
   if (typeof text !== 'string' || text.length === 0) return;
+  const deep = (policy.secretScan || policy.piiScan) ? scanForLeaksDeep(text) : null;
   if (policy.secretScan && !policy.allowSecretsInArgs) {
-    const leaks = scanForLeaks(text);
+    const leaks = deep;
     if (leaks.secrets.length) {
       add('block', 'secret-in-arguments', `${leaks.secrets.join(', ')} would be passed to ${context}`, 'Never pass a live credential as a tool argument. Read it inside the trusted server or use a vault reference.');
     }
     if (leaks.namedSecrets.length) {
       add('block', 'named-secret-in-arguments', `credential field(s) ${leaks.namedSecrets.join(', ')} would be passed to ${context}`, 'Move credentials out of tool arguments.');
+    }
+    if (leaks.entropy.length) {
+      add('block', 'high-entropy-secret-in-arguments', `unknown high-entropy credential material would be passed to ${context}`, 'Do not pass opaque secrets to tools; use a vault reference.');
     }
   }
   if (policy.blockPromptInjection) {
@@ -298,7 +345,7 @@ function inspectText(text, policy, add, context) {
     }
   }
   if (policy.piiScan) {
-    const leaks = scanForLeaks(text);
+    const leaks = deep;
     const personal = leaks.pii.filter((t) => t !== 'ipv4' && t !== 'ipv6');
     if (personal.length) {
       add(policy.piiMode === 'block' ? 'block' : 'warn', 'pii-in-arguments', `personal data (${personal.join(', ')}) passed to ${context}`, 'Redact PII unless the destination is trusted.');
@@ -306,9 +353,11 @@ function inspectText(text, policy, add, context) {
   }
 }
 
-function evaluateToolCall({ root, policy, server, tool, args }) {
+function evaluateToolCall({ root, policy, server, tool, args, strict = false }) {
   const p = policy || { ...DEFAULT_POLICY };
   const projectRoot = path.resolve(root || p.projectRoot || process.cwd());
+  const strictMode = strict === true || p.mode === 'strict';
+  const defaultAction = strictMode && p.defaultAction === 'allow' ? 'block' : p.defaultAction;
   const toolName = String(tool || '');
   const callArgs = args || {};
   const violations = [];
@@ -326,7 +375,10 @@ function evaluateToolCall({ root, policy, server, tool, args }) {
   const explicitRule = (p.toolRules || []).find((rule) => matchesGlob(toolName, rule.match));
   if (explicitRule) {
     const action = explicitRule.action;
-    if (action === 'block') add('block', 'tool-rule-block', explicitRule.reason || `Tool "${toolName}" is blocked by policy rule "${explicitRule.match}".`, 'Review the rule in your MCP policy.');
+    const validActions = ['allow', 'warn', 'block', 'approval', 'require-approval', 'ask'];
+    if (strictMode && !validActions.includes(action)) {
+      add('block', 'policy-invalid-rule', `Tool rule "${explicitRule.match}" has an invalid action "${action}".`, 'Fix the policy rule; strict mode does not guess.');
+    } else if (action === 'block') add('block', 'tool-rule-block', explicitRule.reason || `Tool "${toolName}" is blocked by policy rule "${explicitRule.match}".`, 'Review the rule in your MCP policy.');
     else if (action === 'warn') add('warn', 'tool-rule-warn', explicitRule.reason || `Tool "${toolName}" matched a warn rule.`, 'Review the call.');
     else if (action === 'approval' || action === 'require-approval' || action === 'ask') add('block', 'tool-approval-required', explicitRule.reason || `Tool "${toolName}" requires human approval and this proxy is headless.`, 'Approve the call interactively or remove it from approvalRequired.');
   }
@@ -342,9 +394,9 @@ function evaluateToolCall({ root, policy, server, tool, args }) {
   if (p.allowedCapabilities.length > 0 && !p.allowedCapabilities.includes(capability) && !p.allowedCapabilities.includes('generic')) {
     add('block', 'capability-not-allowlisted', `Capability "${capability}" is not in allowedCapabilities.`, 'Add the capability to allowedCapabilities to permit it.');
   }
-  if (p.defaultAction === 'block' && !explicitRule && !matchesAny(toolName, p.allowTools)) {
+  if (defaultAction === 'block' && !explicitRule && !matchesAny(toolName, p.allowTools)) {
     add('block', 'default-deny', `Tool "${toolName}" is denied by defaultAction: block.`, 'Add an explicit allow rule for this tool.');
-  } else if (p.defaultAction === 'warn' && !explicitRule && !matchesAny(toolName, p.allowTools)) {
+  } else if (defaultAction === 'warn' && !explicitRule && !matchesAny(toolName, p.allowTools)) {
     add('warn', 'default-warn', `Tool "${toolName}" matched defaultAction: warn.`, 'Review the call.');
   }
 
@@ -357,21 +409,26 @@ function evaluateToolCall({ root, policy, server, tool, args }) {
   const strings = [];
   walkStrings(callArgs, '', strings);
   const blob = strings.map((s) => s.value).join('\n');
+  const compactBlob = strings.map((s) => s.value).join('');
 
-  // 3. Every text/argument gets secret, PII and injection scrutiny.
+  // 3. Every text/argument gets secret, PII and injection scrutiny. Scan the
+  // compact form too so a credential split across arguments cannot evade a
+  // pattern only because a newline was inserted.
   inspectText(blob, p, add, `tool "${toolName}" (${server || 'unknown server'})`);
+  if (compactBlob !== blob) inspectText(compactBlob, p, add, `tool "${toolName}" (${server || 'unknown server'})`);
 
-  // 4. Filesystem scope.
+  // 4. Filesystem scope (canonical paths; junctions/symlinks resolved).
+  const rootCanonical = canonicalRoot(projectRoot);
   for (const { key, value } of strings) {
     if (!PATH_KEY_RE.test(key)) continue;
     if (/^https?:\/\//i.test(value)) continue;
     if (!/[/\\]|\.(?:env|pem|key|json|ya?ml|toml|ini|conf|sql|db|txt|md|js|ts|py)$/i.test(value) && !path.isAbsolute(expandHome(value))) continue;
-    const resolved = resolveCandidate(projectRoot, value);
-    const rel = normalizeSlashes(path.relative(projectRoot, resolved));
+    const resolved = canonicalPath(projectRoot, value);
+    const rel = normalizeSlashes(path.relative(rootCanonical, resolved));
     if (matchesAny(value, p.deniedPaths) || matchesAny(rel, p.deniedPaths) || matchesAny(normalizeSlashes(resolved), p.deniedPaths)) {
       add('block', 'path-denied', `Path "${value}" matches a denied path in policy.`, 'Credential stores are off-limits to agents. Remove the path from deniedPaths only if you truly intend to expose it.');
     }
-    if (p.enforceProjectScope && !isInside(projectRoot, resolved) && !matchesAny(resolved, p.allowedPaths) && !matchesAny(rel, p.allowedPaths)) {
+    if (p.enforceProjectScope && !isInside(rootCanonical, resolved) && !matchesAny(resolved, p.allowedPaths) && !matchesAny(rel, p.allowedPaths)) {
       const level = capability === 'fs.write' ? 'block' : 'warn';
       add(level, 'path-outside-project', `Path "${value}" resolves outside the project root (${projectRoot}).`, 'Add an explicit allowedPaths entry if the agent must reach it.');
     }
@@ -383,22 +440,7 @@ function evaluateToolCall({ root, policy, server, tool, args }) {
     if (/^https?:\/\//i.test(value)) urls.push(value);
     else if (/^(?:url|uri|endpoint|host|domain|webhook)$/i.test(key) && value) urls.push(value);
   }
-  for (const url of urls) {
-    const host = hostOf(url) || String(url).toLowerCase();
-    if (matchesAny(host, p.deniedHosts)) {
-      add('block', 'host-denied', `Tool is trying to reach denied host "${host}".`, 'Cloud metadata services are never a valid agent destination.');
-    }
-    if (p.blockExternalNetwork && isExternalHost(host) && !matchesAny(host, p.allowedHosts)) {
-      add('block', 'external-network-blocked', `Tool is trying to reach external host "${host}" while blockExternalNetwork is on.`, 'Add the host to allowedHosts or turn off blockExternalNetwork.');
-    }
-    if (p.allowedHosts.length > 0 && isExternalHost(host) && !matchesAny(host, p.allowedHosts)) {
-      add('block', 'host-not-allowlisted', `External host "${host}" is not in allowedHosts.`, 'Add the host to allowedHosts to permit egress.');
-    }
-    if (isExternalHost(host) && !matchesAny(host, p.trustedHosts)) {
-      const leaks = scanForLeaks(url);
-      if (leaks.secrets.length) add('block', 'secret-in-url', `${leaks.secrets.join(', ')} embedded in URL to ${host}.`, 'Never put credentials in a URL.');
-    }
-  }
+  for (const url of urls) policyUrlCheck(url, p, add);
 
   // 6. Commands.
   if (capability === 'shell' || capability === 'code-exec') {
@@ -415,6 +457,11 @@ function evaluateToolCall({ root, policy, server, tool, args }) {
           seenWarnings.add(label);
           add('warn', `command-${v.type || 'warning'}`, label, null);
         }
+      }
+      // Egress policy applies to URLs embedded in shell commands too. Without
+      // this, a plain `curl https://host` bypasses the host allowlist.
+      for (const m of value.matchAll(/\bhttps?:\/\/[^\s"'<>]+/gi)) {
+        policyUrlCheck(m[0], p, add);
       }
     }
   }

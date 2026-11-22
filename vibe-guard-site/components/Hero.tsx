@@ -106,7 +106,7 @@ export default function Hero() {
         >
           <span className="w-2 h-2 rounded-full bg-[#00ff9d] animate-pulse" />
           <span className="font-mono text-xs text-[#00f0ff]/80 tracking-widest">
-            100% OFFLINE · ZERO DEPS · FREE FOREVER
+            OFFLINE BY DEFAULT · LOCAL-FIRST · FREE FOREVER
           </span>
         </motion.div>
 
@@ -183,7 +183,7 @@ export default function Hero() {
           transition={{ delay: 1.2 }}
           className="mt-14 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-xs text-[#4a6b7e]"
         >
-          {["861 RULES", "93 MCP TOOLS", "18 LANGUAGES", "15 AI CLIENTS", "0 DEPENDENCIES"].map((t, i) => (
+          {["861 RULES", "93 MCP TOOLS", "18 LANGUAGES", "15 AI CLIENTS", "0 TELEMETRY"].map((t, i) => (
             <span key={t} className="flex items-center gap-6">
               {i > 0 && <span className="text-[#0a2030]">/</span>}
               <span className="hover:text-[#00f0ff] transition-colors">{t}</span>

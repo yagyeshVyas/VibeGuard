@@ -671,7 +671,7 @@ function scan(dir, opts = {}) {
   try {
     const { loadPlugins, resetPlugins } = require('./plugin');
     resetPlugins();
-    loadPlugins(root, config);
+    loadPlugins(root, config, { trustPlugins: opts.trustPlugins === true });
   } catch { /* plugins are best-effort */ }
 
   const allFiles = walk(root, [], null);

@@ -43,7 +43,9 @@ const {
   describePolicy,
 } = require('./agent-policy');
 const { createLogger } = require('./audit-trail');
-const { scanForLeaks, sanitizeOutbound } = require('./action-guard');
+const { createSignedLogger } = require('./platform/signed-audit');
+const { actionDigest } = require('./platform/canonical');
+const { scanForLeaks, scanForLeaksDeep, sanitizeOutbound } = require('./action-guard');
 const { SECRET_PATTERNS } = require('./shell-guard');
 const { redactText } = require('./pii');
 const { scanTextForInjection } = require('./mcp-audit');
@@ -168,11 +170,30 @@ function resolveServer(root, opts = {}) {
 
 function createEngine(opts = {}) {
   const projectRoot = path.resolve(opts.root || process.cwd());
+  const principal = opts.principal || null;
   const loaded = opts.policy
     ? { policy: mergePolicy({ ...DEFAULT_POLICY, projectRoot }, opts.policy), source: null, error: null }
     : loadPolicy(projectRoot, opts.policyPath);
   const policy = loaded.policy;
-  const logger = opts.logger || createLogger(opts.auditFile ? path.resolve(projectRoot, opts.auditFile) : null);
+  if (opts.strict === true) {
+    policy.mode = 'strict';
+    policy.defaultAction = 'block';
+    policy.failClosed = true;
+  }
+  const logger = opts.logger || (
+    opts.signedAudit === true
+      ? createSignedLogger(
+        opts.signedAuditFile
+          ? path.resolve(projectRoot, opts.signedAuditFile)
+          : path.join(projectRoot, '.vibeguard', 'audit', 'mcp-firewall.signed.jsonl'),
+        { projectRoot, auditKeyFile: opts.auditKeyFile, tenant: opts.tenant, keyId: 'gateway-audit' }
+      )
+      : createLogger(opts.auditFile ? path.resolve(projectRoot, opts.auditFile) : null)
+  );
+  const auditRequired = opts.auditRequired !== undefined
+    ? opts.auditRequired === true
+    : (opts.strict === true || policy.mode === 'strict');
+  let auditUnhealthy = false;
   const pins = loadPins(projectRoot);
   const session = { rateWindow: null, calls: 0, events: [] };
   const pending = new Map();
@@ -192,7 +213,24 @@ function createEngine(opts = {}) {
   };
 
   function logDecision(kind, detail) {
-    try { logger.log(kind, detail); } catch { /* logging must never break the proxy */ }
+    const before = typeof logger.writeFailures === 'number' ? logger.writeFailures : 0;
+    try {
+      logger.log(kind, detail);
+      if (typeof logger.writeFailures === 'number' && logger.writeFailures > before) {
+        auditUnhealthy = true;
+        return false;
+      }
+      return true;
+    } catch {
+      auditUnhealthy = true;
+      return false;
+    }
+  }
+
+  // Strict mode must not continue when its audit sink is unhealthy. Probe once
+  // at startup so a throw-only/broken logger fails closed before the first tool.
+  if (auditRequired) {
+    if (!logDecision('mcp_audit_probe', { strict: true })) auditUnhealthy = true;
   }
 
   function safePreview(value) {
@@ -223,7 +261,48 @@ function createEngine(opts = {}) {
     session.calls++;
     stats.calls++;
     const rate = checkRateLimit(session, policy);
-    const verdict = evaluateToolCall({ root: projectRoot, policy, server, tool, args: args || {} });
+    const verdict = evaluateToolCall({ root: projectRoot, policy, server, tool, args: args || {}, strict: policy.mode === 'strict' });
+    if (principal && verdict.capability && !Array.isArray(principal.capabilities)) {
+      verdict.violations.push({ level: 'block', id: 'principal-no-capabilities', message: 'Authenticated principal has no capability set.', fix: 'Issue a scoped token.' });
+      verdict.action = 'block';
+      verdict.blocked = true;
+      verdict.reasons.push('principal has no capabilities');
+    } else if (principal && verdict.capability) {
+      const required = verdict.capability === 'generic' ? 'mcp.tool.invoke' : verdict.capability;
+      if (!principal.capabilities.includes(required)) {
+        verdict.violations.push({ level: 'block', id: 'principal-capability-denied', message: `Principal lacks capability ${required}.`, fix: 'Issue a token with the required capability.' });
+        verdict.action = 'block';
+        verdict.blocked = true;
+        verdict.reasons.push(`principal lacks capability ${required}`);
+      }
+    }
+    if (verdict.blocked && opts.approvalVerifier && opts.approvalToken && verdict.violations.some((v) => v.id === 'tool-approval-required')) {
+      const digest = actionDigest({ server, tool, capability: verdict.capability, arguments: args || {} });
+      try {
+        const approval = opts.approvalVerifier.verifyStandalone(opts.approvalToken, digest);
+        verdict.violations = verdict.violations.filter((v) => v.id !== 'tool-approval-required');
+        verdict.action = verdict.violations.some((v) => v.level === 'block') ? 'block' : 'allow';
+        verdict.blocked = verdict.action === 'block';
+        verdict.approvedBy = approval.approver;
+      } catch (err) {
+        verdict.violations.push({ level: 'block', id: 'approval-invalid', message: err.message, fix: 'Obtain a fresh single-use approval for this exact action.' });
+        verdict.action = 'block';
+        verdict.blocked = true;
+        verdict.reasons.push('approval token invalid');
+      }
+    }
+    if (auditRequired && auditUnhealthy) {
+      verdict.violations.push({
+        level: 'block',
+        id: 'audit-unavailable',
+        message: 'Strict mode audit sink is unavailable; refusing to execute.',
+        fix: 'Restore the audit log path/permissions or run in non-strict mode with an explicit risk decision.',
+      });
+      verdict.action = 'block';
+      verdict.blocked = true;
+      verdict.reasons.push('strict audit unavailable');
+      verdict.risk = Math.max(verdict.risk || 0, 70);
+    }
     if (!rate.allowed) {
       verdict.violations.push({
         level: 'block',
@@ -271,6 +350,18 @@ function createEngine(opts = {}) {
           argsKeys: Object.keys(args || {}).slice(0, 20),
         });
       }
+    }
+    if (auditRequired && auditUnhealthy && verdict.action !== 'block') {
+      verdict.violations.push({
+        level: 'block',
+        id: 'audit-write-failed',
+        message: 'Audit write failed during a security decision; strict mode blocks the call.',
+        fix: 'Restore audit storage before retrying.',
+      });
+      verdict.action = 'block';
+      verdict.blocked = true;
+      verdict.reasons.push('strict audit write failed');
+      verdict.risk = Math.max(verdict.risk || 0, 70);
     }
     return verdict;
   }
@@ -323,7 +414,13 @@ function createEngine(opts = {}) {
 
   function scrubResult(value) {
     let scrubbed = 0;
+    let scannedBytes = 0;
+    const MAX_SCAN_BYTES = 4 * 1024 * 1024;
     const scrubText = (text) => {
+      scannedBytes += Buffer.byteLength(text);
+      if (scannedBytes > MAX_SCAN_BYTES) {
+        return '[VibeGuard MCP firewall: tool output withheld — response too large to inspect safely]';
+      }
       if (policy.blockToolResultInjection) {
         const injections = scanTextForInjection(text);
         if (injections.length > 0) {
@@ -333,10 +430,13 @@ function createEngine(opts = {}) {
         }
       }
       if (!policy.scrubToolResults) return text;
-      const leaks = scanForLeaks(text);
+      const leaks = scanForLeaksDeep(text);
       const personal = leaks.pii.filter((t) => t !== 'ipv4' && t !== 'ipv6');
-      if (!leaks.secrets.length && !personal.length) return text;
+      if (!leaks.secrets.length && !personal.length && !leaks.entropy.length) return text;
       let out = text;
+      for (const token of leaks.entropyTokens || []) {
+        out = out.split(token).join('[REDACTED-ENTROPY]');
+      }
       for (const { re } of SECRET_PATTERNS) {
         out = out.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g'), '[REDACTED-SECRET]');
       }
@@ -345,17 +445,18 @@ function createEngine(opts = {}) {
       });
       return redacted.redacted;
     };
-    const walk = (node) => {
+    const walk = (node, depth = 0) => {
+      if (depth > 32) return '[VibeGuard MCP firewall: response depth limit exceeded]';
       if (node == null) return node;
       if (typeof node === 'string') {
         const out = scrubText(node);
         if (out !== node) { scrubbed++; return out; }
         return node;
       }
-      if (Array.isArray(node)) return node.map(walk);
+      if (Array.isArray(node)) return node.map((v) => walk(v, depth + 1));
       if (typeof node === 'object') {
         const out = {};
-        for (const [key, val] of Object.entries(node)) out[key] = walk(val);
+        for (const [key, val] of Object.entries(node)) out[key] = walk(val, depth + 1);
         return out;
       }
       return node;
@@ -371,6 +472,22 @@ function createEngine(opts = {}) {
   // Takes one parsed JSON-RPC message from the client. Returns
   // { forward, message, response } — a non-forward message is answered
   // locally and never reaches the server.
+  function remember(id, meta) {
+    if (id == null) return true;
+    if (pending.size >= 4096) return false;
+    pending.set(id, meta);
+    return true;
+  }
+
+  function pendingLimitResponse(id) {
+    logDecision('mcp_pending_limit', { risk: 40 });
+    return {
+      jsonrpc: '2.0',
+      id,
+      error: { code: -32011, message: 'VibeGuard gateway: pending request limit exceeded (possible stalled/malicious upstream)' },
+    };
+  }
+
   function onClientMessage(server, msg) {
     stats.messages++;
     if (!msg || typeof msg !== 'object') return { forward: true };
@@ -384,12 +501,14 @@ function createEngine(opts = {}) {
       if (verdict.blocked) {
         return { forward: false, response: blockedResponse(msg.id, verdict), verdict };
       }
-      pending.set(msg.id, { method, server, tool });
+      if (!remember(msg.id, { method, server, tool })) {
+        return { forward: false, response: pendingLimitResponse(msg.id), verdict };
+      }
       return { forward: true, verdict };
     }
 
     if (method === 'tools/list') {
-      pending.set(msg.id, { method, server });
+      if (!remember(msg.id, { method, server })) return { forward: false, response: pendingLimitResponse(msg.id) };
       return { forward: true };
     }
 
@@ -414,10 +533,34 @@ function createEngine(opts = {}) {
           };
         }
       }
-      pending.set(msg.id, { method, server });
+      if (!remember(msg.id, { method, server })) return { forward: false, response: pendingLimitResponse(msg.id) };
       return { forward: true };
     }
 
+    if (method === 'resources/read') {
+      const params = msg.params || {};
+      const uri = String(params.uri || '');
+      // Credential/metadata URI reads are refused in strict mode even if a
+      // broad resources/read rule exists. URI authorization is still weaker
+      // than the tool policy; do not treat this as complete.
+      if (policy.mode === 'strict' && /(?:\.env|\.ssh|\.aws|169\.254\.169\.254|metadata\.google|file:\/\/\/etc|file:\/\/\/root)/i.test(uri)) {
+        stats.blocked++;
+        const verdict = { blocked: true, reasons: ['credential/metadata resource URI'], violations: [{ id: 'resource-uri-denied' }], capability: 'fs.read', risk: 80, tool: 'resources/read' };
+        logDecision('mcp_resource_blocked', { server, uri: uri.slice(0, 120), risk: 80 });
+        return { forward: false, response: blockedResponse(msg.id, verdict), verdict };
+      }
+      const verdict = checkToolCall(server, 'resources/read', { uri });
+      if (verdict.blocked) return { forward: false, response: blockedResponse(msg.id, verdict), verdict };
+      if (!remember(msg.id, { method, server })) return { forward: false, response: pendingLimitResponse(msg.id) };
+      return { forward: true, verdict };
+    }
+
+    // Track every request with an id so all response-bearing methods
+    // (resources/read, prompts/get, sampling, unknown methods) can be
+    // inspected before their content reaches the model.
+    if (msg.id != null && !remember(msg.id, { method, server })) {
+      return { forward: false, response: pendingLimitResponse(msg.id) };
+    }
     return { forward: true };
   }
 
@@ -426,6 +569,25 @@ function createEngine(opts = {}) {
   // results scrubbed) before it reaches the client.
   function onServerMessage(server, msg) {
     if (!msg || typeof msg !== 'object') return { forward: true };
+    // Server-originated requests/notifications (sampling/createMessage,
+    // notifications/message, custom methods) are content-bearing too. Inspect
+    // their params before they reach the client.
+    if (msg.method && msg.params) {
+      const text = safeJsonStringify(msg.params);
+      const hits = scanTextForInjection(text);
+      const promptVerdict = inspectPrompt(text);
+      if (hits.length || promptVerdict.action === 'block') {
+        stats.resultInjections++;
+        logDecision('mcp_server_request_blocked', { server, method: String(msg.method).slice(0, 80), hits: hits.length ? hits : [promptVerdict.reason], risk: 60 });
+        return {
+          forward: false,
+          message: msg.id != null
+            ? { jsonrpc: '2.0', id: msg.id, error: { code: -32003, message: 'VibeGuard: server request contained prompt injection' } }
+            : null,
+          blocked: true,
+        };
+      }
+    }
     const meta = msg.id != null ? pending.get(msg.id) : null;
     if (meta) pending.delete(msg.id);
 
@@ -444,7 +606,7 @@ function createEngine(opts = {}) {
       return { forward: true, message: msg, inspected };
     }
 
-    if (meta && meta.method === 'tools/call' && (policy.scrubToolResults || policy.blockToolResultInjection) && msg.result) {
+    if ((policy.scrubToolResults || policy.blockToolResultInjection) && msg.result) {
       const before = safeJsonStringify(msg.result);
       const scrubbedNode = scrubResult(msg.result);
       if (before !== safeJsonStringify(scrubbedNode)) {
@@ -470,6 +632,7 @@ function createEngine(opts = {}) {
   return {
     projectRoot,
     policy,
+    principal,
     policySource: loaded.source,
     policyError: loaded.error,
     logger,
@@ -494,13 +657,44 @@ function writeLine(stream, obj) {
 
 function startProxy(opts = {}) {
   const root = path.resolve(opts.root || process.cwd());
+  let principal = null;
+  if (opts.token) {
+    if (!opts.tokenPublicKey) throw new Error('stdio token authentication requires --token-pub <public-key.pem>');
+    const { IdentityAuthority } = require('./platform/identity');
+    const pb = fs.readFileSync(path.resolve(root, opts.tokenPublicKey));
+    const authority = new IdentityAuthority({
+      issuer: opts.tokenIssuer || 'human:local/operator',
+      tenant: opts.tokenTenant || 'local',
+      publicKey: pb,
+      keyId: opts.tokenKeyId || undefined,
+    });
+    principal = authority.verify(opts.token).principal;
+  }
+  let approvalVerifier = null;
+  if (opts.approvalToken) {
+    if (!opts.approvalPublicKey) throw new Error('stdio approval requires --approval-pub <public-key.pem>');
+    const { ApprovalBroker } = require('./platform/approval');
+    approvalVerifier = new ApprovalBroker({
+      issuer: opts.approvalIssuer || 'human:local/operator',
+      tenant: opts.approvalTenant || 'local',
+      publicKey: fs.readFileSync(path.resolve(root, opts.approvalPublicKey)),
+      keyId: opts.approvalKeyId || undefined,
+    });
+  }
   const serverDef = resolveServer(root, opts);
   const engine = createEngine({
     root,
+    principal,
+    approvalVerifier,
+    approvalToken: opts.approvalToken,
     policy: opts.policy,
     policyPath: opts.policyPath,
     auditFile: opts.auditFile || DEFAULT_AUDIT_FILE,
+    signedAudit: opts.signedAudit === true || (opts.strict === true && opts.signedAudit !== false),
+    signedAuditFile: opts.signedAuditFile,
+    auditKeyFile: opts.auditKeyFile,
     logger: opts.logger,
+    strict: opts.strict === true,
   });
 
   const child = spawn(serverDef.command, serverDef.args, {
@@ -514,8 +708,29 @@ function startProxy(opts = {}) {
   let clientBuf = '';
   let serverBuf = '';
   let closed = false;
+  let blockedCalls = 0;
+  const maxBlocks = Number(opts.maxBlocks || 0);
+  const killOnBlock = opts.killOnBlock === true || maxBlocks > 0;
 
   const serverName = serverDef.name;
+
+  function quarantineKill(reason) {
+    try { engine.logger.log('mcp_quarantine_kill', { reason, blockedCalls, risk: 90 }); } catch { /* best effort */ }
+    try { process.stderr.write(`vibeguard mcp firewall: quarantine/kill — ${reason}\n`); } catch { /* ignore */ }
+    closed = true;
+    try { child.kill(); } catch { /* ignore */ }
+    process.exitCode = 3;
+    setTimeout(() => process.exit(3), 25).unref();
+  }
+
+  function engineFailure(reason) {
+    try { engine.logger.log('mcp_gateway_limited', { reason, risk: 50 }); } catch { /* ignore */ }
+    try { process.stderr.write(`vibeguard mcp firewall: ${reason}\n`); } catch { /* ignore */ }
+    closed = true;
+    try { child.kill(); } catch { /* ignore */ }
+    process.exitCode = 2;
+    setTimeout(() => process.exit(2), 10).unref();
+  }
 
   function forwardToServer(messages) {
     for (const message of messages) {
@@ -523,6 +738,13 @@ function startProxy(opts = {}) {
         const result = engine.onClientMessage(serverName, message);
         if (!result.forward) {
           writeLine(process.stdout, result.response);
+          if (result.verdict && result.verdict.blocked) {
+            blockedCalls++;
+            if (killOnBlock && (maxBlocks <= 0 || blockedCalls >= maxBlocks)) {
+              quarantineKill(`blocked tool call limit reached (${blockedCalls})`);
+              return;
+            }
+          }
           continue;
         }
       }
@@ -532,8 +754,12 @@ function startProxy(opts = {}) {
 
   function forwardToClient(messages) {
     for (const message of messages) {
-      if (message && typeof message === 'object' && message.id != null) {
+      if (message && typeof message === 'object') {
         const result = engine.onServerMessage(serverName, message);
+        if (result.forward === false) {
+          if (result.message) writeLine(process.stdout, result.message);
+          continue;
+        }
         writeLine(process.stdout, result.message || message);
       } else {
         writeLine(process.stdout, message);
@@ -543,6 +769,10 @@ function startProxy(opts = {}) {
 
   function parseLines(chunk, which) {
     const buf = which === 'client' ? clientBuf + chunk.toString('utf8') : serverBuf + chunk.toString('utf8');
+    if (buf.length > 8 * 1024 * 1024) {
+      engineFailure('message exceeds 8 MiB line limit');
+      return [];
+    }
     const lines = buf.split(/\r?\n/);
     const rest = lines.pop();
     if (which === 'client') clientBuf = rest; else serverBuf = rest;
@@ -555,7 +785,14 @@ function startProxy(opts = {}) {
         if (Array.isArray(parsed)) messages.push(...parsed);
         else messages.push(parsed);
       } catch {
-        // Non-JSON output (banners, logs) is forwarded untouched.
+        // Non-JSON output (banners, logs) is normally forwarded untouched for
+        // compatibility. In strict mode a malicious upstream must not be able
+        // to inject raw text through stdout; drop it and record the event.
+        if (which === 'server' && engine.policy && engine.policy.mode === 'strict') {
+          try { engine.logger.log('mcp_non_json_dropped', { bytes: Buffer.byteLength(trimmed), risk: 40 }); } catch { /* ignore */ }
+          try { process.stderr.write('vibeguard mcp firewall: dropped non-JSON server output in strict mode\n'); } catch { /* ignore */ }
+          continue;
+        }
         writeLine(which === 'client' ? child.stdin : process.stdout, trimmed);
       }
     }

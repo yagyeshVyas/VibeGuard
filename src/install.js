@@ -22,10 +22,9 @@ function serverSpec(local) {
   if (local) {
     return { command: process.execPath, args: [path.resolve(__dirname, 'mcp-server.js')] };
   }
-  // `npx -y @yagyeshvyas/vibeguard mcp` — resolves the published `vibeguard` package and runs
-  // its `mcp` subcommand. (npx -y @yagyeshvyas/vibeguard-mcp would look for a package by that
-  // name, which doesn't exist — the mcp bin lives inside the vibeguard package.)
-  return { command: 'npx', args: ['-y', 'vibeguard', 'mcp'] };
+  // Pin the package+version: an unpinned `npx -y vibeguard` can resolve an
+  // unrelated/older package and makes the MCP config non-reproducible.
+  return { command: 'npx', args: ['-y', '@yagyeshvyas/vibeguard@1.10.0', 'mcp'] };
 }
 
 function exists(p) {

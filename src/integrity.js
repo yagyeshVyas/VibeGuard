@@ -34,6 +34,12 @@ const CRITICAL_MODULES = [
   // scanner, risk scorer or audit chain is a silent bypass.
   'mcp-firewall.js', 'agent-policy.js', 'skill-scan.js', 'owasp-agentic.js',
   'agent-risk.js', 'agent-monitor.js', 'audit-trail.js', 'sandbox.js',
+  'platform/contracts.js', 'platform/canonical.js', 'platform/identity.js',
+  'platform/approval.js', 'platform/signed-audit.js', 'platform/policy.js',
+  'platform/jwt.js', 'platform/ssrf.js', 'platform/http-gateway.js',
+  'platform/sandbox-manager.js', 'platform/os-sandbox.js',
+  'platform/mcp-http-bridge.js', 'platform/memory-guard.js',
+  'platform/delegation.js', 'platform/aisvs.js',
 ];
 
 function hashFile(p) {

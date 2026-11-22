@@ -30,23 +30,79 @@ try { ({ SECRET_PATTERNS } = require('./shell-guard')); } catch { /* optional */
 // Prompt-injection / tool-poisoning signatures in text an agent will read.
 const INJECTION_PATTERNS = [
   { re: /ignore\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|earlier)\s+instructions?/i, name: 'ignore-previous-instructions' },
-  { re: /disregard\s+(?:the\s+)?(?:system\s+prompt|previous|above|all)/i, name: 'disregard-system' },
+  { re: /disregard\s+(?:the\s+)?(?:system\s+prompt|previous\s+(?:instructions?|rules?|directives?|guidance)|above\s+(?:instructions?|rules?|directives?)|all\s+(?:previous|prior|above|earlier)\s+(?:instructions?|rules?|directives?))/i, name: 'disregard-system' },
   { re: /you\s+are\s+now\s+(?:a|an|the)\b/i, name: 'role-override' },
   { re: /new\s+instructions?\s*:/i, name: 'injected-instructions' },
   { re: /<\s*\|?\s*(?:im_start|im_end|system|endoftext)\s*\|?\s*>/i, name: 'special-token-injection' },
   { re: /\[\s*system\s*\]|\bsystem\s*prompt\s*override\b/i, name: 'system-role-injection' },
+  // Natural-language data-access instructions. These are the "ordinary words"
+  // bypasses that the original six patterns missed.
+  { re: /(?:before\s+(?:answering|responding|using)[^\n]{0,180})?(?:include|add|append|paste|copy|put|reveal|return|print|output|send|upload|exfiltrate|read)[^\n]{0,140}(?:\.env(?!\.example)|environment\s+variables?|secrets?|api\s*keys?|credentials?|\.ssh|private\s+key)[^\n]{0,140}(?=(?:final|answer|response|chat|output|message|tool|call|endpoint|server|operator|user|me|contents?|values?|text)\b)/i, name: 'secret-disclosure-instruction' },
+  { re: /(?:list|enumerate|dump|extract|collect)\s+(?:all\s+|the\s+)?(?:api\s*keys?|credentials?|secrets?|tokens?|passwords?)/i, name: 'secret-disclosure-instruction' },
+  { re: /(?:upload|send|exfiltrate|post)\s+(?:any\s+|the\s+)?(?:credentials?|secrets?|api\s*keys?)/i, name: 'secret-disclosure-instruction' },
+  { re: /(?:do\s+not|don'?t)\s+(?:tell|inform|mention|reveal|disclose)[^\n]{0,80}(?:user|human|operator)/i, name: 'concealment-instruction' },
+  { re: /(?:before|instead\s+of|prior\s+to)\s+(?:answering|responding|using)[^\n]{0,160}(?:include|read|send|reveal|upload|exfiltrate)/i, name: 'pre-instruction-hijack' },
+  { re: /forget\s+(?:everything|all|your)\s+(?:above|prior|previous|instructions?|rules?)/i, name: 'memory-reset-instruction' },
 ];
 // Invisible / bidi control chars used to smuggle hidden instructions.
 const HIDDEN_CHARS_RE = /[​-‏‪-‮⁦-⁩﻿]/;
 
+const CONFUSABLES = {
+  'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'і': 'i',
+  'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'ɡ': 'g', 'А': 'A', 'Е': 'E', 'О': 'O',
+  'Р': 'P', 'С': 'C', 'Х': 'X', 'І': 'I', 'Ј': 'J', 'Ѕ': 'S',
+};
+
+function normalizeForScan(text) {
+  let s = String(text || '');
+  if (s.length > 512 * 1024) s = s.slice(0, 512 * 1024);
+  try { s = s.normalize('NFKC'); } catch { /* older runtime */ }
+  s = s.replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF\u00AD]/g, ' ');
+  s = s.replace(/[аеорсхіјѕԁɡАЕОРСХІЈЅ]/g, (ch) => CONFUSABLES[ch] || ch);
+  return s.replace(/[ \t\r\f\v]+/g, ' ').replace(/\n{3,}/g, '\n\n');
+}
+
+function decodePayloads(text) {
+  const out = new Set();
+  const source = String(text || '');
+  // Percent-encoded payloads.
+  if (/%[0-9a-f]{2}/i.test(source)) {
+    try { out.add(decodeURIComponent(source)); } catch { /* invalid escape */ }
+  }
+  // Base64 / base64url blobs; decode only printable results.
+  const b64 = source.match(/[A-Za-z0-9+/_-]{24,}={0,2}/g) || [];
+  for (const token of b64.slice(0, 8)) {
+    try {
+      const decoded = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+      if (decoded.length >= 8 && /^[\x09\x0a\x0d\x20-\x7e\u00a0-\uffff]+$/.test(decoded)) out.add(decoded);
+    } catch { /* ignore */ }
+  }
+  // Hex escapes (\x41) and \u escapes.
+  if (/\\x[0-9a-f]{2}/i.test(source)) {
+    out.add(source.replace(/\\x([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+  }
+  if (/\\u[0-9a-f]{4}/i.test(source)) {
+    out.add(source.replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+  }
+  return [...out];
+}
+
 function scanTextForInjection(text) {
   const hits = [];
   if (!text || typeof text !== 'string') return hits;
-  for (const p of INJECTION_PATTERNS) {
-    if (p.re.test(text)) hits.push(p.name);
+  const variants = [text];
+  const normalized = normalizeForScan(text);
+  variants.push(normalized);
+  for (const decoded of decodePayloads(normalized)) {
+    variants.push(normalizeForScan(decoded));
+  }
+  for (const variant of variants) {
+    for (const p of INJECTION_PATTERNS) {
+      if (p.re.test(variant)) hits.push(p.name);
+    }
   }
   if (HIDDEN_CHARS_RE.test(text)) hits.push('hidden-unicode-control-chars');
-  return hits;
+  return [...new Set(hits)];
 }
 
 // Which config files hold MCP server definitions.

@@ -116,9 +116,8 @@ function createSandbox(opts = {}) {
 // capabilities — a large step up from vm.
 
 const HARNESS_SOURCE = `'use strict';
-const Module = require('module');
-const vm = require('vm');
 const fs = require('fs');
+const vm = require('vm');
 const path = require('path');
 
 const userFile = path.join(__dirname, 'user.js');
@@ -126,73 +125,33 @@ let userCode = '';
 try { userCode = fs.readFileSync(userFile, 'utf8'); }
 catch (err) { console.log('__VG_ERROR__' + JSON.stringify('cannot read sandbox program: ' + err.message)); process.exit(0); }
 
-// Deny module loads that can reach the network, the disk or other processes.
-// (The Node permission model already denies fs/child_process at runtime; this
-// makes the failure explicit and covers runtimes without the model.)
-const BLOCKED = new Set([
-  'child_process', 'fs', 'fs/promises', 'net', 'http', 'https', 'http2',
-  'dgram', 'tls', 'dns', 'worker_threads', 'cluster', 'vm', 'v8',
-  'inspector', 'repl', 'module', 'perf_hooks',
-]);
-const originalLoad = Module._load;
-Module._load = function (request, parent, isMain) {
-  const name = String(request).replace(/^node:/, '');
-  if (BLOCKED.has(name)) {
-    console.log('__VG_BLOCKED__' + JSON.stringify(request));
-    throw new Error('VibeGuard Sandbox: module "' + request + '" is not available in process-isolated execution');
-  }
-  return originalLoad.apply(this, arguments);
-};
-
-// Remove ambient network globals.
-for (const g of ['fetch', 'WebSocket', 'EventSource', 'XMLHttpRequest']) {
-  try { delete globalThis[g]; } catch { /* non-configurable */ }
-}
-try { process.mainModule = undefined; } catch { /* ignore */ }
-try { process.binding = function () { throw new Error('VibeGuard Sandbox: process.binding is disabled'); }; } catch { /* ignore */ }
-try { process.kill = function () { throw new Error('VibeGuard Sandbox: process.kill is disabled'); }; } catch { /* ignore */ }
-try { process.exit = function () { throw new Error('VibeGuard Sandbox: process.exit is disabled'); }; } catch { /* ignore */ }
-
+// The child process itself is under Node's permission model (fs/child_process
+// denied). The user program runs in a fresh V8 context with NO host-realm
+// objects. Passing host objects (console, JSON, Math, ...) is what enabled the
+// constructor-chain escape in the previous implementation.
 try {
-  // Run the program in a fresh vm context rather than the harness's global.
-  // That removes process/require and leaves Node's dynamic import callback
-  // unset, so dynamic import("node:net") fails too. Combined with the permission
-  // model in the parent this is a real process boundary with a locked context.
-  const sandbox = {
-    console,
-    JSON,
-    Math,
-    Date,
-    Array,
-    Object,
-    String,
-    Number,
-    Boolean,
-    RegExp,
-    Map,
-    Set,
-    Promise,
-    Symbol,
-    parseInt,
-    parseFloat,
-    isNaN,
-    isFinite,
-    encodeURIComponent,
-    decodeURIComponent,
-  };
-  sandbox.globalThis = sandbox;
-  const context = vm.createContext(sandbox);
+  const context = vm.createContext(Object.create(null), { name: 'vibeguard-sandbox' });
+  const setup = new vm.Script(
+    'globalThis.__vg_logs = [];' +
+    'globalThis.console = {' +
+    ' log: (...a) => __vg_logs.push(a.map(String).join(" ")),' +
+    ' error: (...a) => __vg_logs.push(a.map(String).join(" ")),' +
+    ' warn: (...a) => __vg_logs.push(a.map(String).join(" "))' +
+    '};',
+    { filename: 'sandbox-setup.js' }
+  );
+  setup.runInContext(context);
+
   const script = new vm.Script(userCode, {
     filename: 'user.js',
     importModuleDynamically() { throw new Error('VibeGuard Sandbox: dynamic import is disabled'); },
   });
   const result = script.runInContext(context);
   const emit = (value) => {
-    console.log('__VG_RESULT__' + JSON.stringify({ ok: true, result: value === undefined ? null : String(value) }));
+    const text = value === undefined || value === null ? null : String(value);
+    console.log('__VG_RESULT__' + JSON.stringify({ ok: true, result: text }));
   };
   if (result && typeof result.then === 'function') {
-    // Await a returned promise so a rejected dynamic import is reported
-    // instead of being mistaken for a successful run.
     result.then(emit, (err) => {
       console.log('__VG_ERROR__' + JSON.stringify(err && err.message ? err.message : String(err)));
     });
@@ -225,6 +184,9 @@ function runInProcess(code, opts = {}) {
     memoryCap: maxMemory,
     memoryEnforced: true,
     isolation: 'process-permission',
+    isolationClass: 'process',
+    verified: false,
+    verification: 'unverified',
     supported: processIsolationSupported(),
   };
 
@@ -310,7 +272,7 @@ function runInIsolatedVm(code, opts = {}) {
   const timeout = opts.timeout || DEFAULT_TIMEOUT;
   const maxMemory = opts.maxMemory || DEFAULT_MAX_MEMORY;
   const startTime = Date.now();
-  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory, memoryEnforced: true, isolation: 'isolated-vm' };
+  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory, memoryEnforced: true, isolation: 'isolated-vm', isolationClass: 'process', verified: false, verification: 'unverified' };
 
   try {
     const isolate = new isolatedVm.Isolate({ memoryLimit: Math.ceil(maxMemory / 1024 / 1024) });
@@ -359,13 +321,28 @@ function runInIsolatedVm(code, opts = {}) {
 // ─── Level 1: vm (fallback, not a hard boundary) ──────────────────────────
 
 function runInVm(code, opts = {}) {
-  const { context, timeout, maxMemory } = createSandbox(opts);
+  const { timeout, maxMemory } = opts;
   const startTime = Date.now();
-  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory, memoryEnforced: false, isolation: 'vm' };
+  const result = { success: false, output: null, error: null, audit: [], duration: 0, memoryCap: maxMemory || DEFAULT_MAX_MEMORY, memoryEnforced: false, isolation: 'vm', isolationClass: 'none', verified: false, verification: 'unverified' };
 
   try {
-    const vmContext = vm.createContext(context);
-    const script = new vm.Script(code, { timeout });
+    // Do NOT create the context from host-realm objects. The previous
+    // implementation passed JSON/Math/console into vm.createContext, which
+    // enabled the constructor-chain host escape. A fresh context with
+    // dynamically-created builtins and explicit eval/Function blocks removes
+    // that path while preserving the legacy arithmetic/JSON/Math behavior.
+    const vmContext = vm.createContext(Object.create(null), { name: 'vibeguard-legacy-vm' });
+    vm.runInContext(
+      'globalThis.eval = () => { throw new Error("VibeGuard Sandbox: eval is disabled"); };' +
+      'globalThis.Function = function () { throw new Error("VibeGuard Sandbox: Function constructor is disabled"); };' +
+      'globalThis.console = { log: () => {}, error: () => {}, warn: () => {} };',
+      vmContext
+    );
+    const script = new vm.Script(code, {
+      timeout,
+      filename: 'sandbox-user.js',
+      importModuleDynamically() { throw new Error('VibeGuard Sandbox: dynamic import is disabled'); },
+    });
     result.output = script.runInContext(vmContext, { timeout });
     result.success = true;
   } catch (err) {
@@ -401,10 +378,10 @@ function getAuditLog() {
 function renderSandboxReport(result) {
   const C = { red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', dim: '\x1b[2m', bold: '\x1b[1m', reset: '\x1b[0m' };
   const isolation = result.isolation === 'isolated-vm'
-    ? C.green + 'isolated-vm (hard boundary)' + C.reset
+    ? C.green + 'isolated-vm (V8 isolate; not an OS boundary)' + C.reset
     : result.isolation === 'process-permission'
-      ? C.green + 'process-permission (separate process + Node permission model)' + C.reset
-      : C.yellow + 'vm (not a hard boundary)' + C.reset;
+      ? C.yellow + 'process (unverified; same-user, not an OS boundary)' + C.reset
+      : C.red + 'vm (NOT a security boundary)' + C.reset;
   const lines = [
     `${C.bold}VibeGuard Sandbox Execution${C.reset}`,
     `${C.dim}${'─'.repeat(60)}${C.reset}`,
@@ -412,6 +389,7 @@ function renderSandboxReport(result) {
     `  Success:  ${result.success ? C.green + 'YES' : C.red + 'NO'}${C.reset}`,
     `  Duration: ${result.duration}ms`,
     `  Isolation: ${isolation}`,
+    `  Verified:  ${result.verified ? C.green + 'yes' : C.red + 'NO (do not treat as an OS sandbox)'}${C.reset}`,
     `  Memory:   ${result.memoryEnforced ? C.green + 'enforced' : C.yellow + 'not enforced'}${C.reset} (${Math.ceil((result.memoryCap || 0) / 1024 / 1024)}MB cap)`,
     `  Output:   ${result.success ? String(result.output).slice(0, 200) : 'N/A'}`,
   ];
@@ -429,4 +407,4 @@ function renderSandboxReport(result) {
   return lines.join('\n');
 }
 
-module.exports = { createSandbox, runInSandbox, runInVm, runInIsolatedVm, runInProcess, processIsolationSupported, getIsolationLevel, getAuditLog, renderSandboxReport, SAFE_GLOBALS, BLOCKED_GLOBALS };
+module.exports = { createSandbox, runInSandbox, runInVm, runInIsolatedVm, runInProcess, processIsolationSupported, getIsolationLevel, getAuditLog, renderSandboxReport, SAFE_GLOBALS, BLOCKED_GLOBALS, HARNESS_SOURCE };

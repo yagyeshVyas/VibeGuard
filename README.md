@@ -6,14 +6,14 @@
   <img src="website/banner.svg" alt="VibeGuard — security scanner + AI agent firewall" width="880" />
 </picture>
 
-<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;861+rules+%C2%B7+93+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;100%25+offline+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;861+rules+%C2%B7+93+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;offline+by+default+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
 
 <h3>🔒 The AI-era security scanner &amp; agent firewall.</h3>
 
 <p>
 Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops.<br/>
 <strong>861 rules</strong> · <strong>93 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
-100% offline · Zero telemetry · No paid APIs · Free forever.
+Offline by default · Zero telemetry · No paid APIs · Free forever.
 </p>
 
 <p>
@@ -30,7 +30,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-594%20passed-blue?style=flat-square" alt="594 tests pass" />
+  <img src="https://img.shields.io/badge/tests-623%20passed-blue?style=flat-square" alt="623 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -58,7 +58,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 
 <div align="center">
 <sub>
-<code>npx @yagyeshvyas/vibeguard scan</code> &nbsp;·&nbsp; Grade A-F &nbsp;·&nbsp; 0 API keys &nbsp;·&nbsp; 100% offline &nbsp;·&nbsp; AI-specific rules Semgrep/Gitleaks/Trivy miss
+<code>npx @yagyeshvyas/vibeguard scan</code> &nbsp;·&nbsp; Grade A-F &nbsp;·&nbsp; 0 API keys &nbsp;·&nbsp; offline by default &nbsp;·&nbsp; AI-specific rules Semgrep/Gitleaks/Trivy miss
 </sub>
 </div>
 
@@ -106,7 +106,7 @@ the code plane: the MCP channel between an agent and its tools.
   child_process denied, network modules blocked, env stripped, hard timeout,
   memory cap). Node 18 falls back to the vm sandbox.
 - **Tests:** 594 passing, 0 failures, including a live stdio proxy test that
-  spawns the CLI and a fixture MCP server. **100% offline, zero telemetry,
+  spawns the CLI and a fixture MCP server. **Offline by default, zero telemetry,
   Windows 11 supported.**
 
 ```bash
@@ -119,6 +119,66 @@ vibeguard agent-monitor --watch
 ```
 
 Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md).
+
+---
+
+## Security baseline v2 — implementation status (unreleased)
+
+This repository now contains the first implementation slice of the v2 security
+architecture. It is **not** a production-ready agent security platform, and it
+does not claim OS-level isolation.
+
+Implemented and tested:
+
+- Strict default-deny policy engine (`src/platform/policy.js`) with signed
+  Ed25519 policy v2, realpath checks, shell-egress checks and deep secret
+  detection.
+- Ed25519 agent capability tokens and signed single-use approvals.
+- Signed, hash-chained audit events with Merkle checkpoints and a verifier;
+  **strict MCP gateway now writes signed events by default**.
+- Offline EdDSA JWT/JWKS validation and SSRF/DNS-rebinding destination checks.
+- All-method MCP response inspection in `mcp-firewall` (tools, resources,
+  prompts, unknown methods), size/depth limits and deep secret redaction.
+- Authenticated loopback **HTTP JSON-RPC + SSE** MCP bridge with upstream stdio.
+- Optional **kill-on-block/block-budget** quarantine response.
+- **Linux network/PID namespace** sandbox with a live verification probe
+  (`vibeguard sandbox verify`); Windows/macOS OS backends remain unavailable.
+- Memory provenance guard and signed multi-agent delegation library.
+- Labeled detection corpus runner and AISVS-style readiness mapping.
+- Target-controlled scanner plugins are **disabled by default**; code execution
+  requires an explicit operator trust flag.
+- The process sandbox no longer passes host-realm objects into the user context;
+  it is still **unverified, same-user, and not an OS boundary**.
+- Windows destructive-command coverage and a Windows/macOS CI platform job.
+- Dependency audit gate; MCP SDK upgraded and vulnerable transitive packages
+  overridden.
+
+Not implemented or not verified:
+
+- **Windows AppContainer/Job Object/WFP and macOS VM backends**; Linux
+  namespace filesystem is not isolated and is not a container/VM. Run
+  `vibeguard sandbox verify` on Linux; Windows/macOS must not claim isolation.
+- **External audit anchor/transparency log**; local sidecar deletion/rollback
+  is not detectable. Non-strict gateway audit is still the legacy hash chain.
+- **Authenticated approval service/UI**: the signed token verifier is
+  implemented, but `ApprovalBroker.decide()` still accepts a human string.
+- Remote TLS/mTLS/OAuth multi-session deployment; HTTP bridge is loopback-tested
+  JSON/SSE, not a full remote service.
+- Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
+  tested libraries only.
+- Independent penetration test, representative precision/recall corpus, macOS
+  CI observation and npm publication.
+- Dashboard/SDK and full AISVS certification; AISVS is an internal mapping.
+
+
+Read the evidence before relying on any control:
+
+- [Implementation status](reports/implementation-status.md)
+- [Security test results](reports/security-test-results.md)
+- [Attack benchmark](reports/attack-benchmark.md)
+- [Known limitations](reports/known-limitations.md)
+- [Release readiness](reports/release-readiness.md)
+- [v2 architecture](docs/ARCHITECTURE.md) · [installation](docs/INSTALLATION.md) · [Windows](docs/WINDOWS.md)
 
 ---
 
@@ -331,7 +391,7 @@ Detects LLM output reaching `exec`, `eval`, SQL queries, and DOM sinks — an AI
 ```bash
 vibeguard mcp-audit          # audit every MCP server your agent trusts
 ```
-Flags tool poisoning (prompt injection in tool descriptions), unpinned auto-install (`npx -y` — the server's code can silently change between runs), remote-code commands, secrets in `env`, and **definition drift** — a server whose config changed since you approved it (the classic MCP rug-pull). 100% offline; reads config only, never runs a server.
+Flags tool poisoning (prompt injection in tool descriptions), unpinned auto-install (`npx -y` — the server's code can silently change between runs), remote-code commands, secrets in `env`, and **definition drift** — a server whose config changed since you approved it (the classic MCP rug-pull). offline; reads config only, never runs a server.
 
 ---
 
@@ -609,7 +669,7 @@ A direct, no-marketing comparison across the tools people actually reach for:
 
 | Capability | VibeGuard | Semgrep | Gitleaks | Trivy | Snyk | npm audit | GitHub Secret Scanning |
 |---|---|---|---|---|---|---|---|
-| **100% offline** (no phone-home by default) | ✅ | ⚠️ local mode only | ✅ | ✅ | ❌ cloud | ✅ | ❌ |
+| **Offline by default** (explicit network commands) | ✅ | ⚠️ local mode only | ✅ | ✅ | ❌ cloud | ✅ | ❌ |
 | **No account / no signup** | ✅ | ⚠️ some rules need auth | ✅ | ✅ | ❌ | ✅ | ✅ |
 | **Free for commercial use, forever** | ✅ MIT | ⚠️ paid for full rules | ✅ Apache-2.0 | ✅ Apache-2.0 | ⚠️ freemium | ✅ | ✅ |
 | **AI-specific detection** (prompt injection, agent loops, LLM→exec sinks, MCP poisoning) | ✅ 100+ AI rules | ❌ | ❌ | ❌ | ⚠️ small subset | ❌ | ❌ |

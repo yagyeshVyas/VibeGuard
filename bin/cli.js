@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -84,6 +84,12 @@ Advanced:
   vibeguard mcp-firewall --selftest  Run the offline firewall checks.
   vibeguard mcp-firewall --check '<json>' Evaluate one tool call against policy.
   vibeguard mcp-firewall --status    Summarize the firewall audit log.
+  vibeguard policy validate <file>  Validate a signed policy v2.
+  vibeguard policy sign <file>      Sign a policy v2 with Ed25519.
+  vibeguard audit verify <log>      Verify signed audit events/checkpoints.
+  vibeguard sandbox backends        Show isolation backends.
+  vibeguard sandbox verify          Verify Linux network/PID namespace isolation.
+  vibeguard aisvs [--json]          AISVS-style internal control readiness mapping.
   vibeguard skill-scan [dir]         Scan skills/plugins/instruction files for malicious behavior.
   vibeguard agent-risk [dir]         Unified agent risk score + OWASP coverage (A-F).
   vibeguard owasp-coverage [dir]     OWASP Agentic AI + MCP Top 10 control coverage.
@@ -158,6 +164,7 @@ Options:
   --no-summary                Suppress summary line.
   --show-suppressed           Include inline-suppressed findings.
   --yes                       Skip consent prompts (shell hook, auto).
+  --trust-plugins             Explicitly allow target-project plugins (DANGEROUS; review first).
   --patch                     Output as unified diff.
   -o, --output <file>         HTML report output path.
   -h, --help                  Show this help.
@@ -298,6 +305,7 @@ async function cmdScan(dir, flags) {
     noSuppress: !!flags['no-suppress'],
     liveOnly: !!flags.live,
     reachabilityGrade: !!flags['reachability-grade'],
+    trustPlugins: flags['trust-plugins'] === true,
   });
 
   if (flags.staged && result.staged && !flags.json && !flags.sarif && !flags.lean) {
@@ -956,7 +964,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall', 'policy', 'audit', 'aisvs']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -1105,6 +1113,10 @@ async function main() {
     else if (cmd === 'output-guard') code = cmdOutputGuard(args, flags);
     else if (cmd === 'env-lock') code = cmdEnvLock(dir, flags);
     else if (cmd === 'self-check') code = cmdSelfCheck(dir, flags);
+    else if (cmd === 'policy' || cmd === 'audit' || cmd === 'aisvs' || (cmd === 'sandbox' && (args._[1] === 'backends' || args._[1] === 'verify'))) {
+      const { cmdPlatform } = require('./cmd-platform');
+      code = await cmdPlatform(args, flags);
+    }
     else if (cmd === 'sandbox') code = cmdSandbox(args, flags);
     else if (cmd === 'behavior') code = cmdBehavior(dir, flags);
     else if (cmd === 'supply-firewall') code = cmdSupplyFirewall(dir, flags);

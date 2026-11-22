@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "2.0",
+  "policyId": "strict-local-example",
+  "policyVersion": "2026.11.21",
+  "mode": "strict",
+  "issuer": "human:local/operator",
+  "issuedAt": "2026-11-21T00:00:00Z",
+  "expiresAt": "2027-11-21T00:00:00Z",
+  "defaults": {
+    "decision": "deny",
+    "unknownTool": "deny",
+    "onError": "deny",
+    "failClosed": true
+  },
+  "subjects": [
+    {
+      "principal": "agent:local/dev",
+      "kind": "agent",
+      "status": "active",
+      "capabilities": [
+        "fs.read",
+        "fs.write",
+        "mcp.tool.invoke",
+        "sandbox.exec"
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "id": "read-project-src",
+      "effect": "allow",
+      "match": {
+        "principal": "agent:local/*",
+        "server": "filesystem",
+        "tool": "read_file",
+        "capability": "fs.read"
+      },
+      "resources": {
+        "paths": [
+          "src/**",
+          "docs/**"
+        ]
+      }
+    },
+    {
+      "id": "echo",
+      "effect": "allow",
+      "match": {
+        "principal": "agent:local/*",
+        "server": "filesystem",
+        "tool": "echo",
+        "capability": "mcp.tool.invoke"
+      }
+    },
+    {
+      "id": "delete-requires-approval",
+      "effect": "approval_required",
+      "match": {
+        "server": "filesystem",
+        "tool": "delete_file",
+        "capability": "fs.write"
+      },
+      "approval": {
+        "profile": "destructive"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "id": "deny-credential-stores",
+      "effect": "deny",
+      "match": {
+        "capability": [
+          "fs.read",
+          "fs.write"
+        ]
+      },
+      "resources": {
+        "paths": [
+          "**/.env",
+          "**/.ssh/**",
+          "**/.aws/**",
+          "**/*.pem",
+          "**/*.key"
+        ]
+      }
+    }
+  ],
+  "data": {
+    "pii": {
+      "action": "warn"
+    },
+    "secretScan": {
+      "enabled": true
+    }
+  },
+  "approval": {
+    "enabled": true,
+    "profiles": {
+      "destructive": {
+        "maxTtlSeconds": 300,
+        "singleUse": true,
+        "requireReason": true
+      }
+    }
+  },
+  "audit": {
+    "enabled": true,
+    "sign": true,
+    "level": "full"
+  },
+  "sandbox": {
+    "requiredIsolationClass": "container",
+    "allowUnverified": false,
+    "network": "none"
+  },
+  "detectors": {
+    "deterministic": {
+      "promptInjection": "block",
+      "toolPoisoning": "block",
+      "hiddenUnicode": "block"
+    },
+    "aiAssist": {
+      "enabled": false,
+      "mode": "advisory"
+    }
+  },
+  "signature": {
+    "alg": "Ed25519",
+    "keyId": "example-policy-2026-11",
+    "bodyHash": "sha256:dafcaf0ba279216a5adc367b8c95f64861b8ca485cc097e8a7fabf25f0db9a67",
+    "sig": "yz9GbwZHbzdwIC1cdZPcqMx_g8Eu8MXyywb71Ptb24Oe0vHB6nbLDzhA7m-6NFE7gEao38s-1QZVurPv8VrPBg"
+  }
+}

@@ -23,6 +23,7 @@ export default function Footer() {
             SHIP SAFE CODE. <span className="text-cyan-gradient glow-text-cyan">SLEEP EASY.</span>
           </h2>
           <p className="mt-4 font-body text-[#7ea6bc]">Free forever. No ads. No tracking. No data collection.</p>
+          <p className="mt-2 font-mono text-xs text-[#f5a623]">SECURITY STATUS: INTERNAL TESTING · NOT PRODUCTION-READY · OS ISOLATION IS LINUX-NAMESPACE ONLY</p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
             <a
               href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"

@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-11-22T03:34:25.164Z",
+  "node": "v24.14.0",
+  "platform": "win32 10.0.26300 (x64)",
+  "cpu": "11th Gen Intel(R) Core(TM) i5-11400H @ 2.70GHz",
+  "memoryBytes": 34111545344,
+  "iterationsNote": "Wall-clock measurements on this machine only; use the same environment for comparisons.",
+  "results": [
+    {
+      "name": "identity.issue+verify",
+      "iterations": 1000,
+      "totalMs": 266.53,
+      "opsPerSec": 3751.9,
+      "p50Ms": 0.2496,
+      "p95Ms": 0.3432
+    },
+    {
+      "name": "policy.evaluate",
+      "iterations": 5000,
+      "totalMs": 1488.53,
+      "opsPerSec": 3359,
+      "p50Ms": 0.2832,
+      "p95Ms": 0.382
+    },
+    {
+      "name": "detect.injectionScan.1KB",
+      "iterations": 2000,
+      "totalMs": 123.6,
+      "opsPerSec": 16181.8,
+      "p50Ms": 0.0584,
+      "p95Ms": 0.0656
+    },
+    {
+      "name": "audit.append+fsync",
+      "iterations": 200,
+      "totalMs": 1186.41,
+      "opsPerSec": 168.6
+    },
+    {
+      "name": "audit.verify",
+      "iterations": 200,
+      "totalMs": 39.38,
+      "valid": true
+    },
+    {
+      "name": "sandbox.process.spawn+run",
+      "iterations": 5,
+      "totalMs": 373.55,
+      "opsPerSec": 13.4,
+      "p50Ms": 74.3033,
+      "p95Ms": 78.2345
+    },
+    {
+      "name": "mcp.engine.checkToolCall",
+      "iterations": 2000,
+      "totalMs": 1366.43,
+      "opsPerSec": 1463.7,
+      "p50Ms": 0.6605,
+      "p95Ms": 0.8354
+    }
+  ]
+}

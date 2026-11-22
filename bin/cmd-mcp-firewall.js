@@ -131,7 +131,10 @@ function cmdMcpFirewall(args, flags) {
     process.stderr.write(
       'Usage:\n' +
       '  vibeguard mcp-firewall --server <name> [--dir .] [--policy file]\n' +
-      '  vibeguard mcp-firewall --exec "<command>"\n' +
+      '  vibeguard mcp-firewall --exec "<command>" [--strict] [--signed-audit] [--kill-on-block]\n' +
+      '  vibeguard mcp-firewall --exec "<command>" --token <VGAT> --token-pub key.pem --token-key-id k\n' +
+      '  vibeguard mcp-firewall --exec "<command>" --approval-token <VGAPPROVAL> --approval-pub key.pem --approval-key-id a\n' +
+      '  vibeguard mcp-firewall --exec "<command>" --token <VGAT> --token-pub key.pem\n' +
       '  vibeguard mcp-firewall --selftest [--json]\n' +
       '  vibeguard mcp-firewall --check \'{"tool":"read_file","args":{"path":".env"}}\'\n' +
       '  vibeguard mcp-firewall --status\n' +
@@ -151,7 +154,7 @@ function cmdMcpFirewall(args, flags) {
   process.stderr.write(
     `VibeGuard MCP firewall — proxying "${serverDef.name}"\n` +
     `  command: ${serverDef.command} ${serverDef.args.join(' ')}\n` +
-    `  audit:   ${path.resolve(root, flags.audit || '.vibeguard/audit/mcp-firewall.jsonl')}\n`
+    `  audit:   ${path.resolve(root, flags.audit || ((flags.strict || flags['signed-audit']) ? '.vibeguard/audit/mcp-firewall.signed.jsonl' : '.vibeguard/audit/mcp-firewall.jsonl'))}\n`
   );
 
   const proxy = startProxy({
@@ -160,6 +163,21 @@ function cmdMcpFirewall(args, flags) {
     command: exec || undefined,
     policyPath: flags.policy,
     auditFile: flags.audit || undefined,
+    strict: flags.strict === true,
+    signedAudit: flags['signed-audit'] === true,
+    signedAuditFile: flags.audit || undefined,
+    killOnBlock: flags['kill-on-block'] === true,
+    token: flags.token,
+    tokenPublicKey: flags['token-pub'],
+    tokenIssuer: flags['token-issuer'],
+    tokenTenant: flags['token-tenant'],
+    tokenKeyId: flags['token-key-id'],
+    approvalToken: flags['approval-token'],
+    approvalPublicKey: flags['approval-pub'],
+    approvalIssuer: flags['approval-issuer'],
+    approvalTenant: flags['approval-tenant'],
+    approvalKeyId: flags['approval-key-id'],
+    maxBlocks: flags['max-blocks'] ? Number(flags['max-blocks']) : 0,
   });
 
   proxy.child.once('spawn', () => {

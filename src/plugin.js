@@ -29,7 +29,7 @@ const path = require('path');
 
 let _loaded = null;
 
-function loadPlugins(root, config) {
+function loadPlugins(root, config, opts = {}) {
   if (_loaded) return _loaded;
   _loaded = {
     rules: [],
@@ -39,7 +39,21 @@ function loadPlugins(root, config) {
     taintSources: [],
     taintSinks: [],
     errors: [],
+    trusted: false,
   };
+
+  // SECURITY: plugins are target-controlled code. Never auto-execute code from
+  // the scanned project/repo config. Execution requires an explicit
+  // operator-controlled trust flag (CLI --trust-plugins or API option), not a
+  // field the target repository can set.
+  const trusted = opts.trustPlugins === true;
+  _loaded.trusted = trusted;
+  if (!trusted) {
+    if (config && Array.isArray(config.plugins) && config.plugins.length > 0) {
+      _loaded.errors.push('project plugins are disabled; re-run with explicit operator trust (--trust-plugins) after review');
+    }
+    return _loaded;
+  }
 
   const pluginNames = [];
   // Auto-discovery: scan node_modules for vibeguard-rules-* / @vibeguard/rules-*
@@ -62,7 +76,7 @@ function loadPlugins(root, config) {
     }
   } catch {}
 
-  // Config-specified plugins
+  // Config-specified plugins (only reached after explicit operator trust)
   if (config && Array.isArray(config.plugins)) {
     for (const p of config.plugins) {
       if (typeof p === 'string' && !pluginNames.includes(p)) pluginNames.push(p);

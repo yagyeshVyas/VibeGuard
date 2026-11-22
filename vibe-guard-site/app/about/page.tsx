@@ -8,7 +8,7 @@ import ArcReactor from "@/components/ArcReactor";
 const stats = [
   { num: "861", label: "Detection Rules" },
   { num: "93", label: "MCP Tools" },
-  { num: "594", label: "Tests Passing" },
+  { num: "623", label: "Tests Passing" },
   { num: "93%", label: "F1 Benchmark" },
   { num: "18", label: "Languages" },
   { num: "$0", label: "Cost Forever" },
@@ -19,6 +19,7 @@ const timeline = [
   { phase: "v1.0.0", title: "Layered Protection Suite", desc: "699 rules, 75 MCP tools, AST taint analysis, cross-file taint tracking, auto-fix, daemon mode, shell guard, multi-client installer. 342 tests." },
   { phase: "v1.3.0", title: "Phase 0-4 Complete", desc: "752 rules, 82 MCP tools, 18 languages, 10 compliance frameworks, Python taint v2, firewall semantic classifier, local MITM proxy, plugin system v2, agentic fix contracts, C/C++/Dart/Scala/Elixir rules. 419 tests. F1 89.1%." },
   { phase: "v1.9.0", title: "Live-code reachability + exploit chains", desc: "861 rules, 88 MCP tools. Attack-surface graph (route × auth × reachability) with deterministic exploit chains, --live filtering, bundle-scan for secrets inlined in dist/, IDOR/RLS-correctness intelligence, backdoor/obfuscation engine, 564 tests, F1 93.3%." },
+  { phase: "v1.11.0", title: "Security foundation v2 (internal testing)", desc: "623 tests. Signed default-deny policy, Ed25519 identity/approvals, signed gateway audit, authenticated HTTP+SSE MCP bridge, stdio token/approval checks, kill-on-block, Linux network/PID namespace, memory/delegation guards, detection corpus. Not production-ready; Windows/macOS OS isolation remains pending." },
   { phase: "v1.10.0", title: "Agent runtime firewall", desc: "861 rules, 93 MCP tools. Real-time MCP firewall with tool-poisoning detection and pinning, agent permission policy, secret/PII exfiltration prevention, malicious skill scanning, OWASP Agentic AI + MCP Top 10 coverage, agent risk scoring, process-isolated sandbox. 594 tests." },
 ];
 

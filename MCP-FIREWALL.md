@@ -252,7 +252,25 @@ vibeguard sandbox "const x = 1 + 2; x" --isolation process --json
 - ANSI colors degrade gracefully (set `NO_COLOR=1` to disable).
 - Audit logs use forward-slash normalization for path matching on Windows.
 
-## Honest limits
+## Strict mode
+
+`vibeguard mcp-firewall --server <name> --strict` forces the legacy policy
+engine into default-deny: an unknown tool is blocked unless an explicit allow
+rule/allowlist admits it. The additive v2 policy engine
+(`src/platform/policy.js`) supports signed Ed25519 policies, realpath path
+checks, approvals and per-resource rules; it is tested as a library/CLI but is
+not yet the live stdio gateway policy. See
+[`reports/known-limitations.md`](reports/known-limitations.md).
+
+The v2 gateway also inspects all content-bearing response methods
+(`resources/read`, `prompts/get`, unknown methods), not only `tools/call`.
+
+## Honest status
+
+The process sandbox is **unverified, same-user and not an OS boundary**. The
+`vibeguard sandbox backends` command reports `verified=NO`; do not describe it
+as isolation. OS-level backends are planned, not implemented.
+
 
 - The proxy currently speaks the **stdio** MCP transport (the transport Claude
   Code, Cursor and most local clients use). HTTP/SSE remote transports are not
@@ -268,3 +286,11 @@ vibeguard sandbox "const x = 1 + 2; x" --isolation process --json
   the pin only protects against later changes.
 - `sandbox_exec` is not a container and does not isolate the OS user.
 - OWASP coverage maps controls, not perfect prevention.
+
+## Signed audit, auth and kill switch
+
+- Strict mode writes signed Ed25519 gateway events by default and fails closed if the audit sink is unavailable.
+- `--token` + `--token-pub` enforce a VGAT principal capability set on stdio; `--approval-token` + `--approval-pub` enforce a signed single-use approval for approval-required rules.
+- `--kill-on-block` / `--max-blocks N` quarantine-kills the upstream and exits 3 after blocked calls.
+- `src/platform/mcp-http-bridge.js` provides authenticated JSON-RPC POST and SSE notification flow over stdio; it is loopback-tested and does not provide TLS/OAuth remote deployment.
+- Linux `unshare` network/PID isolation is available via `vibeguard sandbox verify`; Windows/macOS OS backends are not implemented.

@@ -1,0 +1,37 @@
+name: Security Baseline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  platform-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Focused platform security suite
+        run: node test/run-platform.js
+      - name: MCP firewall self-test
+        run: node bin/cli.js mcp-firewall --selftest
+      - name: Verify signed policy example
+        run: node bin/cli.js policy validate docs/security-policy.strict.example.json --pub docs/security-policy.strict.example.pub.pem
+      - name: Sandbox truthfulness (must show verified=NO)
+        run: node bin/cli.js sandbox backends
+      - name: Labeled detection corpus (precision/recall gate)
+        run: node test/corpus/run.js --gate
+      - name: Reproducible security benchmark
+        run: node scripts/security-bench.js --out security-benchmark.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: security-benchmark
+          path: security-benchmark.json

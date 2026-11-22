@@ -3,7 +3,51 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [1.11.0] - 2026-11-22
+
+### Added — v2 security foundation (internal testing)
+
+- Strict signed policy v2 engine (`src/platform/policy.js`) with default deny,
+  capabilities, realpath path checks, shell egress checks and deep secret
+  inspection.
+- Ed25519 VGAT identity tokens and signed single-use approvals.
+- Signed Ed25519 audit events with Merkle checkpoints and a verifier; strict
+  MCP gateway writes signed events by default.
+- Offline EdDSA JWT/JWKS validation and SSRF/private-address protection.
+- Authenticated loopback HTTP JSON-RPC + SSE MCP bridge over a stdio upstream.
+- All-method MCP response inspection, size/depth/pending limits, deep secret
+  redaction.
+- `--kill-on-block`/`--max-blocks` quarantine kill response.
+- Strict-gateway audit fail-closed behavior.
+- Linux `unshare` network/PID namespace backend + `sandbox verify`.
+- Memory provenance guard and signed delegation graph libraries.
+- Detection corpus runner and AISVS-style readiness mapping/CLI.
+- New CLI: `policy validate/sign`, `audit verify`, `sandbox backends/verify`,
+  `aisvs`.
+- 29 platform security tests; Windows/macOS CI platform jobs; dependency
+  high/critical audit gate.
+- Windows destructive-command coverage and realpath path handling.
+- Target-controlled scanner plugins disabled by default; explicit
+  `--trust-plugins` opt-in.
+- Process/legacy-vm host-object escape fixes; results labeled unverified.
+
+### Changed — security behavior
+
+- Scanner plugins are not executed from target repos by default.
+- `sandbox` results expose `isolationClass`/`verified`; process mode is
+  explicitly unverified and not an OS boundary.
+- Invalid policy `defaultAction` values fail closed.
+- Installer uses a pinned package/version.
+- Tests: plugin test opts into explicit trust; firewall paraphrase test accepts
+  the deep detector finding ID.
+
+### Security limitations
+
+Windows/macOS OS isolation, external audit anchoring, authenticated approver
+UI, TLS/OAuth remote deployment, runtime monitor/quarantine, and
+memory/multi-agent runtime enforcement remain incomplete. See
+`research/KNOWN_LIMITATIONS.md` and
+`research/RELEASE_READINESS.md`.
 
 ### Added — v1.10: real-time MCP firewall, agent permissions, OWASP coverage
 

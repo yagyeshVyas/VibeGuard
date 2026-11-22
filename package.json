@@ -1,6 +1,6 @@
 {
   "name": "@yagyeshvyas/vibeguard",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "Security scanner + real-time MCP firewall + AI agent firewall + active pentester with a token-lean agent protocol. 861 rules, 93 MCP tools, prompt-injection/tool-poisoning detection, agent permission enforcement, secret-exfiltration prevention, skill/plugin scanning, OWASP Agentic AI + MCP Top 10 coverage, risk scoring and a process-isolated sandbox. Offline, zero telemetry, zero dependencies.",
   "license": "MIT",
   "type": "commonjs",
@@ -26,19 +26,25 @@
     "README.md",
     "CHANGELOG.md",
     "MCP-FIREWALL.md",
+    "docs",
     ".vibeguard-mcp.example.json"
   ],
   "overrides": {
     "@hono/node-server": "^2.0.5",
     "ip-address": "^10.4.0",
     "hono": ">=4.13.8",
-    "brace-expansion": "^5.0.9",
+    "brace-expansion": "^5.0.13",
     "fast-uri": "^4.2.1",
     "js-yaml": "^5.2.3",
-    "qs": ">=6.15.4"
+    "qs": ">=6.15.4",
+    "proxy-addr": "^2.0.8",
+    "body-parser": "^2.4.0",
+    "zod": "^4.6.7"
   },
   "scripts": {
     "test": "node test/run.js",
+    "test:platform": "node test/run-platform.js",
+    "security-bench": "node scripts/security-bench.js",
     "scan": "node bin/cli.js scan",
     "lint": "eslint src/ bin/ --ignore-pattern node_modules",
     "coverage": "c8 node test/run.js",
@@ -47,7 +53,8 @@
     "integrity": "node scripts/gen-integrity.js",
     "postinstall": "node scripts/postinstall.js",
     "prepublishOnly": "node scripts/gen-integrity.js && node test/run.js && npm run lint",
-    "tokens": "node bin/cli.js tokens"
+    "tokens": "node bin/cli.js tokens",
+    "security-corpus": "node test/corpus/run.js --gate"
   },
   "keywords": [
     "security",
@@ -101,7 +108,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0"
+    "@modelcontextprotocol/sdk": "^1.32.2"
   },
   "optionalDependencies": {
     "acorn": "^8.18.0",

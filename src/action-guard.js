@@ -107,6 +107,82 @@ function scanForLeaks(text) {
   return out;
 }
 
+function decodedCandidates(text) {
+  const out = new Set();
+  const source = String(text || '');
+  if (/%[0-9a-f]{2}/i.test(source)) {
+    try { out.add(decodeURIComponent(source)); } catch { /* ignore */ }
+  }
+  const b64 = source.match(/[A-Za-z0-9+/_-]{20,}={0,2}/g) || [];
+  for (const token of b64.slice(0, 8)) {
+    try {
+      const decoded = Buffer.from(token.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+      if (decoded.length >= 8 && /^[\x09\x0a\x0d\x20-\x7e\u00a0-\uffff]+$/.test(decoded)) out.add(decoded);
+    } catch { /* ignore */ }
+  }
+  if (/\\x[0-9a-f]{2}/i.test(source)) {
+    out.add(source.replace(/\\x([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+  }
+  if (/\\u[0-9a-f]{4}/i.test(source)) {
+    out.add(source.replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))));
+  }
+  return [...out];
+}
+
+function findEntropyTokens(text) {
+  const hits = [];
+  const source = String(text || '');
+  const tokens = source.match(/[A-Za-z0-9+/=_-]{20,}/g) || [];
+  for (const token of tokens.slice(0, 32)) {
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) continue;
+    if (/^[0-9a-f]{32,}$/i.test(token) && [32, 40, 64, 96, 128].includes(token.length)) continue;
+    if (!/[A-Za-z]/.test(token) || !/[0-9]/.test(token)) continue;
+    if (looksStructured(token)) continue;
+    if (shannonEntropy(token) < 3.5) continue;
+    hits.push(token);
+  }
+  return [...new Set(hits)];
+}
+
+function findEntropySecrets(text) {
+  return findEntropyTokens(text).map(() => 'high-entropy token');
+}
+
+// Deep scan: known patterns + decoded payloads + entropy + named credentials.
+// Used by the strict policy/gateway; scanForLeaks stays for compatibility.
+function scanForLeaksDeep(text) {
+  const raw = scanForLeaks(text);
+  // Entropy/encoded candidates all require at least 20 characters. Avoid the
+  // regex/entropy work for short ordinary arguments (the common hot path).
+  if (typeof text !== 'string' || text.length < 20) {
+    return {
+      secrets: raw.secrets,
+      pii: raw.pii,
+      namedSecrets: raw.namedSecrets,
+      entropy: [],
+      entropyTokens: [],
+      hasLeak: raw.secrets.length > 0 || raw.namedSecrets.length > 0 || raw.pii.length > 0,
+    };
+  }
+  const secrets = new Set(raw.secrets);
+  const named = new Set(raw.namedSecrets);
+  const entropy = new Set(findEntropySecrets(text));
+  for (const variant of decodedCandidates(text)) {
+    const next = scanForLeaks(variant);
+    for (const s of next.secrets) secrets.add(s);
+    for (const n of next.namedSecrets) named.add(n);
+    for (const e of findEntropySecrets(variant)) entropy.add(e);
+  }
+  return {
+    secrets: [...secrets],
+    pii: raw.pii,
+    namedSecrets: [...named],
+    entropy: [...entropy],
+    entropyTokens: findEntropyTokens(text),
+    hasLeak: secrets.size > 0 || named.size > 0 || entropy.size > 0 || raw.pii.length > 0,
+  };
+}
+
 const RANK = { block: 2, warn: 1, allow: 0 };
 
 // Inspect a single action. `policy.trustedHosts` (array) explicitly allows
@@ -219,4 +295,4 @@ function sanitizeOutbound(text) {
   return out;
 }
 
-module.exports = { inspectAction, scanForLeaks, sanitizeOutbound, isExternalHost, hostOf, findNamedSecrets, shannonEntropy };
+module.exports = { inspectAction, scanForLeaks, scanForLeaksDeep, sanitizeOutbound, isExternalHost, hostOf, findNamedSecrets, shannonEntropy };

@@ -24,6 +24,7 @@
  */
 
 const { detectPII, redactText } = require('./pii');
+const { scanTextForInjection } = require('./mcp-audit');
 
 // Threat patterns — each is a category of attack
 const THREATS = [
@@ -47,7 +48,7 @@ const THREATS = [
   {
     id: 'INJECT.REVEAL_SYSTEM',
     severity: 'high',
-    re: /(?:show|reveal|display|print|output|dump|tell\s+me|what\s+(?:are|is))\s+(?:your\s+)?(?:system\s+)?(?:prompt|instructions?|rules?|guidelines?|directives?|system\s+message|initial\s+message)/i,
+    re: /(?:show|reveal|display|print|output|dump|tell\s+me|what\s+(?:are|is))\s+(?:your\s+|the\s+)?(?:system\s+)?(?:prompt|instructions?|rules?|guidelines?|directives?|system\s+message|initial\s+message)/i,
     action: 'block',
     reason: 'Prompt extraction: attempting to reveal system prompt',
     fix: 'This request tries to extract the system prompt. Block it.',
@@ -97,7 +98,7 @@ const THREATS = [
   {
     id: 'CAP.ACCESS_SECRETS',
     severity: 'critical',
-    re: /(?:show|read|display|output|print|get|access|fetch|tell\s+me)\s+(?:me\s+)?(?:my\s+|the\s+|all\s+)?(?:secrets?|\.env|environment\s+variables?|API\s+keys?|tokens?|passwords?|credentials?|private\s+keys?)/i,
+    re: /(?:show|read|display|output|print|get|access|fetch|tell\s+me)\s+(?:me\s+)?(?:my\s+|the\s+|all\s+)?(?:secrets?|\.env(?!\.example)|environment\s+variables?|API\s+keys?|tokens?|passwords?|credentials?|private\s+keys?)/i,
     action: 'block',
     reason: 'Secret access request: asking AI to reveal secrets or env vars',
     fix: 'Never allow AI to access or reveal secrets. This is a data breach risk.',
@@ -139,7 +140,7 @@ const THREATS = [
   {
     id: 'JAILBREAK.DAN',
     severity: 'high',
-    re: /DAN|do\s+anything\s+now|jailbreak|developer\s+mode|unrestricted\s+mode|god\s+mode/i,
+    re: /\bDAN\b|do\s+anything\s+now|jailbreak|developer\s+mode|unrestricted\s+mode|god\s+mode/i,
     action: 'block',
     reason: 'Jailbreak attempt: DAN or similar jailbreak pattern',
     fix: 'This is a known jailbreak pattern. Block it.',
@@ -343,6 +344,21 @@ function inspectPrompt(prompt, context = {}) {
         maxAction = threat.action;
       }
     }
+  }
+
+  // Layer 1b: Shared deep detector (normalization, decoders, natural-language
+  // secret-disclosure/hijack patterns). This closes the gap where the legacy
+  // firewall regex list and the MCP content scanner disagreed.
+  const deepHits = scanTextForInjection(prompt);
+  if (deepHits.length && maxAction !== 'block') {
+    findings.push({
+      threat: 'INJECT.DEEP_DETECTOR',
+      severity: 'high',
+      action: 'block',
+      reason: `Prompt injection detected by normalized/decoded analysis: ${deepHits.slice(0, 4).join(', ')}`,
+      fix: 'Block this prompt; do not let it reach the model or tool.',
+    });
+    maxAction = 'block';
   }
 
   // Layer 2: Semantic classifier (catches paraphrased injections that evade regex)

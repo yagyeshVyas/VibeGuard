@@ -143,6 +143,17 @@ const DANGEROUS_COMMANDS = [
   { re: /\bkill(?:\s+-9)?\s+-1\b/i, reason: 'kill -1 kills all processes — system-wide kill', severity: 'critical' },
   { re: /\bpkill\s+-9\b/i, reason: 'pkill -9 force kills processes — destructive', severity: 'high' },
   { re: /\biotop\s+--only\b/i, reason: 'iotop in batch mode can cause system instability', severity: 'low' },
+  // Windows destructive commands. The shell guard is used by the MCP policy
+  // on Windows deployments; a POSIX-only denylist is not enough.
+  { re: /\b(?:del|erase)\s+(?:\/[a-z]*[fsq][a-z]*\s+)+/i, reason: 'Windows del/erase with force/recursive flags — destructive', severity: 'critical' },
+  { re: /\bRemove-Item\b[^\r\n]*-(?:Recurse|Force)\b/i, reason: 'PowerShell Remove-Item recursive/force — destructive', severity: 'critical' },
+  { re: /\bformat\s+[A-Za-z]:/i, reason: 'Windows format of a drive — destructive', severity: 'critical' },
+  { re: /\bdiskpart\b/i, reason: 'Windows diskpart — destructive disk operation', severity: 'critical' },
+  { re: /\bvssadmin\s+delete\s+shadows\b/i, reason: 'Windows shadow-copy deletion — destructive', severity: 'critical' },
+  { re: /\bcipher\s+\/w\b/i, reason: 'Windows cipher /w wipes free space — destructive', severity: 'high' },
+  { re: /\bbcdedit\b/i, reason: 'Windows boot configuration modification', severity: 'critical' },
+  { re: /\bpowershell(?:\.exe)?\b[^\r\n]*\s-(?:e|ec|enc|encodedcommand)\b/i, reason: 'PowerShell encoded command — obfuscated execution', severity: 'critical' },
+  { re: /\b(?:reg\s+delete|wmic\s+.*delete|Set-MpPreference|Add-MpPreference|netsh\s+advfirewall\s+set)\b/i, reason: 'Windows security configuration modification', severity: 'high' },
   // Anti-evasion: base64 pipe to shell
   { re: /\|\s*(?:base64|b64)\s+-d\s*\|/i, reason: 'base64 decode piped to shell — obfuscated command execution', severity: 'critical' },
   { re: /\|\s*(?:sh|bash|zsh|python|python3|node|perl|ruby)\b/i, reason: 'piping to interpreter — potential remote code execution', severity: 'high' },
