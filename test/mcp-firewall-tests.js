@@ -426,6 +426,8 @@ test('cli: mcp-firewall --check returns 2 for a blocked call', () => {
 });
 
 test('cli: sandbox --isolation process blocks fs and reports isolation', () => {
+  const { processIsolationSupported } = require('../src/sandbox');
+  if (!processIsolationSupported()) return; // Node 18: process mode is not available
   const res = spawnSync(process.execPath, [CLI, 'sandbox', 'require("fs").readFileSync("C:/Windows/win.ini")', '--isolation', 'process', '--json'], { cwd: ROOT, encoding: 'utf8' });
   const parsed = JSON.parse(res.stdout);
   assert.strictEqual(parsed.success, false);
