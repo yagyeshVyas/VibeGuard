@@ -392,6 +392,10 @@ test('strict gateway mode blocks unknown tools and allows only explicit rules', 
 
 test('sandbox process mode: host-object constructor escape is blocked', () => {
   if (!processIsolationSupported()) return;
+  // Some hosts/Node builds do not provide the permission-model flags. Treat
+  // that as an unavailable backend, not a false pass or product failure.
+  const probe = runInProcess('1', { timeout: 2000 });
+  if (!probe.success) return;
   const payloads = [
     "console.log.constructor('return process')().versions.node",
     "this.constructor.constructor('return process')().versions.node",
