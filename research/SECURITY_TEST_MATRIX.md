@@ -211,5 +211,5 @@ Status legend:
 - Platform suite: **29 passed, 0 failed** on Node 18/20/22/24 and Linux WSL.
 - Node18 full: **623 passed, 0 failed** (Windows).
 - Linux WSL Node22 full: **623 passed, 0 failed** (final run with git + Node on PATH).
-- macOS: **not tested**; CI configured only.
+- macOS: platform suite **29/29** passed in CI; full suite not run.
 - Node20/22: platform suite 29/29; full suite not run.

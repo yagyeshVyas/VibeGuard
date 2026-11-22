@@ -27,7 +27,7 @@ isolation are not implemented/verified; Linux filesystem isolation is absent;
 the approval broker’s `decide()` still accepts an unauthenticated human string;
 there is no external audit anchor or complete TLS/OAuth deployment; memory and
 delegation are libraries, not a runtime multi-agent system; the detection
-corpus is small and curated; macOS CI has not been observed. Do not claim
+corpus is small and curated; macOS platform CI passed but full macOS is unrun. Do not claim
 production readiness, complete MCP security, or OS isolation for Windows/macOS.
 
 ## 2. Freeze and inventory
@@ -119,7 +119,7 @@ Use these as the authoritative recorded runs:
 | Windows, Node 18.20.8 / 20.20.2 / 22.23.5 | Platform suite | **29 passed, 0 failed each** |
 | WSL Ubuntu 24.04, Node 22.23.5 | Platform suite | **29 passed, 0 failed** |
 | WSL Ubuntu 24.04, Node 22.23.5 | Full suite | **623 passed, 0 failed** (final run with git + Node on PATH) |
-| macOS | — | **NOT TESTED**; CI configured only |
+| macOS | CI platform-security job | **PASS (29/29)**; full suite not run |
 | MCP stdio | Existing end-to-end proxy suite + platform tests | Pass |
 | MCP HTTP slice | Loopback auth/policy tests | Pass for slice only |
 | Offline/local | Platform tests + scanner/audit | Pass; product still contains explicit network commands |
@@ -166,7 +166,7 @@ complete remote MCP security boundary, or a production compliance product.
 5. **Runtime monitoring**: kill-on-block exists, but no independent process/filesystem/network monitor or quarantine service.
 6. **Memory/multi-agent runtime**: guards are libraries, not wired end-to-end.
 7. **Detection corpus**: 100% on a small curated set; add multilingual, paraphrased, mutation and schema corpora.
-8. **Release engineering**: published package, SBOM/checksums/signatures, SHA-pinned Actions, key rotation, macOS CI evidence.
+8. **Release engineering**: published package, SBOM/checksums/signatures, SHA-pinned Actions, key rotation, macOS full-suite evidence.
 9. **Independent penetration test** and observed Windows/macOS/Linux CI.
 
 ## 8. Honest conclusion

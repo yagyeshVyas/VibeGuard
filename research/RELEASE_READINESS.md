@@ -35,7 +35,7 @@ Controlled internal testing is allowed; external beta/production is not.
 | Identity impersonation rejected | PASS for signatures/capabilities/replay; **FAIL** for unauthenticated human approval claim |
 | Windows compatibility | PASS local (Node18/20/22/24 platform; Node24/18 full) |
 | Linux compatibility | PASS platform **29/29** and full **623/623** (WSL) |
-| macOS compatibility | **NOT VERIFIED** |
+| macOS compatibility | **PASS platform 29/29 in CI**; full suite not run |
 | MCP stdio | PASS for existing tests + token/approval path |
 | MCP Streamable HTTP | PASS for loopback bridge; no remote TLS/multi-session |
 | Offline/local | PASS for platform primitives; product has explicit network commands |

@@ -1,7 +1,7 @@
 # Security Test Results — VibeGuard Security Baseline v2
 
 **Date:** 2026-11-21  
-**Environment:** Windows 11, Node v24.14.0, PowerShell 7  
+**Environment:** Windows 11/Node24 (full), Windows Node18 (full), Linux WSL Node22 (full), Windows/macOS CI platform suites  
 **Base revision:** `2ce5b36` plus implementation changes  
 **Status:** results are local and reproducible; no independent penetration test has been performed.
 

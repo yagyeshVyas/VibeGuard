@@ -99,7 +99,7 @@ mode and signed v2 policy are opt-in; a compromised agent/user can avoid them.
 
 - Windows: Node18/20/22/24 platform and Node18/24 full suites pass locally.
 - Linux: WSL Node22 full/platform suites pass in the final run.
-- **macOS: not tested**; CI configured only.
+- **macOS:** platform suite passed in CI (29/29); full macOS suite not run.
 - No Windows/macOS OS backend tests.
 - No real-disk network/TLS deployment tests.
 
