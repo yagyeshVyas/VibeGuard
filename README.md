@@ -16,6 +16,8 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 Offline by default · Zero telemetry · No paid APIs · Free forever.
 </p>
 
+<p><strong>Security status: INTERNAL TESTING.</strong> Windows/macOS OS isolation is not implemented; Linux network/PID namespace isolation is available. See the <a href="research/RELEASE_READINESS.md">independent release gate</a>.</p>
+
 <p>
   <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=for-the-badge&logo=npm&logoColor=white" alt="npm version" /></a>
   <a href="https://github.com/yagyeshVyas/VibeGuard/actions"><img src="https://img.shields.io/github/actions/workflow/status/yagyeshVyas/VibeGuard/ci.yml?style=for-the-badge&logo=github&logoColor=white" alt="CI" /></a>
@@ -63,6 +65,28 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 </div>
 
 ---
+
+## 🆕 What's New — v1.11.0
+
+**Security foundation v2 (internal testing).** This release is not beta or
+production-ready; it is the verified internal-testing build described in
+[RELEASE_READINESS.md](research/RELEASE_READINESS.md).
+
+- Signed Ed25519 policy v2, identity tokens, approvals and strict gateway audit.
+- Strict MCP mode writes signed audit events by default and fails closed when
+  the audit sink is unavailable.
+- Authenticated HTTP JSON-RPC + SSE MCP bridge over a stdio upstream.
+- Stdio VGAT capability checks and signed single-use approval tokens.
+- `--kill-on-block` quarantine response.
+- Linux `unshare` network/PID namespace sandbox with `sandbox verify`.
+- Memory provenance and multi-agent delegation guards; labeled detection corpus;
+  AISVS-style readiness mapping.
+- **623 tests, 0 failures** on Windows Node24/Node18 and Linux Node22; 29/29
+  platform tests on Windows/Linux/macOS CI.
+
+Registry note: the npm registry still serves an older package. The v1.11.0
+tarball is attached to the [GitHub release](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.11.0)
+until `NPM_TOKEN` is configured. Do not treat `npx` as the v1.11.0 build yet.
 
 ## 🆕 What's New — v1.10.0
 
@@ -122,11 +146,11 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — implementation status (unreleased)
+## Security baseline v2 — v1.11.0 status (internal testing)
 
-This repository now contains the first implementation slice of the v2 security
-architecture. It is **not** a production-ready agent security platform, and it
-does not claim OS-level isolation.
+This repository contains the v1.11.0 security foundation. It is **not** a
+production-ready agent security platform. Linux network/PID namespace isolation
+is available; Windows/macOS OS isolation is not implemented.
 
 Implemented and tested:
 
@@ -167,7 +191,7 @@ Not implemented or not verified:
 - Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
   tested libraries only.
 - Independent penetration test, representative precision/recall corpus, macOS
-  CI observation and npm publication.
+  full-suite evidence and npm registry publication (NPM_TOKEN missing).
 - Dashboard/SDK and full AISVS certification; AISVS is an internal mapping.
 
 
