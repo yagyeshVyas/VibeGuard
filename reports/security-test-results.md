@@ -19,7 +19,7 @@
 | `node bin/cli.js audit verify <signed-log> --pub <key>` | VALID (when key supplied) | signed chain/checkpoint |
 | `npm audit --audit-level=high` | exit 0 | **0 critical/high**, 10 moderate remain |
 | `node scripts/security-bench.js --out reports/benchmark.json` | success | metrics below |
-| `self-check` | 45/49 modules intact | SHA-256 manifest |
+| `self-check` | 49/49 modules intact | SHA-256 manifest |
 
 > If the exact full-suite count changes after additional commits, rerun the
 > command and update this report; do not infer it from this snapshot.
@@ -61,6 +61,10 @@
 | 29 | Stdio auth/approval | capability + signed single-use approval enforced |
 | 30 | Windows Job Object | process/memory containment and kill-on-close; limitations disclosed |
 | 31 | External audit anchor | detects truncation after sidecar deletion |
+| 32 | macOS sandbox-exec | backend harness/verify when available |
+| 33 | Runtime monitor | RSS cap invokes quarantine callback once |
+| 34 | Hosted approvals | authenticated request/proof/persistence/key rotation |
+| 35 | OAuth 2.1 | code+PKCE token verifies aud/scope; replay rejected |
 
 ---
 

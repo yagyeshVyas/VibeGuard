@@ -21,9 +21,9 @@ token capability checks and signed single-use approval, a kill-on-block switch
 exists, a Linux network/PID namespace backend verifies, and memory/delegation
 guards plus a small detection corpus exist.
 
-It is still not production-ready. Windows AppContainer/Job/WFP and macOS
+It is still not production-ready. Windows AppContainer/WFP and macOS
 isolation are not implemented/verified; Linux filesystem isolation is absent;
-the approval broker’s `decide()` still accepts an unauthenticated human string;
+the approval broker now requires signed approver proofs;
 external audit anchoring is opt-in and TLS/mTLS options exist, but live OAuth/multi-session deployment is absent; memory and
 delegation are libraries, not a runtime multi-agent system; the detection
 corpus is small and curated; macOS platform CI passed but full macOS is unrun. Do not claim
@@ -66,11 +66,11 @@ Full details and IDs are in `SECURITY_TEST_MATRIX.md`. Summary:
 | Indirect prompt injection (MCP resources/prompts/notifications/server requests) | Response/server-request inspection fixed; non-JSON strict drop verified |
 | Tool poisoning | Natural-language/homoglyph/base64 definitions removed in tested cases |
 | Unauthorized tool calls | Strict unknown-tool deny passes; default legacy mode still allows; direct server bypass remains |
-| Privilege escalation | Junction realpath and token capability checks pass; approval spoofing remains |
+| Privilege escalation | Junction/realpath and token capability checks pass; approvals require signed proof |
 | Secret exfiltration | Known/base64/split/entropy tests pass; universal DLP absent |
 | Malicious skills/plugins/deps | Skill natural-language miss fixed; target plugins disabled by default; 10 moderate deps remain |
 | Shell/arbitrary code | Windows/Linux tested denylist cases block; process/vm host escapes fixed; Linux namespace backend added |
-| Sandbox escape | Process/vm escapes fixed; Linux network/PID namespace verified; **Windows/macOS OS absent; Linux filesystem not isolated** |
+| Sandbox escape | Linux bubblewrap network/PID/filesystem verified; Windows Job object only; macOS sandbox-exec |
 | MCP auth/authz | HTTP auth+policy pass; stdio VGAT capability path passes; remote TLS/OAuth absent |
 | HTTP/SSE bridge | authenticated JSON + SSE + optional HTTPS/mTLS; no live OAuth/multi-session |
 | Runtime kill | blocked call terminates strict proxy exit 3 |

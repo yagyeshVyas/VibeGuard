@@ -13,7 +13,7 @@ Controlled internal testing is allowed; external beta/production is not.
 | Criterion | Result | Evidence |
 |---|---|---|
 | Existing/legacy functionality preserved | PASS in tested suite | Windows Node24 full **629/629**; Node18 full **629/629**; Linux full **629/629** |
-| New security tests pass | PASS (31) | platform suite 35/35 on Windows Node18/20/22/24 and Linux Node22 |
+| New security tests pass | PASS (35) | platform suite 35/35 on Windows Node18/20/22/24 and Linux Node22 |
 | No Critical/High silently ignored | **FAIL** | Windows/macOS OS isolation absent; Linux fs isolation absent; external audit anchor absent; approval broker spoofable; monitor/memory/multi-agent partial |
 | Strict mode blocks unknown tools | PASS | platform test |
 | Default behavior is deny | **FAIL** | legacy default allows unknown tools; strict is opt-in |
