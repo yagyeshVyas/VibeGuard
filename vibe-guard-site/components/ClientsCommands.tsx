@@ -16,6 +16,9 @@ const commands = [
   { cmd: "vibeguard fix [dir]", desc: "Auto-fix 43 rule types" },
   { cmd: "vibeguard pre-deploy [dir]", desc: "13-gate deployment check" },
   { cmd: "vibeguard mcp", desc: "MCP server (for AI client integration)" },
+  { cmd: "vibeguard mcp-firewall --server <name>", desc: "Real-time MCP firewall proxy" },
+  { cmd: "vibeguard skill-scan .", desc: "Malicious skill/plugin detection" },
+  { cmd: "vibeguard agent-risk", desc: "Agent risk score + OWASP coverage" },
   { cmd: 'vibeguard guard "command"', desc: "Check a shell command before running it" },
   { cmd: "vibeguard install-hook", desc: "Git pre-commit hook (blocks on critical)" },
 ];

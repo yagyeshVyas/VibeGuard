@@ -4,8 +4,12 @@
 /*
  * VibeGuard MCP server.
  *
- * Exposes the scanner to MCP clients (Claude Code, Cursor) over stdio.
- * Tools: scan_project, suggest_fixes, verify_fixes.
+ * Exposes the scanner and the agent runtime guard to MCP clients (Claude Code,
+ * Cursor) over stdio.
+ *
+ * Scanner tools: scan_project, suggest_fixes, verify_fixes, ... (93 tools).
+ * Agent runtime tools: mcp_firewall, scan_skills, agent_risk, owasp_coverage,
+ * agent_monitor, sandbox_exec.
  *
  * Uses the low-level Server API from the official SDK so we don't pull in zod;
  * input schemas are plain JSON Schema.
@@ -189,7 +193,7 @@ const TOOLS = [
   },
   {
     name: 'agent_scan',
-    description: 'AI Agent Security Posture — one graded verdict across every agent-era risk: MCP server trust, PII/secret leakage to LLM providers, LLM output reaching exec/eval/SQL/DOM, prompt injection, agent capability/loop safety, and hallucinated dependencies. Use this to answer "is my AI-agent setup safe?" Offline; aggregates VibeGuard\'s agent checks.',
+    description: 'AI Agent Security Posture — one graded verdict across every agent-era risk: MCP server trust, PII/secret leakage to LLM providers, LLM output reaching exec/eval/SQL/DOM, prompt injection, agent capability/loop safety, and hallucinated dependencies. Use this to answer "is my AI-agent setup safe?" Offline; aggregates VibeGuard\'s agent checks. For the runtime plane, pair it with agent_risk (skills + policy + audit), mcp_firewall (live tool-call enforcement), scan_skills (malicious skills/plugins) and owasp_coverage (OWASP Agentic AI + MCP Top 10).',
     inputSchema: { type: 'object', properties: { dir: DIR_SCHEMA.properties.dir }, required: [] },
   },
   {

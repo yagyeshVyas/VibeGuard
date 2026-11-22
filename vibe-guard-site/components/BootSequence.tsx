@@ -10,12 +10,14 @@ import { useEffect, useState } from "react";
  * Skip: any user interaction (click / key / scroll / touch). === */
 
 const bootLines = [
-  { text: "> INITIALIZING VIBEGUARD OS v1.0.0", delay: 30, cls: "" },
+  { text: "> INITIALIZING VIBEGUARD OS v1.10.0", delay: 30, cls: "" },
   { text: "> Loading security kernel...", delay: 130, cls: "" },
   { text: "> [OK] AST taint analysis engine", delay: 240, cls: "ok" },
   { text: "> [OK] Secret detection module (50+ types)", delay: 320, cls: "ok" },
   { text: "> [OK] AI security guardrails", delay: 400, cls: "ok" },
-  { text: "> [OK] MCP server (82 tools)", delay: 470, cls: "ok" },
+  { text: "> [OK] MCP server (93 tools)", delay: 470, cls: "ok" },
+  { text: "> [OK] MCP firewall + permission policy", delay: 500, cls: "ok" },
+  { text: "> [OK] Agent risk + OWASP coverage", delay: 560, cls: "ok" },
   { text: "> [OK] Shell guard interceptor", delay: 540, cls: "ok" },
   { text: "> [OK] Cross-file taint tracker", delay: 610, cls: "ok" },
   { text: "> [OK] Local MITM proxy", delay: 680, cls: "ok" },

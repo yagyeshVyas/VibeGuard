@@ -5,12 +5,15 @@ import type { MouseEvent } from "react";
 
 const features = [
   { icon: "◈", title: "Secret Detection", desc: "50+ secret types — OpenAI, AWS, GitHub, Stripe, Slack, Firebase — plus entropy-based detection for unknown secrets.", glow: "cyan" },
-  { icon: "⬡", title: "AI Security", desc: "Prompt injection detection, MCP tool analysis, agent guardrails, LLM output sink analysis, secure_prompt analysis.", glow: "green" },
+  { icon: "⬡", title: "AI Security", desc: "Prompt injection, MCP tool analysis, real-time MCP firewall, agent permissions, OWASP coverage, LLM output sink analysis, secure_prompt analysis.", glow: "green" },
   { icon: "⬢", title: "AST Taint Analysis", desc: "SQL injection, XSS, command injection, path traversal, prototype pollution. AST-based dataflow tracing.", glow: "gold" },
   { icon: "◆", title: "Cross-File Taint", desc: "Import/export graph taint tracking. Follows user input across modules to find injection paths.", glow: "red" },
   { icon: "⬟", title: "Supply Chain", desc: "CVE intel via OSV.dev, slopsquat detection, typosquat detection, postinstall script analysis.", glow: "cyan" },
   { icon: "⬣", title: "Compliance Mapping", desc: "SOC 2, PCI-DSS, HIPAA, GDPR, ISO 27001, EU AI Act. Maps findings to control IDs.", glow: "green" },
-  { icon: "⬤", title: "MCP Server", desc: "88 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, Copilot CLI, Amazon Q, Cody.", glow: "gold" },
+  { icon: "⬤", title: "MCP Server", desc: "93 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, Copilot CLI, Amazon Q, Cody.", glow: "gold" },
+  { icon: "⬡", title: "MCP Firewall", desc: "Real-time MCP proxy: removes poisoned tools, enforces tool/path/host permissions, blocks secret exfiltration, scrubs tool results.", glow: "cyan" },
+  { icon: "◈", title: "Agent Posture", desc: "Malicious skill/plugin scanning, a unified A-F agent risk score, and OWASP Agentic AI + MCP Top 10 coverage.", glow: "gold" },
+  { icon: "▣", title: "Process Sandbox", desc: "Untrusted code runs in a separate Node process under the permission model: no fs, no child_process, no network modules.", glow: "green" },
   { icon: "✦", title: "Real-Time Hooks", desc: "PostToolUse hook auto-scans files after AI edits. Pre-commit hook blocks commits on critical findings.", glow: "red" },
   { icon: "◈", title: "Auto-Fix + Verify", desc: "43 auto-fixable rule types with snapshot + rollback. Verify mode shows resolved/remaining/new issues.", glow: "cyan" },
 ];
@@ -84,7 +87,7 @@ export default function Features() {
             <span className="text-aurora-gradient glow-text-cyan">NOTHING IT MISSES</span>
           </h2>
           <p className="mt-4 font-body text-lg text-[#7ea6bc] max-w-2xl mx-auto">
-            Nine detection engines running in 5 seconds, fully offline, on your machine.
+            Twelve detection engines running in 5 seconds, fully offline, on your machine.
           </p>
         </div>
 

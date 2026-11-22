@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VibeGuard — Free Security Scanner for AI-Coded Apps</title>
-<meta name="description" content="Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever. 861 rules, 88 MCP tools, zero dependencies.">
+<meta name="description" content="Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds. 100% offline, free forever. 861 rules, 93 MCP tools, real-time MCP firewall, zero dependencies.">
 <meta property="og:title" content="VibeGuard — Free Security Scanner for AI-Coded Apps">
-<meta property="og:description" content="861 rules, 88 MCP tools, 18 languages. Offline security scanner for AI-coded apps. Runs locally, zero telemetry, free forever.">
+<meta property="og:description" content="861 rules, 93 MCP tools, 18 languages, real-time MCP firewall. Offline security scanner for AI-coded apps. Runs locally, zero telemetry, free forever.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://vibe-guard-site-ivory.vercel.app/">
 
@@ -536,7 +536,7 @@ footer .copyright { color:var(--dimmer); font-size:13px; }
         </div>
         <div class="hero-badges">
           <span class="hero-badge green">861 rules</span>
-          <span class="hero-badge blue">88 MCP tools</span>
+          <span class="hero-badge blue">93 MCP tools</span>
           <span class="hero-badge green">0 Dependencies</span>
           <span class="hero-badge">100% Offline</span>
         </div>
@@ -568,11 +568,11 @@ footer .copyright { color:var(--dimmer); font-size:13px; }
           <div class="stat-label">Rules</div>
         </div>
         <div class="stat-item" data-animate="scale-in">
-          <div class="stat-num" data-count="88">0</div>
+          <div class="stat-num" data-count="93">0</div>
           <div class="stat-label">MCP Tools</div>
         </div>
         <div class="stat-item" data-animate="scale-in">
-          <div class="stat-num" data-count="564">0</div>
+          <div class="stat-num" data-count="594">0</div>
           <div class="stat-label">Tests</div>
         </div>
         <div class="stat-item" data-animate="scale-in">
@@ -637,7 +637,7 @@ footer .copyright { color:var(--dimmer); font-size:13px; }
         <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--purple)">
           <div class="icon" style="background:rgba(139,92,246,0.1)">🧠</div>
           <h3>AI Security</h3>
-          <p>Prompt injection detection, MCP tool analysis, agent guardrails, LLM output sink analysis, and secure_prompt scoring before code is generated.</p>
+          <p>Prompt injection, MCP tool analysis, real-time MCP firewall, agent permission policy, OWASP Agentic AI + MCP coverage, LLM output sink analysis, and secure_prompt scoring.</p>
         </div>
         <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--orange)">
           <div class="icon" style="background:rgba(249,115,22,0.1)">🔍</div>
@@ -662,7 +662,7 @@ footer .copyright { color:var(--dimmer); font-size:13px; }
         <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--blue)">
           <div class="icon" style="background:rgba(59,130,246,0.1)">🤖</div>
           <h3>MCP Server</h3>
-          <p>88 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, and more.</p>
+          <p>93 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, and more.</p>
         </div>
         <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--yellow)">
           <div class="icon" style="background:rgba(234,179,8,0.1)">⚡</div>
@@ -673,6 +673,21 @@ footer .copyright { color:var(--dimmer); font-size:13px; }
           <div class="icon" style="background:rgba(34,197,94,0.1)">🛡️</div>
           <h3>Shell Guard</h3>
           <p>Blocks dangerous commands before execution: rm -rf, sudo, curl|sh, cloud metadata access, secret exfiltration, and 50+ evasion patterns.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--blue)">
+          <div class="icon" style="background:rgba(59,130,246,0.1)">🛰️</div>
+          <h3>MCP Firewall</h3>
+          <p>Real-time proxy between your agent and its MCP servers. Removes poisoned tools, enforces permissions, blocks secret exfiltration, and scrubs tool output before the model reads it.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--green)">
+          <div class="icon" style="background:rgba(34,197,94,0.1)">📊</div>
+          <h3>Agent Posture</h3>
+          <p>Malicious skill and plugin scanning, a unified A-F agent risk score, and full OWASP Agentic AI + MCP Top 10 coverage. Know what your agent can do before it does it.</p>
+        </div>
+        <div class="feature-card" data-animate="fade-up" style="--accent-color:var(--teal)">
+          <div class="icon" style="background:rgba(6,182,212,0.1)">🔒</div>
+          <h3>Process Sandbox</h3>
+          <p>Run untrusted code in a separate Node process under the permission model: no filesystem, no child_process, no network modules, stripped environment, hard timeout.</p>
         </div>
       </div>
     </div>

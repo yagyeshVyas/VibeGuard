@@ -30,7 +30,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-508%20passed-blue?style=flat-square" alt="508 tests pass" />
+  <img src="https://img.shields.io/badge/tests-594%20passed-blue?style=flat-square" alt="594 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -105,9 +105,9 @@ the code plane: the MCP channel between an agent and its tools.
   untrusted code in a separate Node process under the permission model (fs and
   child_process denied, network modules blocked, env stripped, hard timeout,
   memory cap). Node 18 falls back to the vm sandbox.
-- **Tests:** full suite green, including a live stdio proxy test that spawns
-  the CLI and a fixture MCP server. **100% offline, zero telemetry, Windows 11
-  supported.**
+- **Tests:** 594 passing, 0 failures, including a live stdio proxy test that
+  spawns the CLI and a fixture MCP server. **100% offline, zero telemetry,
+  Windows 11 supported.**
 
 ```bash
 vibeguard mcp-firewall --selftest
