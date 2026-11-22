@@ -66,7 +66,12 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 
 ---
 
-## 🆕 What's New — v1.13.0
+## 🆕 What's New — v1.13.3
+
+**Latest patch: v1.13.3** — corrected version references, independent Juice Shop
+benchmark run, README tone aligned with the Honest Scope section. The security
+feature set below shipped in **v1.13.0**; 1.13.1–1.13.3 are documentation-only
+patches.
 
 **Security foundation v2 (internal testing).** This release is not beta or
 production-ready; it is the verified internal-testing build described in
@@ -84,9 +89,9 @@ production-ready; it is the verified internal-testing build described in
 - **629 tests, 0 failures** on Windows Node24/Node18 and Linux Node22; 35/35
   platform tests on Windows/Linux/macOS CI.
 
-Install note: v1.13.0 is distributed as `@yagyeshvyas/vibeguard@1.13.0`. If a
+Install note: v1.13.3 is distributed as `@yagyeshvyas/vibeguard@1.13.3`. If a
 registry mirror still serves an older build, use the exact
-[v1.13.0 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.13.0).
+[v1.13.3 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.13.3).
 
 ## 🆕 What's New — v1.10.0
 
@@ -146,9 +151,9 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — v1.13.0 status (internal testing)
+## Security baseline v2 — v1.13.3 status (internal testing)
 
-This repository contains the v1.13.0 security foundation. It is **not** a
+This repository contains the v1.13.x security foundation. It is **not** a
 production-ready agent security platform. Linux network/PID namespace isolation
 is available; Windows/macOS OS isolation is not implemented.
 
@@ -194,8 +199,9 @@ Not implemented or not verified:
 - Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
   tested libraries only.
 - Independent penetration test, representative precision/recall corpus, macOS
-  full-suite evidence. npm 1.13.0 is published; GitHub Actions still lacks the
-  NPM_TOKEN secret and skips its publish step.
+  full-suite evidence. npm 1.13.3 is published; the publish workflow's
+  `Create GitHub Release` step still fails because it grants only
+  `contents: read`.
 - Dashboard/SDK and full AISVS certification; AISVS is an internal mapping.
 
 

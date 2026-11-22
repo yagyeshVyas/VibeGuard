@@ -3,6 +3,12 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.13.3] - 2026-11-22
+
+### Fixed
+
+- README version references now match the published release; the npm page carries the same text.
+
 ## [1.13.2] - 2026-11-22
 
 > 1.13.1 was accepted by the registry as a staged version but never became

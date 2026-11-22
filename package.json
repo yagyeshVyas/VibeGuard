@@ -1,6 +1,6 @@
 {
   "name": "@yagyeshvyas/vibeguard",
-  "version": "1.13.2",
+  "version": "1.13.3",
   "description": "Offline-by-default security scanner and runtime firewall for AI-coded apps and MCP agents. 861 rules, 93 MCP tools, signed default-deny policy, tool-poisoning/prompt-injection/secret-exfiltration detection, signed audit + external anchor, hosted approvals with signed proofs, HTTP/SSE MCP bridge with OAuth/TLS, Linux bubblewrap isolation, Windows Job containment and macOS sandbox-exec. Zero telemetry.",
   "license": "MIT",
   "type": "commonjs",
