@@ -1,17 +1,17 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-11-19T14:44:31.655Z",
+  "generatedAt": "2026-11-22T01:47:34.163Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "5b6bc868643909c8ba4edee717590b9896488eb0720636ed58a87a98e1f2d7ac",
     "shell-guard.js": "2960803b3e2fe56e52df66510ec1bb1aa4e26264b506b31707d69ffd28bd7fbb",
     "interceptor.js": "0a137e2b8a50398973e93913cf6feb22c9ac6d70b0f0d075a46a28f1a804827a",
     "firewall.js": "61b31a2a55d63503c6bdcf888394b7a713678ea0e0b656e0d2179c91f66444a9",
-    "pii.js": "51ea76de52b2c15d2cb34ab8125a5f67f725d1e7de43a4cef39136e25b276025",
+    "pii.js": "55c49b5b48868595a25520b4786d15f6e595e8e6403d6ab1bde0da5a4b2fb9a0",
     "rules.js": "52672990b5487c68c9b1268c27730d2c9254a9a217cc436bec28b9631556069f",
     "scanner.js": "b28d87fde97636df3645ca16399be2fa5c83e9b3f4b951b305f0a076ec4b3111",
     "engine.js": "f16bf283f06fe6fdf198a99fbc63971de9665da82f93f2688f86c4ac2a0a0ad2",
-    "mcp-audit.js": "8f38b2738ffedc23f61601a1c03d3cbaac8a38fb19390a898ffe32b30bf8ffc4",
+    "mcp-audit.js": "12e6e5d6ca9dab7104beb72beb49662c9a1bc9658ffcc1768a6ceeb6912690ef",
     "agent-scan.js": "018813166eb1e370bf452efaa92020cd4baea0a20f3826fed3f95ded312aa5c7",
     "secure-prompt.js": "a4d8203ad2292e57b29f75a700f2837f12ba6c9067fd4d5f6731e55203e184b2",
     "ai-guard.js": "9dd2c524dd704bbba69aacf7076e76ac966c6e0c773ee4b04ed7c8fb889db006",
@@ -24,6 +24,14 @@
     "obfuscation.js": "e77ea348dc8db1428d0546ff34dd8bb7ee1fadf17befe0030f7927e7ac20b353",
     "bundles.js": "7c6535e4be4566edd2aec0d9d63c58e200813b621e503ad1d51a5a4840a1b359",
     "agentic.js": "4b7130e1e15f603df8ceb7ef8284db8d1784e8dd450a8ed332873271f7cec4ee",
-    "suppress.js": "3c34ebbdabb0338fe3bf00d399aaa9ab04fb796067fe33a4a4b52884eb5c4fda"
+    "suppress.js": "3c34ebbdabb0338fe3bf00d399aaa9ab04fb796067fe33a4a4b52884eb5c4fda",
+    "mcp-firewall.js": "cfdb0f7b83bc61e045e21dac36db7f0b1fbec24b7b3aafc1f6550a8a0d726868",
+    "agent-policy.js": "3d72cc4c595f3bc83c84ca41cd893ca958fbf61b714986ae210153e1075ba60e",
+    "skill-scan.js": "b172529a94333f8fb07098df518ecce3be9cf93242830e140ade48c2742f50e0",
+    "owasp-agentic.js": "7ca8dca83b633ae62607b2ab24696bdfbf34b4a7b96c3b26ba1035b9b05e9a99",
+    "agent-risk.js": "b571f0b27cc93a8ec292fe83910b06b5e20794c6ffd0cf2643b9ed60f38f215e",
+    "agent-monitor.js": "99d86bdb6bfc8aa696b9ce3274555562bd627c47b38837508913e09704493018",
+    "audit-trail.js": "8fd3bd76a69a95b8257a6159b91fa13274b1442209227f063ca000e1eac869b9",
+    "sandbox.js": "dfbe3711311c2cfab956fc09ba6d16d8536d625139280f1754252ebc53e331c4"
   }
 }

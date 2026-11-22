@@ -82,6 +82,10 @@ const DETECTORS = [
     // don't grab bare integers. 10–15 significant digits.
     re: /(?<![\w.])(?:\+?\d{1,3}[ .-]?)?(?:\(\d{2,4}\)[ .-]?)?\d{2,4}[ .-]\d{2,4}[ .-]\d{2,4}(?:[ .-]\d{2,4})?(?![\w])/g,
     validate(m) {
+      // An IPv4 address is not a phone number, even if its octets look like
+      // three numeric groups. Without this, http://169.254.169.254/ reads as a
+      // phone and every metadata-URL check gets a phantom PII hit.
+      if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(m.trim())) return false;
       const d = m.replace(/[^\d]/g, '');
       return d.length >= 10 && d.length <= 15;
     },

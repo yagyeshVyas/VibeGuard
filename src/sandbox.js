@@ -26,6 +26,10 @@
  */
 
 const vm = require('vm');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { spawnSync } = require('child_process');
 
 let isolatedVm = null;
 try { isolatedVm = require('isolated-vm'); } catch { /* optional dep */ }
@@ -95,6 +99,209 @@ function createSandbox(opts = {}) {
   context.this = context;
 
   return { context, timeout, maxMemory };
+}
+
+// ─── Level 3: process isolation with Node's permission model ───────────────
+//
+// The vm sandbox above is a raised floor, not a security boundary. When the
+// runtime supports it (Node 20+), run the code in a *separate process* with
+// Node's permission model enabled: filesystem and child_process are denied by
+// the runtime, the environment is stripped, memory is capped and a hard
+// timeout kills the process. A prelude additionally blocks require() of
+// network and process modules and removes fetch/WebSocket globals.
+//
+// This is the mode an agent should use for untrusted code. It is still not a
+// container: the code runs as the same OS user, and the permission model is
+// not a kernel boundary. It is a real process boundary with deny-by-default
+// capabilities — a large step up from vm.
+
+const HARNESS_SOURCE = `'use strict';
+const Module = require('module');
+const vm = require('vm');
+const fs = require('fs');
+const path = require('path');
+
+const userFile = path.join(__dirname, 'user.js');
+let userCode = '';
+try { userCode = fs.readFileSync(userFile, 'utf8'); }
+catch (err) { console.log('__VG_ERROR__' + JSON.stringify('cannot read sandbox program: ' + err.message)); process.exit(0); }
+
+// Deny module loads that can reach the network, the disk or other processes.
+// (The Node permission model already denies fs/child_process at runtime; this
+// makes the failure explicit and covers runtimes without the model.)
+const BLOCKED = new Set([
+  'child_process', 'fs', 'fs/promises', 'net', 'http', 'https', 'http2',
+  'dgram', 'tls', 'dns', 'worker_threads', 'cluster', 'vm', 'v8',
+  'inspector', 'repl', 'module', 'perf_hooks',
+]);
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  const name = String(request).replace(/^node:/, '');
+  if (BLOCKED.has(name)) {
+    console.log('__VG_BLOCKED__' + JSON.stringify(request));
+    throw new Error('VibeGuard Sandbox: module "' + request + '" is not available in process-isolated execution');
+  }
+  return originalLoad.apply(this, arguments);
+};
+
+// Remove ambient network globals.
+for (const g of ['fetch', 'WebSocket', 'EventSource', 'XMLHttpRequest']) {
+  try { delete globalThis[g]; } catch { /* non-configurable */ }
+}
+try { process.mainModule = undefined; } catch { /* ignore */ }
+try { process.binding = function () { throw new Error('VibeGuard Sandbox: process.binding is disabled'); }; } catch { /* ignore */ }
+try { process.kill = function () { throw new Error('VibeGuard Sandbox: process.kill is disabled'); }; } catch { /* ignore */ }
+try { process.exit = function () { throw new Error('VibeGuard Sandbox: process.exit is disabled'); }; } catch { /* ignore */ }
+
+try {
+  // Run the program in a fresh vm context rather than the harness's global.
+  // That removes process/require and leaves Node's dynamic import callback
+  // unset, so dynamic import("node:net") fails too. Combined with the permission
+  // model in the parent this is a real process boundary with a locked context.
+  const sandbox = {
+    console,
+    JSON,
+    Math,
+    Date,
+    Array,
+    Object,
+    String,
+    Number,
+    Boolean,
+    RegExp,
+    Map,
+    Set,
+    Promise,
+    Symbol,
+    parseInt,
+    parseFloat,
+    isNaN,
+    isFinite,
+    encodeURIComponent,
+    decodeURIComponent,
+  };
+  sandbox.globalThis = sandbox;
+  const context = vm.createContext(sandbox);
+  const script = new vm.Script(userCode, {
+    filename: 'user.js',
+    importModuleDynamically() { throw new Error('VibeGuard Sandbox: dynamic import is disabled'); },
+  });
+  const result = script.runInContext(context);
+  const emit = (value) => {
+    console.log('__VG_RESULT__' + JSON.stringify({ ok: true, result: value === undefined ? null : String(value) }));
+  };
+  if (result && typeof result.then === 'function') {
+    // Await a returned promise so a rejected dynamic import is reported
+    // instead of being mistaken for a successful run.
+    result.then(emit, (err) => {
+      console.log('__VG_ERROR__' + JSON.stringify(err && err.message ? err.message : String(err)));
+    });
+  } else {
+    emit(result);
+  }
+} catch (err) {
+  console.log('__VG_ERROR__' + JSON.stringify(err && err.message ? err.message : String(err)));
+}
+`;
+
+function nodeMajor() {
+  return Number(String(process.versions.node || '0').split('.')[0]) || 0;
+}
+
+function processIsolationSupported() {
+  return nodeMajor() >= 20;
+}
+
+function runInProcess(code, opts = {}) {
+  const timeout = opts.timeout || DEFAULT_TIMEOUT;
+  const maxMemory = opts.maxMemory || DEFAULT_MAX_MEMORY;
+  const started = Date.now();
+  const result = {
+    success: false,
+    output: null,
+    error: null,
+    audit: [],
+    duration: 0,
+    memoryCap: maxMemory,
+    memoryEnforced: true,
+    isolation: 'process-permission',
+    supported: processIsolationSupported(),
+  };
+
+  if (!processIsolationSupported()) {
+    result.error = 'VibeGuard Sandbox: process isolation requires Node 20+ (this runtime is ' + process.versions.node + '). Use the vm isolation level.';
+    result.duration = Date.now() - started;
+    return result;
+  }
+
+  let dir = null;
+  try {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-sbx-'));
+    const harness = path.join(dir, 'harness.js');
+    const userFile = path.join(dir, 'user.js');
+    fs.writeFileSync(harness, HARNESS_SOURCE, 'utf8');
+    fs.writeFileSync(userFile, String(code == null ? '' : code), 'utf8');
+
+    const major = nodeMajor();
+    const flags = ['--no-warnings'];
+    if (major >= 22) {
+      flags.push('--permission', '--allow-fs-read=' + harness, '--allow-fs-read=' + userFile);
+    } else {
+      flags.push('--experimental-permission', '--allow-fs-read=' + harness, '--allow-fs-read=' + userFile);
+    }
+    const memoryMb = Math.max(8, Math.ceil(maxMemory / 1024 / 1024));
+    flags.push('--max-old-space-size=' + memoryMb);
+
+    const env = {
+      PATH: process.env.PATH || '',
+      SystemRoot: process.env.SystemRoot || '',
+      TEMP: process.env.TEMP || dir,
+      TMP: process.env.TMP || dir,
+      NODE_OPTIONS: '',
+    };
+
+    const child = spawnSync(process.execPath, [...flags, harness], {
+      cwd: dir,
+      env,
+      timeout,
+      encoding: 'utf8',
+      windowsHide: true,
+      maxBuffer: 1024 * 1024,
+    });
+
+    const stdout = child.stdout || '';
+    const stderr = child.stderr || '';
+    for (const line of stdout.split(/\r?\n/)) {
+      if (line.startsWith('__VG_RESULT__')) {
+        try {
+          const parsed = JSON.parse(line.slice('__VG_RESULT__'.length));
+          result.success = true;
+          result.output = parsed.result;
+        } catch { /* fallthrough to error */ }
+      } else if (line.startsWith('__VG_ERROR__')) {
+        try { result.error = JSON.parse(line.slice('__VG_ERROR__'.length)); } catch { result.error = 'sandbox error'; }
+      } else if (line.startsWith('__VG_BLOCKED__')) {
+        try { result.audit.push({ type: 'blocked_access', module: JSON.parse(line.slice('__VG_BLOCKED__'.length)), timestamp: Date.now() }); } catch { /* ignore */ }
+      }
+    }
+
+    if (child.error && child.error.code === 'ETIMEDOUT') {
+      result.error = 'VibeGuard Sandbox: Execution timed out (process killed)';
+    } else if (!result.success && !result.error) {
+      const denied = /ERR_ACCESS_DENIED/.exec(stderr);
+      if (denied) result.error = 'VibeGuard Sandbox: access denied by the Node permission model';
+      else result.error = (stderr || stdout || 'sandbox process exited without a result').slice(0, 500).trim();
+    }
+  } catch (err) {
+    result.error = err && err.message ? err.message : String(err);
+  } finally {
+    if (dir) {
+      try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* Windows may hold a handle briefly */ }
+    }
+  }
+
+  result.duration = Date.now() - started;
+  return result;
 }
 
 // ─── Level 2: isolated-vm (real isolation) ────────────────────────────────
@@ -193,13 +400,18 @@ function getAuditLog() {
 
 function renderSandboxReport(result) {
   const C = { red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', dim: '\x1b[2m', bold: '\x1b[1m', reset: '\x1b[0m' };
+  const isolation = result.isolation === 'isolated-vm'
+    ? C.green + 'isolated-vm (hard boundary)' + C.reset
+    : result.isolation === 'process-permission'
+      ? C.green + 'process-permission (separate process + Node permission model)' + C.reset
+      : C.yellow + 'vm (not a hard boundary)' + C.reset;
   const lines = [
     `${C.bold}VibeGuard Sandbox Execution${C.reset}`,
     `${C.dim}${'─'.repeat(60)}${C.reset}`,
     '',
     `  Success:  ${result.success ? C.green + 'YES' : C.red + 'NO'}${C.reset}`,
     `  Duration: ${result.duration}ms`,
-    `  Isolation: ${result.isolation === 'isolated-vm' ? C.green + 'isolated-vm (hard boundary)' : C.yellow + 'vm (not a hard boundary)'}${C.reset}`,
+    `  Isolation: ${isolation}`,
     `  Memory:   ${result.memoryEnforced ? C.green + 'enforced' : C.yellow + 'not enforced'}${C.reset} (${Math.ceil((result.memoryCap || 0) / 1024 / 1024)}MB cap)`,
     `  Output:   ${result.success ? String(result.output).slice(0, 200) : 'N/A'}`,
   ];
@@ -217,4 +429,4 @@ function renderSandboxReport(result) {
   return lines.join('\n');
 }
 
-module.exports = { createSandbox, runInSandbox, runInVm, runInIsolatedVm, getIsolationLevel, getAuditLog, renderSandboxReport, SAFE_GLOBALS, BLOCKED_GLOBALS };
+module.exports = { createSandbox, runInSandbox, runInVm, runInIsolatedVm, runInProcess, processIsolationSupported, getIsolationLevel, getAuditLog, renderSandboxReport, SAFE_GLOBALS, BLOCKED_GLOBALS };

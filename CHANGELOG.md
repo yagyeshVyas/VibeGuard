@@ -5,6 +5,48 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added — v1.10: real-time MCP firewall, agent permissions, OWASP coverage
+
+- **`vibeguard mcp-firewall`** — a stdio JSON-RPC proxy between an MCP client
+  and an MCP server. Tool definitions are scanned for poisoning and hash-pinned;
+  `tools/call` requests are enforced against policy before forwarding (blocked
+  calls never reach the server); tool results are scrubbed of secrets/PII before
+  they reach the model. Modes: proxy by configured server name, ad-hoc command,
+  one-call check, offline self-test, audit status, configured-server listing.
+- **`src/agent-policy.js`** — deterministic permission engine: tool
+  allow/deny/approval rules, capability classes, project-scoped filesystem
+  access, denied credential stores, egress and metadata-host policy, trusted
+  hosts, argument-size and per-minute call limits, fail-closed policy errors.
+- **`src/skill-scan.js` / `vibeguard skill-scan`** — scans SKILL.md, AGENTS.md,
+  CLAUDE.md, Cursor rules, Claude agents/skills, plugin and marketplace
+  manifests and embedded MCP configs for injection, hidden Unicode,
+  exfiltration instructions, credential access, destructive commands, remote
+  code loaders, obfuscation, permission bypass, self-modification, risky
+  packages and secrets.
+- **`src/agent-risk.js` / `vibeguard agent-risk`** — one 0-100 score and A-F
+  grade across MCP configuration, skills, runtime decisions, policy scope and
+  audit integrity.
+- **`src/owasp-agentic.js` / `vibeguard owasp-coverage`** — maps controls to the
+  OWASP Agentic AI Top 10 and OWASP MCP Top 10 (20/20 mapped), with explicit
+  enforced/detected/monitored/advisory statuses; optional LLM Top 10.
+- **`src/agent-monitor.js` / `vibeguard agent-monitor`** — runtime report and
+  `--watch` tail over the hash-chained firewall audit log, with behavior
+  anomalies (trust building, data gathering, slow exfiltration, privilege
+  escalation, repeated blocks, tamper).
+- **Audit trail hardened** — correct hash-chain verification (previous
+  implementation never failed on a modified entry), JSONL persistence,
+  `createLogger(file)`, and tamper detection over long-lived logs.
+- **Sandbox process isolation** — `runInProcess` and
+  `vibeguard sandbox --isolation process`: separate Node process, permission
+  model, blocked module loads, stripped env, memory cap, hard timeout. `auto`
+  chooses it on Node 20+; Node 18 keeps the vm sandbox.
+- **MCP tools** — `mcp_firewall`, `scan_skills`, `agent_risk`,
+  `owasp_coverage`, `agent_monitor`; `sandbox_exec` gains `isolation`.
+- **CLI fixes** — crashes in `dep-firewall` and `audit-trail` output paths
+  (undefined `Creset`/`C_reset`), `audit-trail export` path argument, and a PII
+  detector false positive that read IPv4 addresses as phone numbers.
+- 26 new tests including a live stdio proxy test; docs in `MCP-FIREWALL.md`.
+
 ### Added — v1.9: live-code reachability, exploit chains, build-artifact scan
 
 - **Reachability-native scans.** The entrypoint graph now runs on every scan and

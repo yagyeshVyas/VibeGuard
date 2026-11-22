@@ -617,12 +617,13 @@ const TOOLS = [
   },
   {
     name: 'sandbox_exec',
-    description: 'Execute AI-generated code in a locked-down sandbox. No process.env, no fs, no child_process, no network. Time-limited and memory-limited. Full audit log of every operation attempted. Best with isolated-vm installed for V8 isolate enforcement; Level 1 (vm only) is a raised floor, not a hard boundary.',
+    description: 'Execute AI-generated code in a locked-down sandbox. No process.env, no fs, no child_process, no network. Time-limited and memory-limited. Full audit log of every operation attempted. isolation="process" runs in a separate Node process with the permission model enabled (Node 20+) — the strongest available mode; isolation="vm" is a raised floor, not a hard boundary.',
     inputSchema: {
       type: 'object',
       properties: {
         code: { type: 'string', description: 'The code to execute in sandbox.' },
         timeout: { type: 'number', description: 'Execution timeout in ms (default: 5000).' },
+        isolation: { type: 'string', enum: ['auto', 'process', 'vm'], description: 'Isolation mode. Default auto (process on Node 20+, vm otherwise).' },
       },
       required: ['code'],
     },
@@ -666,6 +667,73 @@ const TOOLS = [
     name: 'pre_deploy',
     description: 'Run ALL 13 security gates before deployment. If ANY gate fails, deployment is blocked. Gates: static scan, secrets, git history, dependencies, supply chain, privacy, network, AI data guard, compliance, config, self-check, tamper check, behavioral check. Returns deploy-ready verdict.',
     inputSchema: DIR_SCHEMA,
+  },
+  {
+    name: 'mcp_firewall',
+    description: 'Real-time MCP firewall (offline). action="check" evaluates a tool call against the local policy before forwarding it to an MCP server (permissions, paths, hosts, secrets, commands, rate limits). action="selftest" runs the built-in attack scenarios. action="status" summarizes the hash-chained firewall audit log. action="policy" shows the active policy. This is the same engine used by `vibeguard mcp-firewall`; call it before any MCP tool call you are about to make.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['check', 'selftest', 'status', 'policy'], description: 'Firewall action. Default check.' },
+        server: { type: 'string', description: 'MCP server name.' },
+        tool: { type: 'string', description: 'Tool name to evaluate (for check).' },
+        arguments: { type: 'object', description: 'Tool arguments (for check).' },
+        dir: DIR_SCHEMA.properties.dir,
+        audit: { type: 'string', description: 'Audit log path (for status).' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'scan_skills',
+    description: 'Scan agent skills, plugins, marketplaces and instruction files (SKILL.md, AGENTS.md, CLAUDE.md, .cursor/rules, .claude/agents, plugin.json) for prompt injection, hidden Unicode, exfiltration instructions, credential access, destructive commands, remote code loaders, obfuscation, permission bypass, self-modification, risky packages and embedded MCP servers. This is the malicious-skill supply-chain check.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: DIR_SCHEMA.properties.dir,
+        path: { type: 'string', description: 'Optional extra file or directory to scan.' },
+        all: { type: 'boolean', description: 'With path: scan every text file under it, not only skill-shaped files.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'agent_risk',
+    description: 'Unified agent risk score (0-100, grade A-F) across MCP configuration, skills, runtime firewall decisions, policy scope and audit integrity, with OWASP Agentic AI + MCP Top 10 coverage. Answers "how risky is this agent deployment right now?" — not "how risky is this code?"',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: DIR_SCHEMA.properties.dir,
+        frameworks: { type: 'string', description: 'Comma-separated frameworks: agentic,mcp,llm.' },
+        audit: { type: 'string', description: 'Custom audit log path.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'owasp_coverage',
+    description: 'Map every implemented control to the OWASP Top 10 for Agentic Applications and the OWASP MCP Top 10. Returns each control item, its coverage status (enforced/detected/monitored/advisory/none) and the checks that implement it. Use --all / all=true to include the OWASP LLM Top 10.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: DIR_SCHEMA.properties.dir,
+        all: { type: 'boolean', description: 'Include the OWASP LLM Top 10 too.' },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'agent_monitor',
+    description: 'Monitor autonomous agent activity from the hash-chained MCP firewall audit log: allowed/warned/blocked counts, top servers and blocked tools, behavioral anomalies (trust building, data gathering before egress, slow exfiltration, privilege escalation, repeated blocks, tamper), chain integrity and a runtime risk score.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dir: DIR_SCHEMA.properties.dir,
+        audit: { type: 'string', description: 'Custom audit log path.' },
+        limit: { type: 'number', description: 'Only analyze the last N entries.' },
+      },
+      required: [],
+    },
   },
 ];
 
@@ -2038,9 +2106,14 @@ async function handleTamperCheck(args) {
 async function handleSandboxExec(args) {
   const code = args.code;
   if (!code) return textResult('sandbox_exec requires a "code" argument.', true);
-  const { runInSandbox, renderSandboxReport } = require('./sandbox');
-  const result = runInSandbox(code, { timeout: args.timeout });
-  return textResult(renderSandboxReport(result));
+  const sandbox = require('./sandbox');
+  const mode = String(args.isolation || 'auto').toLowerCase();
+  let result;
+  if (mode === 'process') result = sandbox.runInProcess(code, { timeout: args.timeout });
+  else if (mode === 'vm') result = sandbox.runInSandbox(code, { timeout: args.timeout });
+  else if (sandbox.processIsolationSupported()) result = sandbox.runInProcess(code, { timeout: args.timeout });
+  else result = sandbox.runInSandbox(code, { timeout: args.timeout });
+  return textResult(sandbox.renderSandboxReport(result));
 }
 
 async function handleBehaviorAnalysis(args) {
@@ -2098,6 +2171,84 @@ async function handleAuditLog(args) {
   return textResult('Unknown action: ' + action, true);
 }
 
+async function handleMcpFirewall(args) {
+  const root = args.dir || process.cwd();
+  const action = String(args.action || 'check').toLowerCase();
+  if (action === 'selftest') {
+    const { runSelfTest } = require('./mcp-firewall');
+    const result = runSelfTest();
+    return textResult(JSON.stringify(result, null, 2), result.passed !== result.total);
+  }
+  if (action === 'status') {
+    const path = require('path');
+    const { analyzeMonitorLog, renderMonitor } = require('./agent-monitor');
+    const report = analyzeMonitorLog(path.resolve(root, args.audit || '.vibeguard/audit/mcp-firewall.jsonl'));
+    return textResult(args.format === 'json' ? JSON.stringify(report, null, 2) : renderMonitor(report));
+  }
+  if (action === 'policy') {
+    const { loadPolicy, describePolicy } = require('./agent-policy');
+    const loaded = loadPolicy(root, args.policy);
+    return textResult(JSON.stringify({ ...describePolicy(loaded.policy, loaded.source), error: loaded.error }, null, 2), !!loaded.error);
+  }
+  const { loadPolicy, evaluateToolCall } = require('./agent-policy');
+  if (!args.tool) return textResult('mcp_firewall action=check requires a "tool" argument.', true);
+  const loaded = loadPolicy(root, args.policy);
+  const verdict = evaluateToolCall({
+    root,
+    policy: loaded.policy,
+    server: args.server || 'unknown',
+    tool: args.tool,
+    args: args.arguments || {},
+  });
+  return textResult(JSON.stringify({
+    action: verdict.action,
+    blocked: verdict.blocked,
+    capability: verdict.capability,
+    risk: verdict.risk,
+    violations: verdict.violations,
+    policySource: loaded.source,
+  }, null, 2), verdict.blocked);
+}
+
+async function handleScanSkills(args) {
+  const { scanSkills, renderSkillReport } = require('./skill-scan');
+  const dir = args.dir || process.cwd();
+  const result = scanSkills(dir, { paths: args.path ? [String(args.path)] : undefined, all: !!args.all });
+  if (args.format === 'json') return textResult(JSON.stringify(result, null, 2), result.counts.critical > 0);
+  return textResult(renderSkillReport(result), result.counts.critical > 0);
+}
+
+async function handleAgentRisk(args) {
+  const { computeAgentRisk, renderAgentRisk } = require('./agent-risk');
+  const dir = args.dir || process.cwd();
+  const report = computeAgentRisk(dir, {
+    auditFile: args.audit,
+    frameworks: args.frameworks ? String(args.frameworks).split(',').map((s) => s.trim()) : undefined,
+  });
+  if (args.format === 'json') {
+    const { owasp, ...rest } = report;
+    return textResult(JSON.stringify({ ...rest, owasp: { percent: owasp.percent, covered: owasp.covered, total: owasp.total, summary: owasp.summary } }, null, 2), report.grade === 'F');
+  }
+  return textResult(renderAgentRisk(report), report.grade === 'F');
+}
+
+async function handleOwaspCoverage(args) {
+  const { coverageReport, renderCoverage } = require('./owasp-agentic');
+  const report = coverageReport({ frameworks: args.all ? ['agentic', 'mcp', 'llm'] : undefined });
+  if (args.format === 'json') return textResult(JSON.stringify(report, null, 2));
+  return textResult(renderCoverage(report));
+}
+
+async function handleAgentMonitor(args) {
+  const path = require('path');
+  const { analyzeMonitorLog, renderMonitor } = require('./agent-monitor');
+  const dir = args.dir || process.cwd();
+  const full = analyzeMonitorLog(path.resolve(dir, args.audit || '.vibeguard/audit/mcp-firewall.jsonl'));
+  if (args.limit && full.recent) full.recent = full.recent.slice(-Number(args.limit));
+  if (args.format === 'json') return textResult(JSON.stringify(full, null, 2));
+  return textResult(renderMonitor(full), full.exists && !full.chainValid);
+}
+
 async function handlePreDeploy(args) {
   const dir = args.dir || process.cwd();
   const { runPreDeployGate, renderPreDeployReport } = require('./pre-deploy');
@@ -2113,6 +2264,15 @@ async function main() {
 
   // Layer 7: Lock environment variables
   const envLock = lockEnvironment();
+  // Layer 13: persist the audit trail so a crash or restart does not erase it.
+  // Set VIBEGUARD_AUDIT=0 to keep it in memory only, or VIBEGUARD_AUDIT_FILE
+  // to choose the path.
+  if (process.env.VIBEGUARD_AUDIT !== '0') {
+    try {
+      const auditFile = process.env.VIBEGUARD_AUDIT_FILE || path.join(process.cwd(), '.vibeguard', 'audit', 'mcp-server.jsonl');
+      audit.setFile(auditFile);
+    } catch { /* read-only project: keep the in-memory trail */ }
+  }
   audit.log('system', { event: 'env_locked', hidden: envLock.hiddenCount });
 
   // Layer 13: Audit trail is active
@@ -2268,6 +2428,11 @@ async function main() {
       else if (name === 'supply_chain_audit') result = await handleSupplyAudit(args);
       else if (name === 'vault_manage') result = await handleVaultManage(args);
       else if (name === 'audit_log') result = await handleAuditLog(args);
+      else if (name === 'mcp_firewall') result = await handleMcpFirewall(args);
+      else if (name === 'scan_skills') result = await handleScanSkills(args);
+      else if (name === 'agent_risk') result = await handleAgentRisk(args);
+      else if (name === 'owasp_coverage') result = await handleOwaspCoverage(args);
+      else if (name === 'agent_monitor') result = await handleAgentMonitor(args);
       else if (name === 'pre_deploy') result = await handlePreDeploy(args);
       else if (name === 'token_report') result = await handleTokenReport(args);
       else result = textResult(`Unknown tool: ${name}`, true);

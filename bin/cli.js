@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -78,6 +78,16 @@ Advanced:
   vibeguard badge [dir]             Award badge SVG (zero critical+high).
   vibeguard init-ci [dir]           Write GitHub Actions workflow.
   vibeguard mcp-audit [dir]         Audit configured MCP servers (injection, rug-pull, secrets). --pin to re-baseline.
+  vibeguard mcp-firewall --server <name>  Proxy an MCP server; block poisoned tools/calls in real time.
+  vibeguard mcp-firewall --exec "<cmd>"   Proxy an ad-hoc MCP server command.
+  vibeguard mcp-firewall --init      Write a default .vibeguard-mcp.json policy.
+  vibeguard mcp-firewall --selftest  Run the offline firewall checks.
+  vibeguard mcp-firewall --check '<json>' Evaluate one tool call against policy.
+  vibeguard mcp-firewall --status    Summarize the firewall audit log.
+  vibeguard skill-scan [dir]         Scan skills/plugins/instruction files for malicious behavior.
+  vibeguard agent-risk [dir]         Unified agent risk score + OWASP coverage (A-F).
+  vibeguard owasp-coverage [dir]     OWASP Agentic AI + MCP Top 10 control coverage.
+  vibeguard agent-monitor [dir]      Runtime agent activity; --watch to follow the audit log.
   vibeguard agent-scan [dir]        AI Agent Security Posture: one grade across MCP, data leakage, LLM-output sinks, prompt injection, agent capability.
   vibeguard guard-action <action>   Action firewall: block secret/PII exfiltration before it runs. Pass a shell command or JSON action. --trust host1,host2.
   vibeguard compliance [dir]         Map findings to SOC2/PCI/HIPAA/GDPR.
@@ -946,7 +956,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -997,6 +1007,22 @@ async function main() {
     return;
   }
 
+  // MCP firewall: proxy mode owns stdin/stdout and must not be followed by
+  // process.exit(). One-shot modes (--selftest/--check/--status) return a code.
+  if (cmd === 'mcp-firewall') {
+    const { cmdMcpFirewall } = require('./cmd-mcp-firewall');
+    const code = cmdMcpFirewall(args, flags);
+    if (typeof code === 'number') process.exit(code);
+    return;
+  }
+
+  // Live agent monitoring: long-running tail.
+  if (cmd === 'agent-monitor' && flags.watch) {
+    const { cmdAgentMonitor } = require('./cmd-agent-monitor');
+    cmdAgentMonitor(args, flags);
+    return;
+  }
+
   // Async command: live URL scan.
   if (cmd === 'url') {
     cmdUrl(args._[1], flags)
@@ -1020,6 +1046,10 @@ async function main() {
     else if (cmd === 'badge') code = cmdBadge(dir, flags);
     else if (cmd === 'init-ci') code = cmdInitCi(dir);
     else if (cmd === 'mcp-audit') code = cmdMcpAudit(dir, flags);
+    else if (cmd === 'skill-scan') { const { cmdSkillScan } = require('./cmd-skill-scan'); code = cmdSkillScan(args, flags); }
+    else if (cmd === 'agent-risk') { const { cmdAgentRisk } = require('./cmd-agent-risk'); code = cmdAgentRisk(args, flags); }
+    else if (cmd === 'owasp-coverage') { const { cmdOwaspCoverage } = require('./cmd-agent-risk'); code = cmdOwaspCoverage(args, flags); }
+    else if (cmd === 'agent-monitor') { const { cmdAgentMonitor } = require('./cmd-agent-monitor'); code = cmdAgentMonitor(args, flags); }
     else if (cmd === 'agent-scan') code = cmdAgentScan(dir, flags);
     else if (cmd === 'guard-action') code = cmdGuardAction(args._[1], flags);
     else if (cmd === 'install') code = cmdInstall(flags);
@@ -1654,7 +1684,7 @@ function cmdDepFirewall(args, flags) {
     process.stdout.write(`  ${C2.red}✗ BLOCKED${C.reset}\n\n`);
     for (const r of result.risks) {
       const sc = r.severity === 'critical' ? C2.red : C2.yellow;
-      process.stdout.write(`  ${sc}[${r.severity}]${Creset} ${r.message}\n`);
+      process.stdout.write(`  ${sc}[${r.severity}]${C.reset} ${r.message}\n`);
     }
   }
   return result.allowed ? 0 : 1;
@@ -1792,10 +1822,23 @@ function cmdSelfCheck(dir, flags) {
 
 function cmdSandbox(args, flags) {
   const code = (args._ || args || []).slice(1).join(' ');
-  if (!code) { process.stderr.write('Usage: vibeguard sandbox <code>\n'); return 1; }
-  const { runInSandbox, renderSandboxReport } = require('../src/sandbox');
-  const result = runInSandbox(code);
-  process.stdout.write(renderSandboxReport(result) + '\n');
+  if (!code) { process.stderr.write('Usage: vibeguard sandbox <code> [--isolation vm|process|auto] [--timeout ms] [--memory mb]\n'); return 1; }
+  const sandbox = require('../src/sandbox');
+  const timeout = flags.timeout ? Number(flags.timeout) : undefined;
+  const maxMemory = flags.memory ? Number(flags.memory) * 1024 * 1024 : undefined;
+  const mode = String(flags.isolation || 'auto').toLowerCase();
+  let result;
+  if (mode === 'process') {
+    result = sandbox.runInProcess(code, { timeout, maxMemory });
+  } else if (mode === 'vm') {
+    result = sandbox.runInSandbox(code, { timeout, maxMemory });
+  } else if (sandbox.processIsolationSupported()) {
+    result = sandbox.runInProcess(code, { timeout, maxMemory });
+  } else {
+    result = sandbox.runInSandbox(code, { timeout, maxMemory });
+  }
+  if (flags.json) process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+  else process.stdout.write(sandbox.renderSandboxReport(result) + '\n');
   return result.success ? 0 : 1;
 }
 
@@ -1864,12 +1907,12 @@ function cmdAuditTrail(args, flags) {
   if (action === 'show' || action === 'status') {
     process.stdout.write(audit.renderAuditReport() + '\n');
   } else if (action === 'export') {
-    const outPath = args[1] || 'vibeguard-audit.json';
+    const outPath = allArgs[2] || flags.output || 'vibeguard-audit.json';
     audit.exportLog(outPath);
-    process.stdout.write(`${C2.green}Exported to ${outPath}${C_reset}\n`);
+    process.stdout.write(`${C2.green}Exported to ${outPath}${C.reset}\n`);
   } else if (action === 'verify') {
     const v = audit.verifyChain();
-    process.stdout.write(v.valid ? `${C2.green}PASS Chain intact (${v.total} entries)${C_reset}\n` : `${C2.red}FAIL Chain broken at: ${v.brokenAt.join(',')}${C_reset}\n`);
+    process.stdout.write(v.valid ? `${C2.green}PASS Chain intact (${v.total} entries)${C.reset}\n` : `${C2.red}FAIL Chain broken at: ${v.brokenAt.join(',')}${C.reset}\n`);
   } else {
     process.stderr.write('Usage: vibeguard audit-trail [show|export|verify]\n');
     return 1;

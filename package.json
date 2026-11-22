@@ -1,7 +1,7 @@
 {
   "name": "@yagyeshvyas/vibeguard",
-  "version": "1.9.0",
-  "description": "Security scanner + AI agent firewall + active pentester with a token-lean agent protocol. 861 rules, 88 MCP tools, attack-surface graph (routes x authz x reachability) with exploit chains, reachability-native findings (--live), build-artifact secret scan, IDOR/RLS-correctness checks, backdoor/obfuscation decoding, cross-function AST taint analysis. Cuts agent context cost 55-90% vs JSON scanner output. Offline, zero telemetry, zero dependencies.",
+  "version": "1.10.0",
+  "description": "Security scanner + real-time MCP firewall + AI agent firewall + active pentester with a token-lean agent protocol. 861 rules, 93 MCP tools, prompt-injection/tool-poisoning detection, agent permission enforcement, secret-exfiltration prevention, skill/plugin scanning, OWASP Agentic AI + MCP Top 10 coverage, risk scoring and a process-isolated sandbox. Offline, zero telemetry, zero dependencies.",
   "license": "MIT",
   "type": "commonjs",
   "author": "Yagyesh Vyas <https://www.linkedin.com/in/yagyeshvyas/>",
@@ -24,7 +24,9 @@
     "ci",
     "ci-templates",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "MCP-FIREWALL.md",
+    ".vibeguard-mcp.example.json"
   ],
   "overrides": {
     "@hono/node-server": "^2.0.5",

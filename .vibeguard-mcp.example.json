@@ -1,0 +1,51 @@
+{
+  "_comment": "VibeGuard MCP firewall policy. Copy to .vibeguard-mcp.json and edit. Deny-by-default example: set defaultAction to block and list the tools you trust in allowTools.",
+  "version": 1,
+  "defaultAction": "allow",
+  "toolRules": [
+    { "match": "mcp__filesystem__write_*", "action": "warn", "reason": "review writes" }
+  ],
+  "denyTools": [],
+  "allowTools": [],
+  "approvalRequired": [],
+  "blockedCapabilities": [],
+  "allowedCapabilities": [],
+  "allowedPaths": [],
+  "deniedPaths": [
+    "**/.env",
+    "**/.env.*",
+    "**/.ssh/**",
+    "**/.aws/credentials",
+    "**/.npmrc",
+    "**/.netrc",
+    "**/.git-credentials",
+    "**/*.pem",
+    "**/*.key",
+    "**/id_rsa",
+    "**/id_ed25519",
+    "**/secrets/**",
+    "**/credentials.json",
+    "**/service-account*.json"
+  ],
+  "enforceProjectScope": true,
+  "allowedHosts": [],
+  "deniedHosts": [
+    "169.254.169.254",
+    "metadata.google.internal",
+    "metadata.goog"
+  ],
+  "trustedHosts": [],
+  "blockExternalNetwork": false,
+  "secretScan": true,
+  "allowSecretsInArgs": false,
+  "piiScan": true,
+  "piiMode": "warn",
+  "blockPromptInjection": true,
+  "pinToolDefinitions": true,
+  "scrubToolResults": true,
+  "blockToolResultInjection": true,
+  "maxArgumentBytes": 65536,
+  "maxCallsPerMinute": 240,
+  "logAllowedCalls": true,
+  "failClosed": false
+}

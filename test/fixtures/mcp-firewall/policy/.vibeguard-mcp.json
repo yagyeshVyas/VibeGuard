@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "defaultAction": "block",
+  "allowTools": ["echo", "read_file"],
+  "denyTools": ["execute"],
+  "deniedPaths": ["**/.env", "**/.ssh/**"],
+  "allowedPaths": [],
+  "enforceProjectScope": true,
+  "allowedHosts": ["api.example.com"],
+  "blockExternalNetwork": false,
+  "maxCallsPerMinute": 5,
+  "piiMode": "warn",
+  "blockPromptInjection": true,
+  "pinToolDefinitions": true,
+  "scrubToolResults": true,
+  "logAllowedCalls": true
+}

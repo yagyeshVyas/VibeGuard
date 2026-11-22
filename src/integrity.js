@@ -30,6 +30,10 @@ const CRITICAL_MODULES = [
   // so they are covered by the same manifest as the original guard core.
   'rules-2026.js', 'routes.js', 'surface.js', 'obfuscation.js',
   'bundles.js', 'agentic.js', 'suppress.js',
+  // v1.10 agent runtime plane: same logic — a patched firewall, policy, skill
+  // scanner, risk scorer or audit chain is a silent bypass.
+  'mcp-firewall.js', 'agent-policy.js', 'skill-scan.js', 'owasp-agentic.js',
+  'agent-risk.js', 'agent-monitor.js', 'audit-trail.js', 'sandbox.js',
 ];
 
 function hashFile(p) {

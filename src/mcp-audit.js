@@ -192,7 +192,7 @@ function auditMcp(root, opts = {}) {
   }
 
   // First run (no pins yet) or explicit --pin: write the baseline.
-  if (opts.pin || Object.keys(pins).length === 0) savePins(root, newPins);
+  if (!opts.noWrite && (opts.pin || Object.keys(pins).length === 0)) savePins(root, newPins);
 
   const bySev = { critical: 0, high: 0, medium: 0, low: 0 };
   for (const f of findings) bySev[f.severity] = (bySev[f.severity] || 0) + 1;

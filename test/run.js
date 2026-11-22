@@ -4661,6 +4661,8 @@ for (const t of agenticSuite.tests) {
 }
 const v19Suite = require('./v19-tests');
 for (const t of v19Suite.tests) test('v19: ' + t.name, t);
+const mcpFirewallSuite = require('./mcp-firewall-tests');
+for (const t of mcpFirewallSuite.tests) test('mcp-firewall: ' + t.name, t.fn);
 
 (async function runAll() {
   for (const t of _tests) {
