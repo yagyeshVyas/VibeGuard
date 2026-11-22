@@ -3,6 +3,17 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.13.1] - 2026-11-22
+
+### Changed
+
+- README tagline and banner no longer claim firewall-level enforcement; they describe the scanner and link the independent run.
+- README Benchmark section now links an independent/third-party test result.
+
+### Added
+
+- `test/third-party-benchmark.md` with raw human and SARIF output from an OWASP Juice Shop scan, including its false positives and stated limits.
+
 ## [1.13.0] - 2026-11-22
 
 ### Added
