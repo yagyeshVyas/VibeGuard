@@ -20,8 +20,8 @@ Still not beta/production ready:
 
 - Windows/macOS OS isolation absent; Linux filesystem not isolated.
 - Approval broker human identity is unauthenticated.
-- No external audit anchor.
-- No TLS/OAuth remote deployment or independent runtime monitor/quarantine.
+- External anchor is opt-in; local anchor deletion/rollback remains possible.
+- TLS/mTLS server options exist; live OAuth/multi-session and independent runtime monitoring remain incomplete.
 - Memory/multi-agent controls not wired end-to-end.
 - Small curated corpus; no independent penetration test.
 - macOS full suite not run; npm publication is complete (`1.12.0`).

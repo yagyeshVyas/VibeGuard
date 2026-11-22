@@ -25,9 +25,8 @@ protection.
 - Windows AppContainer/Job Object/WFP and macOS VM backends are absent; Linux
   filesystem is not isolated.
 - ApprovalBroker.decide() still accepts an unauthenticated human string.
-- No external audit anchor/transparency log; local sidecar deletion/rollback is
-  undetectable.
-- No TLS/mTLS/live OAuth server flow or multi-session remote deployment.
+- External anchor is opt-in; local log+sidecar+anchor deletion remains possible.
+- TLS/mTLS server options exist; live OAuth/multi-session remain incomplete.
 - No independent process/filesystem/network monitor/quarantine service beyond
   kill-on-block.
 - Memory/multi-agent controls are libraries, not runtime enforcement.

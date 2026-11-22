@@ -13,7 +13,7 @@ Controlled internal testing is allowed; external beta/production is not.
 | Criterion | Result | Evidence |
 |---|---|---|
 | Existing/legacy functionality preserved | PASS in tested suite | Windows Node24 full **625/625**; Node18 full **625/625**; Linux full **625/625** |
-| New security tests pass | PASS (29) | platform suite 31/31 on Windows Node18/20/22/24 and Linux Node22 |
+| New security tests pass | PASS (31) | platform suite 31/31 on Windows Node18/20/22/24 and Linux Node22 |
 | No Critical/High silently ignored | **FAIL** | Windows/macOS OS isolation absent; Linux fs isolation absent; external audit anchor absent; approval broker spoofable; monitor/memory/multi-agent partial |
 | Strict mode blocks unknown tools | PASS | platform test |
 | Default behavior is deny | **FAIL** | legacy default allows unknown tools; strict is opt-in |
@@ -29,7 +29,7 @@ Controlled internal testing is allowed; external beta/production is not.
 | Unknown tools denied in strict mode | PASS | platform test |
 | MCP auth on stdio | **PASS for token path** | VGAT capability test; no identity if not configured |
 | MCP HTTP auth | PASS | 401/403 tests |
-| HTTP/SSE bridge | **PASS on loopback** | bridge JSON + SSE tests; no TLS/OAuth deployment |
+| HTTP/SSE bridge | **PASS on loopback** | bridge JSON + SSE + optional HTTPS/mTLS; no live OAuth/multi-session |
 | SSRF/private/metadata blocked | PASS (primitive) | SSRF tests |
 | DNS rebinding resistance integrated | **PARTIAL** | validator returns pinned IP; no HTTP client enforcement |
 | Identity impersonation rejected | PASS for signatures/capabilities/replay; **FAIL** for unauthenticated human approval claim |

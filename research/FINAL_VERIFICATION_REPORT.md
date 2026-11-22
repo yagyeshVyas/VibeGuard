@@ -24,7 +24,7 @@ guards plus a small detection corpus exist.
 It is still not production-ready. Windows AppContainer/Job/WFP and macOS
 isolation are not implemented/verified; Linux filesystem isolation is absent;
 the approval broker’s `decide()` still accepts an unauthenticated human string;
-there is no external audit anchor or complete TLS/OAuth deployment; memory and
+external audit anchoring is opt-in and TLS/mTLS options exist, but live OAuth/multi-session deployment is absent; memory and
 delegation are libraries, not a runtime multi-agent system; the detection
 corpus is small and curated; macOS platform CI passed but full macOS is unrun. Do not claim
 production readiness, complete MCP security, or OS isolation for Windows/macOS.
@@ -72,11 +72,11 @@ Full details and IDs are in `SECURITY_TEST_MATRIX.md`. Summary:
 | Shell/arbitrary code | Windows/Linux tested denylist cases block; process/vm host escapes fixed; Linux namespace backend added |
 | Sandbox escape | Process/vm escapes fixed; Linux network/PID namespace verified; **Windows/macOS OS absent; Linux filesystem not isolated** |
 | MCP auth/authz | HTTP auth+policy pass; stdio VGAT capability path passes; remote TLS/OAuth absent |
-| HTTP/SSE bridge | authenticated loopback JSON + SSE notification tests pass; no TLS/multi-session |
+| HTTP/SSE bridge | authenticated JSON + SSE + optional HTTPS/mTLS; no live OAuth/multi-session |
 | Runtime kill | blocked call terminates strict proxy exit 3 |
 | SSRF/DNS | Loopback/private/metadata blocked; validation not wired into a fetch client; Linux namespace blocks network, Windows/macOS do not |
 | Identity/tokens | Cross-authority/capability/replay/expiry checks pass; key rotation/HSM absent |
-| Audit tamper/replay | Strict gateway now writes signed events; truncation sidecar detection; external anchor absent |
+| Audit tamper/replay | Strict gateway signed events; sidecar + opt-in external anchor detection; no remote transparency log |
 | Multi-agent | DelegationGraph library tested; runtime graph not wired |
 | Memory/context | MemoryGuard library tested; no persistent memory runtime |
 | Fail-open | Strict audit + HTTP no-policy fixed; legacy default/sidecar deletion remain; kill switch added |
@@ -159,9 +159,9 @@ complete remote MCP security boundary, or a production compliance product.
 ### Blocking issues (prioritized)
 
 1. **Windows/macOS OS isolation and Linux filesystem isolation** (AppContainer/Job/WFP, macOS VM, container/microVM). Linux network/PID namespace is verified; Win/macOS remain absent.
-2. **External audit anchor/transparency log**; local sidecar deletion/rollback is undetectable.
+2. **Remote transparency-log anchor**; local log/sidecar/anchor deletion remains possible.
 3. **Authenticated approver**: ApprovalBroker.decide() still accepts a human string; add an approval service/UI and signed approver authentication.
-4. **Remote deployment**: TLS/mTLS, live OAuth server flow, multi-session persistence and remote lifecycle; bridge is loopback-tested.
+4. **Remote deployment**: live OAuth server flow, multi-session persistence and lifecycle; TLS/mTLS options exist, bridge is loopback-tested.
 5. **Runtime monitoring**: kill-on-block exists, but no independent process/filesystem/network monitor or quarantine service.
 6. **Memory/multi-agent runtime**: guards are libraries, not wired end-to-end.
 7. **Detection corpus**: 100% on a small curated set; add multilingual, paraphrased, mutation and schema corpora.

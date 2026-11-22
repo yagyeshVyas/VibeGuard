@@ -34,8 +34,8 @@ the independent evidence is in `research/`.
   filesystem is not isolated.
 - ApprovalBroker.decide() still accepts an unauthenticated human string; no
   approval UI/service.
-- No external audit anchor; local sidecar deletion/rollback is undetectable.
-- No TLS/mTLS/live OAuth server flow or multi-session remote deployment.
+- External anchor is opt-in (`audit verify --anchor`); local log+sidecar+anchor deletion is still possible.
+- TLS/mTLS server options exist; live OAuth server flow and multi-session persistence do not.
 - No independent runtime process/filesystem/network monitor/quarantine service.
 - Memory/multi-agent controls are libraries, not runtime enforcement.
 - Legacy non-strict mode still default-allows unknown tools.
@@ -50,7 +50,7 @@ accepts the new `INJECT.DEEP_DETECTOR` finding. No security assertion removed.
 
 ## Evidence
 
-- `test/platform-security-tests.js` (29 tests)
+- `test/platform-security-tests.js` (31 tests)
 - `test/corpus/run.js`
 - `research/SECURITY_TEST_MATRIX.md`
 - `research/KNOWN_LIMITATIONS.md`
