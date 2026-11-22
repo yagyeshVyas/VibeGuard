@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-11-22T19:31:04.837Z",
+  "generatedAt": "2026-11-22T19:55:42.417Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "764f02ee6d4a1dc95939642f120ac7c233f66aee2794dd71efa15f5690fc43b0",
@@ -25,7 +25,7 @@
     "bundles.js": "7c6535e4be4566edd2aec0d9d63c58e200813b621e503ad1d51a5a4840a1b359",
     "agentic.js": "4b7130e1e15f603df8ceb7ef8284db8d1784e8dd450a8ed332873271f7cec4ee",
     "suppress.js": "3c34ebbdabb0338fe3bf00d399aaa9ab04fb796067fe33a4a4b52884eb5c4fda",
-    "mcp-firewall.js": "9ec7d5ec73b37b226027346e1eb81a68cfe200ba16561897e139cdd8f404c794",
+    "mcp-firewall.js": "576cdbbf231c589dd10436f9053fbe43db18cf0ab14ea697b6bf419c7c49b70b",
     "agent-policy.js": "5735aca870b7ecfe55c3525f7a338e9f97e3c1ca000dbb16850c312db53eb9e9",
     "skill-scan.js": "b172529a94333f8fb07098df518ecce3be9cf93242830e140ade48c2742f50e0",
     "owasp-agentic.js": "7ca8dca83b633ae62607b2ab24696bdfbf34b4a7b96c3b26ba1035b9b05e9a99",
@@ -36,18 +36,21 @@
     "platform/contracts.js": "9c66ed174220e2f0b26adec8a222f2b370b4d1a7d55d272043f0154c958ad5ed",
     "platform/canonical.js": "a354597d9f81278ea14c76cbb726207ca228c2652876517838708769f70156e3",
     "platform/identity.js": "fc91495ef08c92b77dfaa0c6d11f4c837a0e309022fa683e7140803270606cc4",
-    "platform/approval.js": "a9d2e97ba80df37461e95aeff19eb4fd8bcba0d026e97c956158d1fce3f368da",
+    "platform/approval.js": "f9f1a873b4a5eb17529d35d1aa5fde8c6a11016fa9db0f35ec0eafccadc9ec1b",
     "platform/signed-audit.js": "46471ebb5765cb2725f3d1bccbef7bf1fef59f1f2e777f528e999fa96638621d",
     "platform/policy.js": "c54bca0290605ea74be72b9a7e06d6d3049ef53bf837e45e7d03330da5ecc1cc",
     "platform/jwt.js": "51c42b6f998b00c2a689194d9d60e6176df2f9b78406cd0e3b682cfcbba9a142",
     "platform/ssrf.js": "613e46a02c8930aed93b6d7227451167ae0349ab53b3d9ffefa997b2a5ba4e12",
     "platform/http-gateway.js": "357749ea416bc242b20c2a5b5e92e179d99d7d6b41a62b84517b91f2147b5c8d",
-    "platform/sandbox-manager.js": "d882c114c4c640ca722dec11b351a4ec30b62c45254c2266706f0db617c32eb9",
-    "platform/os-sandbox.js": "b503f0e422c4005c57f11384fb1fbe474a94dd96c11340576da8e2e1d34a60d8",
+    "platform/sandbox-manager.js": "b646cfbe80a2fcfc7ea7e942c9f38e19294d6bcfee83e2502abf567911118ff1",
+    "platform/os-sandbox.js": "126b7ddb1bb804c8a441e5fd7f339254ccede42d3428408158299183a0a50cc1",
     "platform/windows-sandbox.js": "d3c5e5280aa81b740afd5fbbd31b9664d426e12154c4b199232932426aab3a08",
     "platform/mcp-http-bridge.js": "21175c0fa187710e3af69b11b8b9017cdc321f6bb309aced4dd83a9789044a9a",
     "platform/memory-guard.js": "468da6d5483cb44ae2e2f3051b011afee44bbc0a900892950aabf9ac26ee3eae",
     "platform/delegation.js": "b7d4aa6c0885528f26de47c072b5e53e1b96bdc393a02fce3c6e8cbd780ad5cb",
-    "platform/aisvs.js": "711fa398da46c8deb386b6397d0b104905cc761145656c8bdd1ce5e78d394a35"
+    "platform/aisvs.js": "711fa398da46c8deb386b6397d0b104905cc761145656c8bdd1ce5e78d394a35",
+    "platform/approval-service.js": "6c4cfc3b24e4a8dd53c343604adea55941fe8218b1232a71c56d5a03a06f1f3c",
+    "platform/oauth-server.js": "bc41bfd676a19766dde9399958e4db70d0512dc028ec37585d17267cabd5dc29",
+    "platform/runtime-monitor.js": "b3b18bc0164869ba32fd8bf1927f25aa376dbc72d5d1ae0de4b459b3f179737c"
   }
 }

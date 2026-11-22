@@ -242,10 +242,61 @@ async function verifyFilesystemIsolation(bwrap, nodePath) {
 
 function cryptoRandom() { return require('crypto').randomBytes(8).toString('hex'); }
 
+
+class MacSandboxExecSandbox {
+  constructor(opts = {}) {
+    this.id = 'macos-sandbox-exec';
+    this.isolationClass = ISOLATION.OS;
+    this.verified = false;
+    this.verification = 'unverified';
+    this.limitations = ['deprecated sandbox-exec profile; not an App Sandbox entitlement or VM', 'network and selected filesystem writes denied by profile'];
+    this.nodePath = opts.nodePath || process.execPath;
+    this.sandboxExec = opts.sandboxExec || (process.platform === 'darwin' ? '/usr/bin/sandbox-exec' : null);
+  }
+  available() { return process.platform === 'darwin' && Boolean(this.sandboxExec) && fs.existsSync(this.sandboxExec); }
+  _profile(dir) {
+    const nodeRoot = path.dirname(path.dirname(this.nodePath));
+    return [
+      '(version 1)', '(deny default)',
+      '(allow process*)',
+      '(allow sysctl-read)',
+      '(allow mach-lookup)',
+      '(allow file-read* (subpath "/usr") (subpath "/System") (subpath "/Library") (subpath "/bin") (subpath "/sbin") (subpath "/dev") (subpath "/private/etc") (subpath "/private/var/db"))',
+      '(allow file-read* (subpath ' + JSON.stringify(nodeRoot) + ') (subpath ' + JSON.stringify(dir) + '))',
+      '(allow file-write* (subpath "/tmp") (subpath "/private/tmp"))',
+      '(deny network*)',
+    ].join('\n');
+  }
+  run(code, opts = {}) {
+    const started = Date.now();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-mac-'));
+    fs.writeFileSync(path.join(dir, 'user.js'), String(code), 'utf8');
+    fs.writeFileSync(path.join(dir, 'harness.js'), HARNESS_SOURCE, 'utf8');
+    const result = { success: false, output: null, error: null, duration: 0, isolation: this.id, isolationClass: ISOLATION.OS, verified: this.verified, verification: this.verification, limitations: this.limitations.slice() };
+    if (!this.available()) { result.error = 'macOS sandbox-exec backend unavailable'; return Promise.resolve(result); }
+    return new Promise((resolve) => {
+      const child = spawn(this.sandboxExec, ['-p', this._profile(dir), this.nodePath, path.join(dir, 'harness.js')], { cwd: dir, env: { PATH: '/usr/bin:/bin', HOME: '/tmp' }, stdio: ['ignore', 'pipe', 'pipe'], shell: false });
+      let stdout = ''; let stderr = '';
+      const timer = setTimeout(() => { try { child.kill('SIGKILL'); } catch {} }, opts.timeout || 5000);
+      child.stdout.on('data', (c) => { stdout += c.toString('utf8'); });
+      child.stderr.on('data', (c) => { stderr += c.toString('utf8').slice(0, 1024 * 1024); });
+      child.once('error', (err) => { clearTimeout(timer); result.error = err.message; result.duration = Date.now() - started; resolve(result); });
+      child.once('exit', (code, signal) => { clearTimeout(timer); Object.assign(result, parseHarnessOutput(stdout, stderr, signal, code)); result.duration = Date.now() - started; resolve(result); });
+    });
+  }
+  async verify() {
+    if (!this.available()) { this.verification = 'unavailable'; return false; }
+    const probe = await this.run('const x = 1 + 1; x', { timeout: 4000 });
+    this.verified = Boolean(probe.success);
+    this.verification = this.verified ? 'sandbox-exec-harness-verified' : 'verification-failed';
+    return this.verified;
+  }
+}
+
 function getLinuxBackend(opts = {}) {
   const bwrap = new LinuxBubblewrapSandbox(opts);
   if (bwrap.available()) return bwrap;
   return new LinuxNamespaceSandbox(opts);
 }
 
-module.exports = { LinuxNamespaceSandbox, LinuxBubblewrapSandbox, getLinuxBackend };
+module.exports = { LinuxNamespaceSandbox, LinuxBubblewrapSandbox, MacSandboxExecSandbox, getLinuxBackend };

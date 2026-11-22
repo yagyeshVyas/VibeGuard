@@ -5,11 +5,11 @@ the independent evidence is in `research/`.
 
 ## Verified results
 
-- Full Windows Node24 suite: **625 passed, 0 failed**.
-- Full Windows Node18 suite: **625 passed, 0 failed**.
-- Full Linux WSL Node22 suite: **625 passed, 0 failed**.
-- Platform security suite: **31/31** on Node18/20/22/24 and Linux.
-- Integrity: **46 modules** verified.
+- Full Windows Node24 suite: **629 passed, 0 failed**.
+- Full Windows Node18 suite: **629 passed, 0 failed**.
+- Full Linux WSL Node22 suite: **629 passed, 0 failed**.
+- Platform security suite: **35/35** on Node18/20/22/24 and Linux.
+- Integrity: **49 modules** verified.
 - `npm audit --audit-level=high`: 0 critical/high, 10 moderate.
 - Labeled corpus: precision/recall 1.0 on a small curated set (not representative).
 
@@ -50,7 +50,7 @@ accepts the new `INJECT.DEEP_DETECTOR` finding. No security assertion removed.
 
 ## Evidence
 
-- `test/platform-security-tests.js` (31 tests)
+- `test/platform-security-tests.js` (35 tests)
 - `test/corpus/run.js`
 - `research/SECURITY_TEST_MATRIX.md`
 - `research/KNOWN_LIMITATIONS.md`

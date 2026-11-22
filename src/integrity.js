@@ -40,6 +40,7 @@ const CRITICAL_MODULES = [
   'platform/sandbox-manager.js', 'platform/os-sandbox.js', 'platform/windows-sandbox.js',
   'platform/mcp-http-bridge.js', 'platform/memory-guard.js',
   'platform/delegation.js', 'platform/aisvs.js',
+  'platform/approval-service.js', 'platform/oauth-server.js', 'platform/runtime-monitor.js',
 ];
 
 function hashFile(p) {

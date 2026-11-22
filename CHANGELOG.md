@@ -3,6 +3,21 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.13.0] - 2026-11-22
+
+### Added
+
+- Linux bubblewrap filesystem/network/PID isolation and Windows Job Object containment (AppContainer/WFP still absent).
+- macOS `sandbox-exec` backend (deprecated profile; not App Sandbox/VM).
+- Hosted approval API with authenticated tickets/proofs, JSON persistence, key rotation and read-only dashboard.
+- Local OAuth 2.1 authorization-code + PKCE server with JWKS and aud/scope validation.
+- Runtime RSS monitor with `--max-rss` quarantine kill.
+- External audit anchor and HTTPS/mTLS bridge options.
+
+### Breaking
+
+- `ApprovalBroker.decide()` requires signed approver proof by default.
+
 ## [1.12.0] - 2026-11-22
 
 ### Added

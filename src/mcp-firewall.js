@@ -733,6 +733,16 @@ function startProxy(opts = {}) {
     setTimeout(() => process.exit(2), 10).unref();
   }
 
+  let resourceMonitor = null;
+  if (Number(opts.maxRssMb || 0) > 0 && child.pid) {
+    const { RuntimeMonitor } = require('./platform/runtime-monitor');
+    resourceMonitor = new RuntimeMonitor({
+      pid: child.pid,
+      maxRssBytes: Number(opts.maxRssMb) * 1024 * 1024,
+      onExceeded: (info) => quarantineKill(`RSS ${info.rss} exceeded ${info.maxRssBytes}`),
+    }).start();
+  }
+
   function forwardToServer(messages) {
     for (const message of messages) {
       if (message && typeof message === 'object' && message.method) {
@@ -833,6 +843,7 @@ function startProxy(opts = {}) {
   }
 
   child.on('exit', (code, signal) => {
+    if (resourceMonitor) resourceMonitor.stop();
     engine.logger.log('mcp_server_exit', { server: serverName, code, signal, stats: engine.getStats() });
     if (!closed) {
       closed = true;

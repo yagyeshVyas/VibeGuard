@@ -142,6 +142,79 @@ test('delegation graph: attenuation, depth and signature checks', () => {
   assert.throws(() => verifier.verify(d.token, { requiredCapabilities: ['fs.write'] }), /lacks capability/i);
 });
 
+test('local OAuth 2.1 code + PKCE flow issues a verifiable audience-bound token', async () => {
+  const http = require('http');
+  const crypto = require('crypto');
+  const { createOAuthServer } = require('../src/platform/oauth-server');
+  const { generateKeyPair, publicKeyToJwk } = require('../src/platform/identity');
+  const { verifyJwt } = require('../src/platform/jwt');
+  const pair = generateKeyPair();
+  const server = await createOAuthServer({ privateKey: pair.privateKey, publicKey: pair.publicKey, clients: { cli: 'secret' }, issuer: 'https://iv', audience: 'vibeguard-gateway' });
+  const post = (path, body, headers = {}) => new Promise((resolve, reject) => {
+    const u = new URL(server.url + path); const data = JSON.stringify(body);
+    const r = http.request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST', agent: false, headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data), ...headers } }, (res) => { let s = ''; res.on('data', (c) => s += c); res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(s) })); });
+    r.on('error', reject); r.write(data); r.end();
+  });
+  try {
+    const verifier = 'verifier-12345678901234567890123456789012';
+    const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+    const c = await post('/authorize', { client_id: 'cli', redirect_uri: 'http://localhost/cb', code_challenge: challenge, scope: 'mcp.tool.invoke', principal: 'agent:acme/ci' }, { 'x-client-secret': 'secret' });
+    assert.strictEqual(c.status, 200);
+    const t = await post('/token', { grant_type: 'authorization_code', code: c.body.code, redirect_uri: 'http://localhost/cb', client_id: 'cli', code_verifier: verifier }, { 'x-client-secret': 'secret' });
+    assert.strictEqual(t.status, 200);
+    const verified = verifyJwt(t.body.access_token, { jwks: { keys: [publicKeyToJwk(pair.publicKey, 'oauth-key')] }, issuer: 'https://iv', audience: 'vibeguard-gateway', scopes: ['mcp.tool.invoke'] });
+    assert.strictEqual(verified.claims.sub, 'agent:acme/ci');
+    const replay = await post('/token', { grant_type: 'authorization_code', code: c.body.code, redirect_uri: 'http://localhost/cb', client_id: 'cli', code_verifier: verifier }, { 'x-client-secret': 'secret' });
+    assert(replay.status >= 400);
+  } finally { await server.close(); }
+});
+
+test('hosted approval service: authenticated request, signed proof, persistence and key rotation', async () => {
+  const http = require('http');
+  const { createApprovalService } = require('../src/platform/approval-service');
+  const { ApprovalBroker } = require('../src/platform/approval');
+  const { IdentityAuthority, generateKeyPair } = require('../src/platform/identity');
+  const dir = tmp();
+  const pair = generateKeyPair();
+  const approverPair = generateKeyPair();
+  const approver = 'human:acme/alice';
+  const authority = new IdentityAuthority({ issuer: 'human:acme/security@example.com', tenant: 'acme' });
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: pair.privateKey, keyId: 'a', approverKeys: { [approver]: approverPair.publicKey } });
+  const request = (url, token, body) => new Promise((resolve, reject) => {
+    const u = new URL(url); const data = JSON.stringify(body);
+    const r = http.request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST', agent: false, headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data), authorization: 'Bearer ' + token } }, (res) => { let s = ''; res.on('data', (c) => s += c); res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(s) })); });
+    r.on('error', reject); r.write(data); r.end();
+  });
+  const storeFile = path.join(dir, 'approvals.json');
+  let service = await createApprovalService({ broker, authority, storeFile });
+  try {
+    const agentToken = authority.issue({ principal: 'agent:acme/ci', capabilities: ['mcp.tool.invoke'] }).token;
+    const humanToken = authority.issue({ principal: approver, capabilities: [] }).token;
+    const action = { server: 's', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
+    const req = await request(service.url + '/approval/request', agentToken, { action });
+    assert.strictEqual(req.status, 200);
+    const ticket = req.body.ticket;
+    const proof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver, privateKey: approverPair.privateKey });
+    const decision = await request(service.url + '/approval/decision', humanToken, { ticketId: ticket.ticketId, approve: true, proof });
+    assert.strictEqual(decision.status, 200);
+    assert.strictEqual(decision.body.status, 'approved');
+    assert(decision.body.approvalToken);
+    assert(fs.existsSync(storeFile));
+  } finally { await service.close(); }
+  broker.importState(JSON.parse(fs.readFileSync(storeFile, 'utf8')));
+  service = await createApprovalService({ broker, authority, storeFile });
+  try { assert.strictEqual(service.broker.tickets.size, 1); } finally { await service.close(); }
+});
+
+test('runtime monitor: RSS cap invokes quarantine callback once', () => {
+  const { RuntimeMonitor } = require('../src/platform/runtime-monitor');
+  let hit = 0;
+  const m = new RuntimeMonitor({ pid: 1234, maxRssBytes: 100, intervalMs: 1000, read: () => 200, onExceeded: () => { hit++; } });
+  assert.strictEqual(m.check().exceeded, true);
+  assert.strictEqual(m.check().exceeded, true);
+  assert.strictEqual(hit, 1);
+});
+
 test('Windows Job Object backend: process/memory containment when available', async () => {
   if (process.platform !== 'win32') return;
   const { WindowsJobSandbox } = require('../src/platform/windows-sandbox');
@@ -156,6 +229,19 @@ test('Windows Job Object backend: process/memory containment when available', as
   assert(r.limitations.some((x) => /AppContainer|WFP|filesystem/i.test(x)), 'must disclose missing isolation');
   const timeout = await b.run('while (true) {}', { timeout: 1200 });
   assert.strictEqual(timeout.success, false);
+});
+
+test('macOS sandbox-exec backend when available', async () => {
+  if (process.platform !== 'darwin') return;
+  const { MacSandboxExecSandbox } = require('../src/platform/os-sandbox');
+  const b = new MacSandboxExecSandbox();
+  if (!b.available()) return;
+  if (!(await b.verify())) return;
+  const r = await b.run('const x = 1 + 2; x', { timeout: 5000 });
+  assert.strictEqual(r.success, true, r.error);
+  assert.strictEqual(String(r.output), '3');
+  assert.strictEqual(r.isolationClass, 'os');
+  assert(r.limitations.some((x) => /App Sandbox|VM|sandbox-exec/i.test(x)));
 });
 
 test('Linux OS namespace backend: network/PID isolation when available', async () => {

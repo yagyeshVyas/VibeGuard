@@ -3,7 +3,7 @@
 **Verification date:** 2026-11-22  
 **Status:** INTERNAL TESTING — not beta/production ready.
 
-This is the residual-risk list after the v1.12.0 hardening pass.
+This is the residual-risk list after the v1.13.0 hardening pass.
 
 ---
 
@@ -71,7 +71,7 @@ mode and signed v2 policy are opt-in; a compromised agent/user can avoid them.
 - Windows: Node18/20/22/24 platform and Node18/24 full suites pass locally;
   Job Object backend verified locally.
 - Linux: WSL Node22 full/platform suites pass; bubblewrap verified in WSL.
-- **macOS:** platform suite passed in CI (31/31); full macOS suite not run.
+- **macOS:** platform suite passed in CI (35/35); full macOS suite not run.
 - No macOS isolation backend.
 
 ### L-10 — Supply chain/release incomplete (Medium)
@@ -79,7 +79,7 @@ mode and signed v2 policy are opt-in; a compromised agent/user can avoid them.
 - `npm audit`: 0 critical/high, **10 moderate** remain.
 - No package provenance/SLSA attestation or signed plugin/skill manifests.
 - Actions are tag-pinned, not SHA-pinned.
-- npm `1.12.0` is published; GitHub Actions still lacks the `NPM_TOKEN` secret,
+- npm `1.13.0` is published; GitHub Actions still lacks the `NPM_TOKEN` secret,
   so its publish step skips.
 
 ### L-11 — DNS rebinding enforcement not integrated (Medium)

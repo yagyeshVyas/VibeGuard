@@ -1,7 +1,7 @@
 {
   "name": "@yagyeshvyas/vibeguard",
-  "version": "1.12.0",
-  "description": "Offline-by-default security scanner and runtime firewall for AI-coded apps and MCP agents. 861 rules, 93 MCP tools, signed default-deny policy, tool-poisoning/prompt-injection/secret-exfiltration detection, signed audit with external anchor, authenticated HTTP/SSE MCP bridge with TLS, Linux bubblewrap network/PID/filesystem isolation, Windows Job Object containment, and OWASP Agentic AI + MCP coverage. Zero telemetry.",
+  "version": "1.13.0",
+  "description": "Offline-by-default security scanner and runtime firewall for AI-coded apps and MCP agents. 861 rules, 93 MCP tools, signed default-deny policy, tool-poisoning/prompt-injection/secret-exfiltration detection, signed audit + external anchor, hosted approvals with signed proofs, HTTP/SSE MCP bridge with OAuth/TLS, Linux bubblewrap isolation, Windows Job containment and macOS sandbox-exec. Zero telemetry.",
   "license": "MIT",
   "type": "commonjs",
   "author": "Yagyesh Vyas <https://www.linkedin.com/in/yagyeshvyas/>",

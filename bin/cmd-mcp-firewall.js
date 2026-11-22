@@ -178,6 +178,7 @@ function cmdMcpFirewall(args, flags) {
     approvalTenant: flags['approval-tenant'],
     approvalKeyId: flags['approval-key-id'],
     maxBlocks: flags['max-blocks'] ? Number(flags['max-blocks']) : 0,
+    maxRssMb: flags['max-rss'] ? Number(flags['max-rss']) : 0,
   });
 
   proxy.child.once('spawn', () => {

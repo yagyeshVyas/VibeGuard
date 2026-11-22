@@ -76,6 +76,11 @@ function defaultManager() {
       const win = new WindowsJobSandbox();
       if (win.available()) manager.register(win);
     }
+    if (process.platform === 'darwin') {
+      const { MacSandboxExecSandbox } = require('./os-sandbox');
+      const mac = new MacSandboxExecSandbox();
+      if (mac.available()) manager.register(mac);
+    }
   } catch { /* optional platform backend */ }
   manager.register({
     id: 'process',

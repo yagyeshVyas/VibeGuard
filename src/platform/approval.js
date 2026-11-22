@@ -140,6 +140,22 @@ class ApprovalBroker {
     return { status: 'approved', ticket: publicTicket(ticket), approvalToken: token };
   }
 
+  exportState() {
+    return { tickets: [...this.tickets.values()], usedTokens: [...this.usedTokens] };
+  }
+
+  importState(state = {}) {
+    this.tickets = new Map((state.tickets || []).map((t) => [t.ticketId, t]));
+    this.usedTokens = new Set(state.usedTokens || []);
+    return this;
+  }
+
+  rotateApproverKey(principal, key) {
+    if (!String(principal).startsWith('human:')) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver must be a human principal');
+    this.approverKeys.set(principal, loadPublicKey(key));
+    return { principal, rotatedAt: this.now().toISOString() };
+  }
+
   static signApproverProof({ ticketId, actionDigest: digest, nonce, approver, privateKey, ttlSeconds = 120, keyId = 'approver' } = {}) {
     if (!ticketId || !digest || !nonce || !approver || !privateKey) throw new Error('approver proof requires ticketId, actionDigest, nonce, approver, privateKey');
     const now = Math.floor(Date.now() / 1000);

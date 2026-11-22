@@ -1,21 +1,21 @@
 # Release Notes — Security Preview
 
-**Status:** published internal-testing build (`1.12.0`). **Not beta/production-ready.**
+**Status:** published internal-testing build (`1.13.0`). **Not beta/production-ready.**
 
 This is the implementation change set built on v1.10.0 (`2ce5b36`). It is
-published to npm as `@yagyeshvyas/vibeguard@1.12.0` but does not carry a
+published to npm as `@yagyeshvyas/vibeguard@1.13.0` but does not carry a
 production security guarantee.
 
 ## Verified statistics
 
-- Full test suite: **625 passed, 0 failed** (local Windows, Node 24; CI
+- Full test suite: **629 passed, 0 failed** (local Windows, Node 24; CI
   matrix includes Node 18/20/22 on Ubuntu and platform jobs for Windows/macOS;
   Node18 and Linux full suites also passed).
-- New platform security suite: **31 passed, 0 failed**.
+- New platform security suite: **35 passed, 0 failed**.
 - MCP firewall self-test: **11/11**.
-- Integrity manifest: **46 modules** SHA-256 verified.
+- Integrity manifest: **49 modules** SHA-256 verified.
 - Dependency audit: **0 critical/high**, 10 moderate remaining.
-- Package: `@yagyeshvyas/vibeguard@1.12.0` (npm `latest`); GitHub release tarball
+- Package: `@yagyeshvyas/vibeguard@1.13.0` (npm `latest`); GitHub release tarball
   and checksum also attached.
 - Benchmark: `reports/benchmark.json` (machine-specific).
 - Signed audit: chain, signature, checkpoint and tamper tests pass.

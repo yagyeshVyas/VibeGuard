@@ -12,8 +12,8 @@ Controlled internal testing is allowed; external beta/production is not.
 
 | Criterion | Result | Evidence |
 |---|---|---|
-| Existing/legacy functionality preserved | PASS in tested suite | Windows Node24 full **625/625**; Node18 full **625/625**; Linux full **625/625** |
-| New security tests pass | PASS (31) | platform suite 31/31 on Windows Node18/20/22/24 and Linux Node22 |
+| Existing/legacy functionality preserved | PASS in tested suite | Windows Node24 full **629/629**; Node18 full **629/629**; Linux full **629/629** |
+| New security tests pass | PASS (31) | platform suite 35/35 on Windows Node18/20/22/24 and Linux Node22 |
 | No Critical/High silently ignored | **FAIL** | Windows/macOS OS isolation absent; Linux fs isolation absent; external audit anchor absent; approval broker spoofable; monitor/memory/multi-agent partial |
 | Strict mode blocks unknown tools | PASS | platform test |
 | Default behavior is deny | **FAIL** | legacy default allows unknown tools; strict is opt-in |
@@ -34,8 +34,8 @@ Controlled internal testing is allowed; external beta/production is not.
 | DNS rebinding resistance integrated | **PARTIAL** | validator returns pinned IP; no HTTP client enforcement |
 | Identity impersonation rejected | PASS for signatures/capabilities/replay; **FAIL** for unauthenticated human approval claim |
 | Windows compatibility | PASS local (Node18/20/22/24 platform; Node24/18 full) |
-| Linux compatibility | PASS platform **31/31** and full **625/625** (WSL) |
-| macOS compatibility | **PASS platform 31/31 in CI**; full suite not run |
+| Linux compatibility | PASS platform **35/35** and full **629/629** (WSL) |
+| macOS compatibility | **PASS platform 35/35 in CI**; full suite not run |
 | MCP stdio | PASS for existing tests + token/approval path |
 | MCP Streamable HTTP | PASS for loopback bridge; no remote TLS/multi-session |
 | Offline/local | PASS for platform primitives; product has explicit network commands |
@@ -45,15 +45,15 @@ Controlled internal testing is allowed; external beta/production is not.
 
 ## 2. Verified facts
 
-- Full Windows Node24 suite: **625 passed, 0 failed**.
-- Full Windows Node18 suite: **625 passed, 0 failed**.
-- Full Linux WSL Node22 suite: **625 passed, 0 failed**.
-- Platform security suite: **31/31** on Node18, 20, 22, 24 and Linux.
+- Full Windows Node24 suite: **629 passed, 0 failed**.
+- Full Windows Node18 suite: **629 passed, 0 failed**.
+- Full Linux WSL Node22 suite: **629 passed, 0 failed**.
+- Platform security suite: **35/35** on Node18, 20, 22, 24 and Linux.
 - Linux `unshare` OS backend: network namespace self-test passes; filesystem not isolated.
 - Labeled corpus: prompt/tool precision 1, recall 1 on the small curated set
   (not a representative corpus).
 - `npm audit --audit-level=high`: **0 critical/high**, 10 moderate.
-- Integrity: 46 modules hashed/verified.
+- Integrity: 49 modules hashed/verified.
 - Independent probes fixed 17 bypass/fail-open/coverage issues.
 
 ## 3. Remaining blockers for beta

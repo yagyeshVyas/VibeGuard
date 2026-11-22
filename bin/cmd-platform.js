@@ -96,6 +96,9 @@ async function cmdSandbox(args, flags) {
     if (process.platform === 'win32') {
       const { WindowsJobSandbox } = require('../src/platform/windows-sandbox');
       backend = new WindowsJobSandbox();
+    } else if (process.platform === 'darwin') {
+      const { MacSandboxExecSandbox } = require('../src/platform/os-sandbox');
+      backend = new MacSandboxExecSandbox();
     } else {
       const { getLinuxBackend } = require('../src/platform/os-sandbox');
       backend = getLinuxBackend();

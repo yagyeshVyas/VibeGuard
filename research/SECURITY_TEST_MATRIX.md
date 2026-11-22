@@ -206,10 +206,10 @@ Status legend:
 
 ## Test execution summary
 
-- Current Windows full suite: **625 passed, 0 failed** (last complete run; rerun
+- Current Windows full suite: **629 passed, 0 failed** (last complete run; rerun
   after final fixes is recorded in FINAL_VERIFICATION_REPORT).
-- Platform suite: **31 passed, 0 failed** on Node 18/20/22/24 and Linux WSL.
-- Node18 full: **625 passed, 0 failed** (Windows).
-- Linux WSL Node22 full: **625 passed, 0 failed** (final run with git + Node on PATH).
-- macOS: platform suite **31/31** passed in CI; full suite not run.
-- Node20/22: platform suite 31/31; full suite not run.
+- Platform suite: **35 passed, 0 failed** on Node 18/20/22/24 and Linux WSL.
+- Node18 full: **629 passed, 0 failed** (Windows).
+- Linux WSL Node22 full: **629 passed, 0 failed** (final run with git + Node on PATH).
+- macOS: platform suite **35/35** passed in CI; full suite not run.
+- Node20/22: platform suite 35/35; full suite not run.

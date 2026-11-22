@@ -32,7 +32,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-625%20passed-blue?style=flat-square" alt="625 tests pass" />
+  <img src="https://img.shields.io/badge/tests-629%20passed-blue?style=flat-square" alt="629 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -66,7 +66,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 
 ---
 
-## 🆕 What's New — v1.12.0
+## 🆕 What's New — v1.13.0
 
 **Security foundation v2 (internal testing).** This release is not beta or
 production-ready; it is the verified internal-testing build described in
@@ -81,12 +81,12 @@ production-ready; it is the verified internal-testing build described in
 - Linux `unshare` network/PID namespace sandbox with `sandbox verify`.
 - Memory provenance and multi-agent delegation guards; labeled detection corpus;
   AISVS-style readiness mapping.
-- **625 tests, 0 failures** on Windows Node24/Node18 and Linux Node22; 31/31
+- **629 tests, 0 failures** on Windows Node24/Node18 and Linux Node22; 35/35
   platform tests on Windows/Linux/macOS CI.
 
-Install note: v1.12.0 is distributed as `@yagyeshvyas/vibeguard@1.12.0`. If a
+Install note: v1.13.0 is distributed as `@yagyeshvyas/vibeguard@1.13.0`. If a
 registry mirror still serves an older build, use the exact
-[v1.12.0 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.12.0).
+[v1.13.0 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.13.0).
 
 ## 🆕 What's New — v1.10.0
 
@@ -146,9 +146,9 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — v1.12.0 status (internal testing)
+## Security baseline v2 — v1.13.0 status (internal testing)
 
-This repository contains the v1.12.0 security foundation. It is **not** a
+This repository contains the v1.13.0 security foundation. It is **not** a
 production-ready agent security platform. Linux network/PID namespace isolation
 is available; Windows/macOS OS isolation is not implemented.
 
@@ -166,8 +166,9 @@ Implemented and tested:
 - Authenticated loopback **HTTP JSON-RPC + SSE** MCP bridge with upstream stdio.
 - Optional **kill-on-block/block-budget** quarantine response.
 - **Linux bubblewrap** sandbox with verified network/PID/filesystem isolation,
-  plus `unshare` fallback. **Windows Job Object** process/memory containment is
-  available; AppContainer/WFP and macOS VM are still absent.
+  plus `unshare` fallback. **Windows Job Object** process/memory containment and
+  macOS `sandbox-exec` are available; AppContainer/WFP and macOS App Sandbox/VM
+  are still absent.
 - Memory provenance guard and signed multi-agent delegation library.
 - Labeled detection corpus runner and AISVS-style readiness mapping.
 - Target-controlled scanner plugins are **disabled by default**; code execution
@@ -184,16 +185,16 @@ Not implemented or not verified:
   Object provides process/memory containment only; it does not isolate files or
   network. Linux bubblewrap isolates network/PID/filesystem when installed, but
   is not a VM/hardware boundary.
-- **External audit anchor** is supported (`audit verify --anchor`); legacy
+- **External audit anchor** and checkpoint sidecars are supported; legacy
   non-strict gateway audit is still the legacy hash chain.
-- **Approval service/UI**: `ApprovalBroker.decide()` now requires a signed
-  approver proof; there is still no hosted approval UI/service.
-- Remote OAuth multi-session deployment; TLS/mTLS server options exist, but
-  live OAuth authorization-server flow and persistence are not implemented.
+- **Approval service**: hosted API with authenticated tickets, signed approver
+  proofs, JSON persistence, key rotation and a read-only dashboard; no SSO/IdP.
+- A **local OAuth 2.1 code+PKCE server** and TLS/mTLS bridge options exist;
+  multi-session persistence and a full remote IdP/lifecycle remain incomplete.
 - Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
   tested libraries only.
 - Independent penetration test, representative precision/recall corpus, macOS
-  full-suite evidence. npm 1.12.0 is published; GitHub Actions still lacks the
+  full-suite evidence. npm 1.13.0 is published; GitHub Actions still lacks the
   NPM_TOKEN secret and skips its publish step.
 - Dashboard/SDK and full AISVS certification; AISVS is an internal mapping.
 
