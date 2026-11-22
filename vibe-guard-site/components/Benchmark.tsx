@@ -3,14 +3,14 @@
 import { motion } from "framer-motion";
 
 const data = [
-  { category: "INJECTION", precision: 89.6, recall: 87.8, f1: 88.7, color: "#ff3860" },
-  { category: "SECRETS", precision: 73.1, recall: 90.5, f1: 80.9, color: "#ffb547" },
-  { category: "XSS", precision: 100.0, recall: 94.1, f1: 97.0, color: "#00f0ff" },
-  { category: "PATH TRAVERSAL", precision: 90.0, recall: 90.0, f1: 90.0, color: "#00ff9d" },
-  { category: "AI SAFETY", precision: 80.0, recall: 57.1, f1: 66.7, color: "#a855f7" },
+  { category: "INJECTION", precision: 100.0, recall: 100.0, f1: 100.0, color: "#ff3860" },
+  { category: "SECRETS", precision: 100.0, recall: 100.0, f1: 100.0, color: "#ffb547" },
+  { category: "XSS", precision: 100.0, recall: 100.0, f1: 100.0, color: "#00f0ff" },
+  { category: "PATH TRAVERSAL", precision: 100.0, recall: 100.0, f1: 100.0, color: "#00ff9d" },
+  { category: "AI SAFETY", precision: 100.0, recall: 100.0, f1: 100.0, color: "#a855f7" },
 ];
 
-const overall = { precision: 86.4, recall: 85.6, f1: 86.0 };
+const overall = { precision: 100.0, recall: 100.0, f1: 100.0 };
 
 // Radar chart points (5 categories, 3 metrics each)
 function radarPoints(cx: number, cy: number, radius: number, values: number[], sides: number) {
@@ -46,7 +46,7 @@ export default function Benchmark() {
             HONEST <span className="text-aurora-gradient glow-text-cyan">BENCHMARK</span>
           </h2>
           <p className="mt-4 font-body text-[#7ea6bc] max-w-2xl mx-auto">
-            Measured against a curated corpus of 121 files. Run <code className="font-mono text-[#00ff9d]">npm run benchmark</code> to reproduce.
+            Measured against a curated corpus of 136 files (97 vulnerable, 39 clean). Run <code className="font-mono text-[#00ff9d]">npm run benchmark</code> to reproduce.
           </p>
         </motion.div>
 
@@ -203,8 +203,17 @@ export default function Benchmark() {
         </div>
 
         <p className="mt-8 text-center font-body text-sm text-[#7ea6bc]">
-          86.0% F1 means it misses ~14% of real issues. Read per-category details in{" "}
-          <code className="font-mono text-[#00ff9d]">test/benchmark/benchmark-results.md</code> before relying on it.
+          100% here means this self-built corpus no longer discriminates — it is a regression gate, not proof the scanner is complete. Read per-category details in{" "}
+          <code className="font-mono text-[#00ff9d]">test/benchmark/benchmark-results.md</code>, and the third-party{" "}
+          <a
+            href="https://github.com/yagyeshVyas/VibeGuard/blob/master/test/third-party-benchmark.md"
+            target="_blank"
+            rel="noreferrer"
+            className="text-[#00f0ff] underline decoration-dotted underline-offset-4"
+          >
+            OWASP Juice Shop run
+          </a>{" "}
+          for a sanity check on code this project did not write.
         </p>
       </div>
     </section>

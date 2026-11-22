@@ -8,8 +8,8 @@ import ArcReactor from "@/components/ArcReactor";
 const stats = [
   { num: "861", label: "Detection Rules" },
   { num: "93", label: "MCP Tools" },
-  { num: "625", label: "Tests Passing" },
-  { num: "93%", label: "F1 Benchmark" },
+  { num: "629", label: "Tests Passing" },
+  { num: "100%", label: "Corpus F1" },
   { num: "18", label: "Languages" },
   { num: "$0", label: "Cost Forever" },
 ];
