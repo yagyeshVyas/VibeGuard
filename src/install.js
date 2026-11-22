@@ -24,7 +24,7 @@ function serverSpec(local) {
   }
   // Pin the package+version: an unpinned `npx -y vibeguard` can resolve an
   // unrelated/older package and makes the MCP config non-reproducible.
-  return { command: 'npx', args: ['-y', '@yagyeshvyas/vibeguard@1.10.0', 'mcp'] };
+  return { command: 'npx', args: ['-y', `@yagyeshvyas/vibeguard@${require('../package.json').version}`, 'mcp'] };
 }
 
 function exists(p) {

@@ -109,7 +109,7 @@ mode and signed v2 policy are opt-in; a compromised agent/user can avoid them.
 - No package provenance/signature verification or signed plugin/skill manifests.
 - No SBOM/checksum/SLSA attestation for this tree.
 - Actions are tag-pinned, not SHA-pinned.
-- No npm publication of this change set; package version remains 1.10.0.
+- npm publication is complete (`1.11.2`); no independent provenance/SLSA attestation.
 
 ### L-11 — DNS rebinding enforcement not integrated (Medium)
 

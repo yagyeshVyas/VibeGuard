@@ -912,7 +912,7 @@ test('entropy rule ignores lockfiles', () => {
 
 test('install: serverSpec + config writer merge without clobbering', () => {
   const { serverSpec, pasteBlock, writeJsonMcp } = require('../src/install');
-  assert.deepStrictEqual(serverSpec(false), { command: 'npx', args: ['-y', '@yagyeshvyas/vibeguard@1.10.0', 'mcp'] });
+  assert.deepStrictEqual(serverSpec(false), { command: 'npx', args: ['-y', `@yagyeshvyas/vibeguard@${require('../package.json').version}`, 'mcp'] });
   assert(serverSpec(true).args[0].endsWith('mcp-server.js'));
   assert(pasteBlock(serverSpec(false)).includes('"mcp"'));
 

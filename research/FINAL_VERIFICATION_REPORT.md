@@ -1,8 +1,7 @@
 # VibeGuard — Final Independent Verification Report
 
 **Verification date:** 2026-11-21/22 UTC  
-**Repository:** `D:\vibe guard` (working tree based on `2ce5b36`, v1.10.0, with
-uncommitted v2 changes)  
+**Repository:** `D:\vibe guard` (master, v1.11.2; base commit `2ce5b36`)  
 **Verifier role:** independent application-security / red-team / release review  
 **Evidence basis:** actual repository inspection, local controlled probes,
 full test suites, dependency audit and local benchmarks. No external systems
@@ -55,7 +54,7 @@ production readiness, complete MCP security, or OS isolation for Windows/macOS.
 - Overrides for vulnerable transitive packages were added.
 - `npm audit --audit-level=high`: **exit 0**; **0 critical/high** residuals,
   **10 moderate** remain.
-- No package publication or release signature was verified for this tree.
+- npm package published as `@yagyeshvyas/vibeguard@1.11.2` (latest); no independent provenance/SLSA attestation.
 
 ## 3. What was independently tested
 

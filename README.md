@@ -66,7 +66,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 
 ---
 
-## 🆕 What's New — v1.11.0
+## 🆕 What's New — v1.11.2
 
 **Security foundation v2 (internal testing).** This release is not beta or
 production-ready; it is the verified internal-testing build described in
@@ -84,9 +84,9 @@ production-ready; it is the verified internal-testing build described in
 - **623 tests, 0 failures** on Windows Node24/Node18 and Linux Node22; 29/29
   platform tests on Windows/Linux/macOS CI.
 
-Registry note: the npm registry still serves an older package. The v1.11.0
-tarball is attached to the [GitHub release](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.11.0)
-until `NPM_TOKEN` is configured. Do not treat `npx` as the v1.11.0 build yet.
+Install note: v1.11.2 is distributed as `@yagyeshvyas/vibeguard@1.11.2`. If a
+registry mirror still serves an older build, use the exact
+[v1.11.2 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.11.2).
 
 ## 🆕 What's New — v1.10.0
 
@@ -146,9 +146,9 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — v1.11.0 status (internal testing)
+## Security baseline v2 — v1.11.2 status (internal testing)
 
-This repository contains the v1.11.0 security foundation. It is **not** a
+This repository contains the v1.11.2 security foundation. It is **not** a
 production-ready agent security platform. Linux network/PID namespace isolation
 is available; Windows/macOS OS isolation is not implemented.
 

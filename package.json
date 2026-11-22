@@ -1,7 +1,7 @@
 {
   "name": "@yagyeshvyas/vibeguard",
-  "version": "1.11.0",
-  "description": "Security scanner + real-time MCP firewall + AI agent firewall + active pentester with a token-lean agent protocol. 861 rules, 93 MCP tools, prompt-injection/tool-poisoning detection, agent permission enforcement, secret-exfiltration prevention, skill/plugin scanning, OWASP Agentic AI + MCP Top 10 coverage, risk scoring and a process-isolated sandbox. Offline, zero telemetry, zero dependencies.",
+  "version": "1.11.2",
+  "description": "Offline-by-default security scanner and runtime firewall for AI-coded apps and MCP agents. 861 rules, 93 MCP tools, signed default-deny policy, tool-poisoning/prompt-injection/secret-exfiltration detection, signed audit, authenticated HTTP/SSE MCP bridge, Linux namespace sandboxing and OWASP Agentic AI + MCP coverage. Zero telemetry.",
   "license": "MIT",
   "type": "commonjs",
   "author": "Yagyesh Vyas <https://www.linkedin.com/in/yagyeshvyas/>",
@@ -27,7 +27,8 @@
     "CHANGELOG.md",
     "MCP-FIREWALL.md",
     "docs",
-    ".vibeguard-mcp.example.json"
+    ".vibeguard-mcp.example.json",
+    "scripts"
   ],
   "overrides": {
     "@hono/node-server": "^2.0.5",
@@ -99,7 +100,16 @@
     "context-window",
     "llm-tokens",
     "agent-tools",
-    "mcp-server"
+    "mcp-server",
+    "vibeguard",
+    "agent-security",
+    "mcp-firewall",
+    "signed-audit",
+    "policy-as-code",
+    "runtime-security",
+    "linux-namespace",
+    "http-mcp",
+    "ed25519"
   ],
   "engines": {
     "node": ">=18"
@@ -119,5 +129,9 @@
   "devDependencies": {
     "c8": "^10.1.3",
     "eslint": "^9.39.5"
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/yagyeshVyas"
   }
 }

@@ -3,6 +3,21 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.11.2] - 2026-11-22
+
+### Fixed
+
+- Include `scripts/postinstall.js` in the npm tarball; the previous package
+  failed `npm install` with MODULE_NOT_FOUND. Clean install verified from the
+  registry.
+
+## [1.11.1] - 2026-11-22
+
+### Fixed
+
+- Installer now pins the exact runtime package version dynamically instead of the
+  stale 1.10.0 literal.
+
 ## [1.11.0] - 2026-11-22
 
 ### Added — v2 security foundation (internal testing)

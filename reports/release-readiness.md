@@ -24,7 +24,7 @@ Still not beta/production ready:
 - No TLS/OAuth remote deployment or independent runtime monitor/quarantine.
 - Memory/multi-agent controls not wired end-to-end.
 - Small curated corpus; no independent penetration test.
-- macOS unverified; npm release not published.
+- macOS full suite not run; npm publication is complete (`1.11.2`).
 
 Allowed: controlled internal testing with no untrusted code on Windows/macOS.
 Not allowed: external beta, production candidate, or production-ready claims.
