@@ -10,10 +10,10 @@ const features = [
   { icon: "◆", title: "Cross-File Taint", desc: "Import/export graph taint tracking. Follows user input across modules to find injection paths.", glow: "red" },
   { icon: "⬟", title: "Supply Chain", desc: "CVE intel via OSV.dev, slopsquat detection, typosquat detection, postinstall script analysis.", glow: "cyan" },
   { icon: "⬣", title: "Compliance Mapping", desc: "SOC 2, PCI-DSS, HIPAA, GDPR, ISO 27001, EU AI Act. Maps findings to control IDs.", glow: "green" },
-  { icon: "⬤", title: "MCP Server", desc: "93 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, Copilot CLI, Amazon Q, Cody.", glow: "gold" },
-  { icon: "⬡", title: "MCP Firewall", desc: "Real-time MCP proxy: removes poisoned tools, enforces tool/path/host permissions, blocks secret exfiltration, scrubs tool results.", glow: "cyan" },
+  { icon: "⬤", title: "MCP Server", desc: "95 MCP tools for Claude Code, Cursor, Windsurf, Codex, Gemini CLI, Continue, Cline, Roo Code, OpenHands, Aider, Copilot CLI, Amazon Q, Cody.", glow: "gold" },
+  { icon: "⬡", title: "MCP Firewall", desc: "Strict default-deny proxy: blocks unknown tools, removes poisoned definitions, enforces tool/path/host permissions, and scrubs secrets from definitions/results/errors.", glow: "cyan" },
   { icon: "◈", title: "Agent Posture", desc: "Malicious skill/plugin scanning, a unified A-F agent risk score, and OWASP Agentic AI + MCP Top 10 coverage.", glow: "gold" },
-  { icon: "▣", title: "Process Sandbox", desc: "Untrusted code runs in a separate Node process under the permission model: no fs, no child_process, no network modules.", glow: "green" },
+  { icon: "▣", title: "OS Sandbox", desc: "Windows AppContainer + Job Object (live-verified), macOS QEMU/HVF VM with no NIC, and Linux bubblewrap. Process fallback is explicitly not an OS boundary.", glow: "green" },
   { icon: "✦", title: "Real-Time Hooks", desc: "PostToolUse hook auto-scans files after AI edits. Pre-commit hook blocks commits on critical findings.", glow: "red" },
   { icon: "◈", title: "Auto-Fix + Verify", desc: "43 auto-fixable rule types with snapshot + rollback. Verify mode shows resolved/remaining/new issues.", glow: "cyan" },
 ];

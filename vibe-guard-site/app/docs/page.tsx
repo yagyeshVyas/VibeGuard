@@ -49,7 +49,7 @@ const sections = [
     id: "mcp",
     title: "MCP Server",
     commands: [
-      { cmd: "vibeguard mcp", desc: "Start MCP server (93 tools)" },
+      { cmd: "vibeguard mcp", desc: "Start MCP server (95 tools)" },
       { cmd: "vibeguard install", desc: "Auto-detect and wire into all AI clients" },
     ],
   },
@@ -58,9 +58,9 @@ const sections = [
     title: "Agent Runtime Security",
     commands: [
       { cmd: "vibeguard mcp-firewall --init", desc: "Create a permission policy" },
-      { cmd: "vibeguard mcp-firewall --server <name>", desc: "Real-time MCP proxy: poisoning, permissions, secret scrub" },
-      { cmd: "vibeguard mcp-firewall --selftest", desc: "11 offline attack scenarios" },
-      { cmd: "vibeguard sandbox verify", desc: "Linux network/PID namespace verification" },
+      { cmd: "vibeguard mcp-firewall --server <name>", desc: "Strict default-deny MCP proxy: unknown tools, poisoning, permissions, secret scrub" },
+      { cmd: "vibeguard mcp-firewall --selftest", desc: "12 offline attack scenarios" },
+      { cmd: "vibeguard sandbox verify", desc: "Windows AppContainer, macOS VM or Linux namespace verification" },
       { cmd: "vibeguard audit verify <log> --pub <key>", desc: "Ed25519 audit/checkpoint verification" },
       { cmd: "vibeguard aisvs --json", desc: "Internal AISVS-style readiness mapping" },
       { cmd: "vibeguard skill-scan .", desc: "Scan skills/plugins for malicious behavior" },

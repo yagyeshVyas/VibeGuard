@@ -5,9 +5,9 @@ import { useEffect, useRef, useState } from "react";
 
 const stats = [
   { num: 861, label: "RULES", suffix: "" },
-  { num: 93, label: "MCP TOOLS", suffix: "" },
+  { num: 95, label: "MCP TOOLS", suffix: "" },
+  { num: 659, label: "TESTS", suffix: "" },
   { num: 18, label: "LANGUAGES", suffix: "" },
-  { num: 15, label: "AI CLIENTS", suffix: "" },
   { num: 10, label: "FRAMEWORKS", suffix: "" },
   { num: 0, label: "COST", suffix: "$" },
 ];
