@@ -232,12 +232,30 @@ function scoreTarget(target, labels, findingsRaw, manifest) {
   };
 }
 
+function gitOrNull(args) {
+  const result = spawnSync('git', args, {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    timeout: 30000,
+    windowsHide: true,
+  });
+  return result.status === 0 ? String(result.stdout || '').trim() : null;
+}
+
 function scannerIdentity() {
   const pkg = readJson(path.join(ROOT, 'package.json'));
+  const tree = gitOrNull(['rev-parse', 'HEAD:src']);
+  const blob = gitOrNull(['rev-parse', 'HEAD:package.json']);
+  const dirty = gitOrNull(['status', '--porcelain', '--', 'src', 'package.json']);
+  const worktree = `${hashDirectory(path.join(ROOT, 'src'), { skipFiles: new Set(['integrity.json']), normalizeEol: true })}:${hashTextFile(path.join(ROOT, 'package.json'))}`;
   return {
     name: pkg.name,
     version: pkg.version,
-    sourceHash: `${hashDirectory(path.join(ROOT, 'src'), { skipFiles: new Set(['integrity.json']), normalizeEol: true })}:${hashTextFile(path.join(ROOT, 'package.json'))}`,
+    // Git tree/blob ids are byte-identical across checkout platforms. If the
+    // scanned source or package manifest is dirty, fall back to a content hash
+    // so the report describes what actually ran.
+    sourceHash: tree && blob && dirty === '' ? `git:${tree}:${blob}` : `worktree:${worktree}`,
   };
 }
 
@@ -322,7 +340,6 @@ function stableReport(report) {
       id: target.id,
       commit: target.commit,
       treeHash: target.treeHash,
-      fileHash: target.fileHash,
       labelsHash: target.labelsHash,
       metrics: target.metrics,
       categories: target.categories,

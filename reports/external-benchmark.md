@@ -5,7 +5,7 @@
 
 **Benchmark:** `vibeguard-external-v1`  
 **Scanner:** `@yagyeshvyas/vibeguard@1.14.0`  
-**Scanner source hash:** `5c16d030fcc56a00c2d626471bbdcc5e0808d728b94c859e29ca15adc4d95ac3:7025c38645e34bf43f55cd815419003dc2cadec9d9837c07d8648d7cc2a0c9cc`  
+**Scanner source hash:** `git:5801f9c3de5fbc6e9c517f640993e7f5c02ce52d:2f6a143f9d273f46a7a89120e1f1c4e33fb0353f`  
 **Scope:** labeled file/line ranges only; unlabeled findings are ignored
 
 ## Summary
