@@ -62,8 +62,11 @@ node bin/cli.js sandbox verify
 ```
 
 On Windows, `sandbox verify` runs the AppContainer suite. On macOS, it requires
-a bootable guest image. CI runs the full suite on Windows, Linux and macOS;
-results are attached to the workflow run and summarized in
+a bootable guest image. CI run
+[`45102610378`](https://github.com/yagyeshVyas/VibeGuard/actions/runs/45102610378)
+passed the full suite on Windows, Linux and macOS (654/654 each) and the
+platform suite on Windows and macOS (50/50 each); results are attached to the
+workflow run and summarized in
 [`reports/ci-test-results.md`](../reports/ci-test-results.md).
 
 ## Known gaps
