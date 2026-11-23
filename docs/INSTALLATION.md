@@ -168,6 +168,12 @@ verifies the digest, tenant, expiry and nonce, consumes the JTI (durably when a 
 then forwards the message upstream. Missing/invalid approval returns
 `202 approvalRequired` or a 4xx error, never a silent execute.
 
+## Production deployment
+
+Container, Compose, systemd and Kubernetes manifests are in [deploy/](../deploy/).
+The operations runbook (health/readiness, metrics, alerts, backup/restore,
+recovery, key rotation and rollback) is [docs/OPERATIONS.md](../docs/OPERATIONS.md).
+
 ## HTTP/SSE bridge
 
 Use `src/platform/mcp-http-bridge.js` with a policy and authority; it supports authenticated JSON-RPC POST and an SSE `GET /mcp` notification stream. It is loopback-tested, not a TLS/OAuth remote deployment.

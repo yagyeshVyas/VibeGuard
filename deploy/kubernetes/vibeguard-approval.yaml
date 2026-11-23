@@ -1,0 +1,123 @@
+# VibeGuard approval service — single-writer production shape.
+#
+# The JSON approval store is single-writer. Keep replicas: 1 and Recreate; for
+# active-active HA, replace the JSON store with a transactional shared backend.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vibeguard-approval-state
+  labels: { app.kubernetes.io/name: vibeguard-approval }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vibeguard-approval
+  labels: { app.kubernetes.io/name: vibeguard-approval }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app.kubernetes.io/name: vibeguard-approval }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: vibeguard-approval }
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: approval
+          image: vibeguard-approval:1.14.0
+          imagePullPolicy: IfNotPresent
+          args: ["serve"]
+          ports:
+            - { name: http, containerPort: 8787 }
+          env:
+            - { name: NODE_ENV, value: production }
+            - { name: VIBEGUARD_APPROVAL_TENANT, value: acme }
+            - { name: VIBEGUARD_APPROVAL_ISSUER, value: human:acme/security }
+            - { name: VIBEGUARD_APPROVAL_HOST, value: 0.0.0.0 }
+            - { name: VIBEGUARD_APPROVAL_PORT, value: "8787" }
+            - { name: VIBEGUARD_APPROVAL_ALLOW_REMOTE, value: "1" }
+            - { name: VIBEGUARD_APPROVAL_STORE, value: /var/lib/vibeguard/approvals.json }
+            - { name: VIBEGUARD_APPROVAL_AUDIT, value: /var/lib/vibeguard/approval-audit.jsonl }
+            - { name: VIBEGUARD_APPROVAL_USERS, value: /etc/vibeguard/users.json }
+            - { name: VIBEGUARD_APPROVAL_SIGNING_KEYS, value: /etc/vibeguard/signing-keys.json }
+            - { name: VIBEGUARD_APPROVAL_KEY, value: /etc/vibeguard/approval-private.pem }
+            - { name: VIBEGUARD_APPROVAL_IDENTITY_KEY, value: /etc/vibeguard/identity-private.pem }
+            - { name: VIBEGUARD_APPROVAL_SHUTDOWN_TIMEOUT, value: "10000" }
+            - name: VIBEGUARD_APPROVAL_METRICS_TOKEN
+              valueFrom: { secretKeyRef: { name: vibeguard-approval-keys, key: metrics-token, optional: true } }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: config, mountPath: /etc/vibeguard, readOnly: true }
+            - { name: state, mountPath: /var/lib/vibeguard }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: config
+          secret: { secretName: vibeguard-approval-keys, defaultMode: 0440 }
+        - name: state
+          persistentVolumeClaim: { claimName: vibeguard-approval-state }
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vibeguard-approval
+  labels: { app.kubernetes.io/name: vibeguard-approval }
+spec:
+  selector: { app.kubernetes.io/name: vibeguard-approval }
+  ports:
+    - { name: http, port: 8787, targetPort: http }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: vibeguard-approval
+spec:
+  podSelector:
+    matchLabels: { app.kubernetes.io/name: vibeguard-approval }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Replace with the ingress-controller / reverse-proxy namespace label that
+    # terminates TLS. Do not expose this Service directly to the internet.
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+      ports: [{ protocol: TCP, port: 8787 }]
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: monitoring } }
+      ports: [{ protocol: TCP, port: 8787 }]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: kube-system } }
+      ports: [{ protocol: UDP, port: 53 }, { protocol: TCP, port: 53 }]

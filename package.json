@@ -20,6 +20,7 @@
   "files": [
     "bin",
     "src",
+    "deploy",
     "hooks",
     "ci",
     "ci-templates",

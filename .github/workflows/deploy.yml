@@ -1,0 +1,43 @@
+name: Deployment artifact
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - 'src/**'
+      - 'bin/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.dockerignore'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Build production image
+        run: docker build -f deploy/Dockerfile -t vibeguard-approval:test .
+      - name: Image can load the CLI as non-root
+        run: docker run --rm --entrypoint node vibeguard-approval:test bin/cli.js approval help
+      - name: Validate Compose definition
+        run: docker compose -f deploy/docker-compose.yml config >/dev/null
+      - name: Validate Kubernetes YAML
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const yaml = require('js-yaml');
+          const docs = yaml.loadAll(fs.readFileSync('deploy/kubernetes/vibeguard-approval.yaml', 'utf8')).filter(Boolean);
+          const kinds = docs.map((d) => d.kind);
+          if (JSON.stringify(kinds) !== JSON.stringify(['PersistentVolumeClaim', 'Deployment', 'Service', 'NetworkPolicy'])) throw new Error(`unexpected kinds: ${kinds}`);
+          console.log('kubernetes manifests valid');
+          NODE

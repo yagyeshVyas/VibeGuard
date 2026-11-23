@@ -19,6 +19,7 @@ const { publicKeyToJwk, publicKeyToPem, loadPublicKey, generateKeyPair, Identity
 const { ApprovalBroker } = require('../src/platform/approval');
 const { actionDigest } = require('../src/platform/canonical');
 const { createApprovalService, hashPassword } = require('../src/platform/approval-service');
+const { createBackup, verifyBackup, restoreBackup } = require('../src/platform/backup');
 
 function out(text) { process.stdout.write(text + '\n'); }
 function err(text) { process.stderr.write(text + '\n'); }
@@ -78,6 +79,9 @@ function approvalUsage() {
     '  decide         --url ... --ticket tkt_... (--password <pw> --principal human:acme/alice | --token <human-token> --proof <VGAPPROVER>) [--deny] [--reason text]',
     '  verify         --token <VGAPPROVAL> --pub approval.pub.pem --action <json> [--issuer ...] [--tenant ...] [--used used.json]',
     '  hash-password  (password from VG_APPROVAL_PASSWORD or stdin; prints a scrypt hash for users.json)',
+    '  backup         --out <dir> [--store file] [--audit file] [--label text]',
+    '  verify-backup  --from <dir>',
+    '  restore        --from <dir> --to <dir> [--force]   (stop the service first)',
   ].join('\n');
 }
 
@@ -225,41 +229,48 @@ async function cmdApproval(args, flags) {
   }
 
   if (action === 'serve') {
-    const tenant = flags.tenant || 'local';
-    const issuer = flags.issuer || `human:${tenant}/approval`;
-    const brokerIssuer = flags['approval-issuer'] || issuer;
-    const brokerKey = flags.key ? readKeyFlag(flags.key, '--key') : generateKeyPair().privateKey;
-    const identityKey = flags['identity-key'] ? readKeyFlag(flags['identity-key'], '--identity-key') : generateKeyPair().privateKey;
+    const env = process.env;
+    const tenant = flags.tenant || env.VIBEGUARD_APPROVAL_TENANT || 'local';
+    const issuer = flags.issuer || env.VIBEGUARD_APPROVAL_ISSUER || `human:${tenant}/approval`;
+    const brokerIssuer = flags['approval-issuer'] || env.VIBEGUARD_APPROVAL_BROKER_ISSUER || issuer;
+    const keyPath = flags.key || env.VIBEGUARD_APPROVAL_KEY;
+    const identityKeyPath = flags['identity-key'] || env.VIBEGUARD_APPROVAL_IDENTITY_KEY;
+    const brokerKey = keyPath ? readKeyFlag(keyPath, '--key') : generateKeyPair().privateKey;
+    const identityKey = identityKeyPath ? readKeyFlag(identityKeyPath, '--identity-key') : generateKeyPair().privateKey;
     const authority = new IdentityAuthority({ issuer, tenant, privateKey: identityKey, keyId: flags['key-id'] || undefined });
     const broker = new ApprovalBroker({ issuer: brokerIssuer, tenant, privateKey: brokerKey, keyId: flags['approval-key-id'] || flags['key-id'] || undefined });
     const signingKeys = {};
-    if (flags['signing-keys']) {
+    const signingKeysPath = flags['signing-keys'] || env.VIBEGUARD_APPROVAL_SIGNING_KEYS;
+    if (signingKeysPath) {
       let mapping;
-      try { mapping = JSON.parse(fs.readFileSync(path.resolve(flags['signing-keys']), 'utf8')); } catch (e) { err(`cannot read --signing-keys: ${e.message}`); return 2; }
+      try { mapping = JSON.parse(fs.readFileSync(path.resolve(signingKeysPath), 'utf8')); } catch (e) { err(`cannot read --signing-keys: ${e.message}`); return 2; }
       for (const [principal, keyPath] of Object.entries(mapping)) {
         if (!String(principal).startsWith('human:')) { err(`signing key principal must be human: ${principal}`); return 2; }
         try { signingKeys[principal] = fs.readFileSync(path.resolve(keyPath), 'utf8'); } catch (e) { err(`cannot read signing key for ${principal}: ${e.message}`); return 2; }
       }
     }
-    const usersFile = flags.users ? path.resolve(flags.users) : undefined;
-    if (!usersFile && !flags['allow-bearer-only']) err('warning: no --users file; browser login is disabled and only bearer human tokens can decide');
-    const storeFile = path.resolve(flags.store || path.join(process.cwd(), '.vibeguard', 'approvals.json'));
-    const auditFile = path.resolve(flags.audit || path.join(path.dirname(storeFile), 'approval-audit.jsonl'));
+    const usersFile = (flags.users || env.VIBEGUARD_APPROVAL_USERS) ? path.resolve(flags.users || env.VIBEGUARD_APPROVAL_USERS) : undefined;
+    if (!usersFile && !flags['allow-bearer-only'] && env.VIBEGUARD_APPROVAL_ALLOW_BEARER_ONLY !== '1') err('warning: no --users file; browser login is disabled and only bearer human tokens can decide');
+    const storeFile = path.resolve(flags.store || env.VIBEGUARD_APPROVAL_STORE || path.join(process.cwd(), '.vibeguard', 'approvals.json'));
+    const auditFile = path.resolve(flags.audit || env.VIBEGUARD_APPROVAL_AUDIT || path.join(path.dirname(storeFile), 'approval-audit.jsonl'));
     const service = await createApprovalService({
       broker,
       authority,
       storeFile,
       auditFile,
+      auditKeyFile: env.VIBEGUARD_APPROVAL_AUDIT_KEY || undefined,
       usersFile,
       approverSigningKeys: signingKeys,
-      adminPrincipals: splitList(flags.admin),
-      host: flags.host || '127.0.0.1',
-      port: flags.port || 8787,
-      allowRemote: flags['allow-remote'] === true,
-      secureCookies: flags['secure-cookies'] === true,
-      sessionTtlSeconds: flags['session-ttl'] ? Number(flags['session-ttl']) : undefined,
-      requiredApprovals: flags.required ? Number(flags.required) : undefined,
-      allowClientQuorum: flags['allow-client-quorum'] === true,
+      adminPrincipals: splitList(flags.admin || env.VIBEGUARD_APPROVAL_ADMIN),
+      host: flags.host || env.VIBEGUARD_APPROVAL_HOST || '127.0.0.1',
+      port: flags.port || env.VIBEGUARD_APPROVAL_PORT || 8787,
+      allowRemote: flags['allow-remote'] === true || env.VIBEGUARD_APPROVAL_ALLOW_REMOTE === '1',
+      secureCookies: flags['secure-cookies'] === true || env.VIBEGUARD_APPROVAL_SECURE_COOKIES === '1',
+      sessionTtlSeconds: flags['session-ttl'] ? Number(flags['session-ttl']) : (env.VIBEGUARD_APPROVAL_SESSION_TTL ? Number(env.VIBEGUARD_APPROVAL_SESSION_TTL) : undefined),
+      requiredApprovals: flags.required ? Number(flags.required) : (env.VIBEGUARD_APPROVAL_REQUIRED_APPROVALS ? Number(env.VIBEGUARD_APPROVAL_REQUIRED_APPROVALS) : undefined),
+      allowClientQuorum: flags['allow-client-quorum'] === true || env.VIBEGUARD_APPROVAL_ALLOW_CLIENT_QUORUM === '1',
+      metricsToken: env.VIBEGUARD_APPROVAL_METRICS_TOKEN || undefined,
+      shutdownTimeoutMs: env.VIBEGUARD_APPROVAL_SHUTDOWN_TIMEOUT ? Number(env.VIBEGUARD_APPROVAL_SHUTDOWN_TIMEOUT) : undefined,
     });
     out(JSON.stringify({
       url: service.url,
@@ -352,6 +363,49 @@ async function cmdApproval(args, flags) {
     }
     out(JSON.stringify(r.body, null, 2));
     return r.status >= 200 && r.status < 300 ? 0 : 1;
+  }
+
+  if (action === 'backup') {
+    const store = flags.store || process.env.VIBEGUARD_APPROVAL_STORE || path.join(process.cwd(), '.vibeguard', 'approvals.json');
+    const audit = flags.audit || process.env.VIBEGUARD_APPROVAL_AUDIT || path.join(path.dirname(path.resolve(store)), 'approval-audit.jsonl');
+    const auditKey = flags['audit-key'] || process.env.VIBEGUARD_APPROVAL_AUDIT_KEY || `${audit}.key.pem`;
+    const files = [store];
+    for (const extra of [audit, `${audit}.checkpoint.json`, auditKey]) if (fs.existsSync(extra)) files.push(extra);
+    const usedStore = flags.used || process.env.VIBEGUARD_APPROVAL_USED_TOKENS;
+    if (usedStore && fs.existsSync(usedStore)) files.push(path.resolve(usedStore));
+    const configuredKeys = [
+      flags.key || process.env.VIBEGUARD_APPROVAL_KEY,
+      flags['identity-key'] || process.env.VIBEGUARD_APPROVAL_IDENTITY_KEY,
+      flags['signing-keys'] || process.env.VIBEGUARD_APPROVAL_SIGNING_KEYS,
+      flags.users || process.env.VIBEGUARD_APPROVAL_USERS,
+    ].filter(Boolean);
+    for (const extra of configuredKeys) if (fs.existsSync(extra)) files.push(extra);
+    const signingMap = flags['signing-keys'] || process.env.VIBEGUARD_APPROVAL_SIGNING_KEYS;
+    if (signingMap && fs.existsSync(signingMap)) {
+      try {
+        const mapping = JSON.parse(fs.readFileSync(signingMap, 'utf8'));
+        for (const keyPath of Object.values(mapping)) if (typeof keyPath === 'string' && fs.existsSync(keyPath)) files.push(keyPath);
+      } catch { err(`cannot parse signing-keys map: ${signingMap}`); return 2; }
+    }
+    if (!fs.existsSync(store)) { err(`approval store not found: ${store}`); return 2; }
+    const result = createBackup({ outDir: flags.out || path.join(process.cwd(), '.vibeguard', `approval-backup-${new Date().toISOString().replace(/[:.]/g, '-')}`), files: [...new Set(files)], auditFile: audit, auditKeyFile: auditKey, label: flags.label });
+    out(JSON.stringify(result, null, 2));
+    return result.verify.valid ? 0 : 1;
+  }
+
+  if (action === 'verify-backup') {
+    if (!flags.from) { err('--from <backup-dir> is required'); return 2; }
+    const result = verifyBackup(flags.from);
+    out(JSON.stringify(result, null, 2));
+    return result.valid ? 0 : 1;
+  }
+
+  if (action === 'restore') {
+    if (!flags.from) { err('--from <backup-dir> is required'); return 2; }
+    const target = flags.to || path.join(process.cwd(), '.vibeguard');
+    const result = restoreBackup(flags.from, { targetDir: target, force: flags.force === true });
+    out(JSON.stringify(result, null, 2));
+    return 0;
   }
 
   if (action === 'verify') {

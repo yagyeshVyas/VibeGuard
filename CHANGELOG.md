@@ -7,6 +7,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 
+- Production deployment assets: multi-stage non-root Docker image with readiness healthcheck, Compose single-writer deployment, hardened systemd unit, Kubernetes Deployment/Service/PVC/NetworkPolicy, and deployment CI.
+- Approval service observability: `/health`, `/ready`, `/metrics` (Prometheus text, optional bearer token), JSON request logs with request ids/durations, request/decision/login/audit/queue/session metrics and build info.
+- Graceful shutdown: readiness false, audit stop event, idle-connection drain and bounded force-close.
+- Verified approval backups: SHA-256 file manifest, signed-audit chain verification, tamper refusal, atomic restore and CLI `approval backup|verify-backup|restore`.
+- Environment-driven approval service configuration (`VIBEGUARD_APPROVAL_*`) for containers and systemd.
+- Operations runbook covering deployment, monitoring/alerts, backup/restore, corruption recovery, key rotation, rollback and security checklist.
 - Authenticated human approval workflow: password login (scrypt), HttpOnly `SameSite=Strict` sessions, CSRF-protected dashboard, signed VGAPPROVER decisions, durable approval/quorum state, signed approval audit, and approver key rotation.
 - `vibeguard approval serve|issue|request|status|list|decide|verify|hash-password` commands.
 - HTTP gateway consumes `x-vibeguard-approval` / `params.approvalToken` for `approval_required` actions, verifies digest/tenant/expiry/nonce, consumes the JTI and only then forwards upstream.
@@ -15,6 +21,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- Approval service now reports readiness separately from liveness and exposes metrics without adding response bodies, passwords or tokens to logs.
 - `approval-service` now requires human approval capability `approval.decide`; agent requests require `approval.request`; status/read requires `approval.read`.
 - Approval service defaults to loopback; remote binding requires `--allow-remote` and a TLS reverse proxy (the service itself is HTTP loopback-first).
 - Approval UI is authenticated; the old public read-only dashboard is replaced.

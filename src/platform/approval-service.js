@@ -21,6 +21,7 @@ const { ApprovalBroker } = require('./approval');
 const { SignedAuditLog } = require('./signed-audit');
 const { ERROR_CODES, VibeGuardError, safeEqual } = require('./contracts');
 const { generateKeyPair, privateKeyToPem, loadPrivateKey } = require('./identity');
+const { MetricsRegistry } = require('./metrics');
 
 const SCRYPT = Object.freeze({ N: 16384, r: 8, p: 1, keylen: 32, maxmem: 64 * 1024 * 1024 });
 const SESSION_TTL_SECONDS = 15 * 60;
@@ -251,7 +252,10 @@ function createApprovalService(opts = {}) {
   const requireAudit = opts.requireAudit !== false && Boolean(audit);
   const auditEvent = (type, detail, meta) => {
     if (!audit) return;
-    try { audit.append(type, detail, meta || {}); } catch (err) {
+    try {
+      audit.append(type, detail, meta || {});
+      metrics.inc('vibeguard_approval_audit_events_total', { type });
+    } catch (err) {
       if (requireAudit) throw new VibeGuardError(ERROR_CODES.AUDIT_UNAVAILABLE, 'approval audit sink unavailable', { status: 503 });
       throw err;
     }
@@ -266,6 +270,22 @@ function createApprovalService(opts = {}) {
   const requiredRequestCapability = opts.requiredRequestCapability || 'approval.request';
   const requiredReadCapability = opts.requiredReadCapability || 'approval.read';
   const requiredAdminCapability = opts.requiredAdminCapability || 'approval.admin';
+  let serviceVersion = opts.version || null;
+  if (!serviceVersion) { try { serviceVersion = require('../../package.json').version; } catch { /* optional */ } }
+  const metrics = opts.metrics || new MetricsRegistry({ service: 'vibeguard-approval', version: serviceVersion });
+  const log = opts.logger || ((level, event, fields = {}) => {
+    process.stdout.write(JSON.stringify({ ts: new Date().toISOString(), level, event, ...fields }) + '\n');
+  });
+  let ready = false;
+  let closing = false;
+  const readyChecks = () => {
+    if (closing || !ready) return { ready: false, reason: closing ? 'shutting_down' : 'starting' };
+    for (const dir of [store.file ? path.dirname(store.file) : null, auditFile ? path.dirname(auditFile) : null]) {
+      if (!dir) continue;
+      try { fs.accessSync(dir, fs.constants.W_OK); } catch { return { ready: false, reason: 'state_not_writable' }; }
+    }
+    return { ready: true };
+  };
   const maxPendingPerPrincipal = Math.max(1, Number(opts.maxPendingPerPrincipal || 25));
 
   function pruneSessions() {
@@ -340,9 +360,35 @@ function createApprovalService(opts = {}) {
 
   const server = http.createServer(async (req, res) => {
     const ip = (req.socket && req.socket.remoteAddress) || 'unknown';
+    const requestId = String(req.headers['x-request-id'] || crypto.randomBytes(12).toString('hex')).slice(0, 128);
+    const started = process.hrtime.bigint();
+    let route = 'unknown';
+    res.setHeader('x-request-id', requestId);
+    res.once('finish', () => {
+      const seconds = Number(process.hrtime.bigint() - started) / 1e9;
+      metrics.inc('vibeguard_http_requests_total', { method: req.method, route, status: String(res.statusCode) });
+      metrics.observe('vibeguard_http_request_duration_seconds', seconds, { method: req.method, route });
+      if (route !== '/metrics') log('info', 'http_request', { request_id: requestId, method: req.method, route, status: res.statusCode, duration_ms: Math.round(seconds * 1000), ip });
+    });
     try {
       const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+      route = url.pathname.startsWith('/approval/ticket/') ? '/approval/ticket/:id' : url.pathname;
       if (req.method === 'GET' && url.pathname === '/health') return json(res, 200, { status: 'ok', service: 'vibeguard-approval' });
+      if (req.method === 'GET' && url.pathname === '/ready') {
+        const state = readyChecks();
+        return json(res, state.ready ? 200 : 503, { status: state.ready ? 'ready' : 'not_ready', ...state });
+      }
+      if (req.method === 'GET' && url.pathname === '/metrics') {
+        if (opts.metricsToken) {
+          const token = bearer(req);
+          if (!token || !safeEqual(token, String(opts.metricsToken))) return json(res, 401, { error: 'metrics token required' });
+        }
+        metrics.set('vibeguard_approval_pending_tickets', [...broker.tickets.values()].filter((t) => t.status === 'pending').length);
+        metrics.set('vibeguard_approval_active_sessions', sessions.size);
+        metrics.set('vibeguard_approval_ready', readyChecks().ready ? 1 : 0);
+        res.writeHead(200, { 'content-type': 'text/plain; version=0.0.4; charset=utf-8', 'cache-control': 'no-store' });
+        return res.end(metrics.render());
+      }
       if (req.method === 'GET' && url.pathname === '/auth/login') return html(res, 200, loginPage());
 
       if (req.method === 'POST' && url.pathname === '/auth/login') {
@@ -355,6 +401,7 @@ function createApprovalService(opts = {}) {
         const valid = Boolean(user) && tenant === broker.tenant && passwordOk;
         if (!String(principal).startsWith('human:') || !valid) {
           loginFailed(ip);
+          metrics.inc('vibeguard_approval_logins_total', { result: 'failure' });
           auditEvent('approval.login_failed', { principal, ip }, { principal, decision: 'deny' });
           if (String(req.headers.accept || '').includes('text/html') || String(req.headers['content-type'] || '').includes('application/x-www-form-urlencoded')) {
             return html(res, 401, loginPage('Invalid principal or password.'));
@@ -367,6 +414,7 @@ function createApprovalService(opts = {}) {
           return json(res, 403, { error: 'account disabled' });
         }
         const session = createSession(principal);
+        metrics.inc('vibeguard_approval_logins_total', { result: 'success' });
         auditEvent('approval.login', { principal, ip }, { principal, decision: 'allow' });
         const headers = { 'set-cookie': [
           cookie(COOKIE_SESSION, session.id, sessionTtl, secureCookies, true),
@@ -403,6 +451,7 @@ function createApprovalService(opts = {}) {
         if (pending >= maxPendingPerPrincipal) throw new VibeGuardError(ERROR_CODES.LIMIT_EXCEEDED, 'too many pending approval tickets for this agent', { status: 429 });
         const requiredApprovals = opts.allowClientQuorum === true ? body.requiredApprovals : (opts.requiredApprovals || 1);
         const t = broker.request({ principal: principal.principalId, action: body.action, reason: body.reason, ttlSeconds: body.ttlSeconds, requiredApprovals });
+        metrics.inc('vibeguard_approval_requests_total');
         store.save(broker);
         auditEvent('approval.requested', {
           ticketId: t.ticket.ticketId, actionDigest: t.ticket.actionDigest,
@@ -442,6 +491,7 @@ function createApprovalService(opts = {}) {
         const deniedByForm = body.decision === 'deny';
         if (!approve && !deniedByForm && body.approve !== false) throw new VibeGuardError(ERROR_CODES.SCHEMA_INVALID, 'decision must be approve or deny');
         const d = broker.decide(body.ticketId, { approver, approve, proof, reason: body.reason });
+        metrics.inc('vibeguard_approval_decisions_total', { decision: d.status });
         store.save(broker);
         const event = d.status === 'approved' ? 'approval.approved' : (d.status === 'denied' ? 'approval.denied' : 'approval.pending');
         auditEvent(event, {
@@ -512,6 +562,8 @@ function createApprovalService(opts = {}) {
     server.once('error', reject);
     server.listen(Number(opts.port || 0), host, () => {
       const addr = server.address();
+      ready = true;
+      try { auditEvent('service.start', { host: addr.address, port: addr.port }, { principal: 'service:vibeguard/approval' }); } catch (err) { ready = false; server.close(); reject(err); return; }
       resolve({
         server,
         host: addr.address,
@@ -521,7 +573,20 @@ function createApprovalService(opts = {}) {
         store,
         audit,
         sessions,
-        close: () => new Promise((r) => server.close(r)),
+        metrics,
+        ready: () => readyChecks(),
+        close: () => new Promise((r) => {
+          if (closing) return r();
+          closing = true;
+          ready = false;
+          try { auditEvent('service.stop', { reason: 'shutdown' }, { principal: 'service:vibeguard/approval' }); } catch { /* audit failure must not prevent shutdown */ }
+          try { if (typeof server.closeIdleConnections === 'function') server.closeIdleConnections(); } catch { /* ignore */ }
+          const timer = setTimeout(() => {
+            try { if (typeof server.closeAllConnections === 'function') server.closeAllConnections(); } catch { /* ignore */ }
+          }, Number(opts.shutdownTimeoutMs || 10000));
+          if (timer.unref) timer.unref();
+          server.close(() => { clearTimeout(timer); r(); });
+        }),
       });
     });
   });

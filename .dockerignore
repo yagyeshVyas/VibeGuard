@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+node_modules
+coverage
+reports
+research
+test
+website
+vibe-guard-site
+benchmarks
+deploy/config
+*.log
+*.tgz
+.vibeguard
+.mcp.json

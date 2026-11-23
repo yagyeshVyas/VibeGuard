@@ -1,0 +1,47 @@
+services:
+  approval:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: vibeguard-approval:1.14.0
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    user: "node"
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      NODE_ENV: production
+      VIBEGUARD_APPROVAL_TENANT: acme
+      VIBEGUARD_APPROVAL_ISSUER: human:acme/security
+      VIBEGUARD_APPROVAL_HOST: 0.0.0.0
+      VIBEGUARD_APPROVAL_PORT: "8787"
+      VIBEGUARD_APPROVAL_ALLOW_REMOTE: "1"
+      VIBEGUARD_APPROVAL_STORE: /var/lib/vibeguard/approvals.json
+      VIBEGUARD_APPROVAL_AUDIT: /var/lib/vibeguard/approval-audit.jsonl
+      VIBEGUARD_APPROVAL_USERS: /etc/vibeguard/users.json
+      VIBEGUARD_APPROVAL_SIGNING_KEYS: /etc/vibeguard/signing-keys.json
+      VIBEGUARD_APPROVAL_KEY: /etc/vibeguard/approval-private.pem
+      VIBEGUARD_APPROVAL_IDENTITY_KEY: /etc/vibeguard/identity-private.pem
+      VIBEGUARD_APPROVAL_ALLOW_BEARER_ONLY: "0"
+      VIBEGUARD_APPROVAL_SHUTDOWN_TIMEOUT: "10000"
+      # Optional: require a bearer token for /metrics.
+      # VIBEGUARD_APPROVAL_METRICS_TOKEN: ${VIBEGUARD_APPROVAL_METRICS_TOKEN}
+    volumes:
+      - ./config:/etc/vibeguard:ro
+      - vibeguard-approval-state:/var/lib/vibeguard
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    stop_grace_period: 20s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 4s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  vibeguard-approval-state:

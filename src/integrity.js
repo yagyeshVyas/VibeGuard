@@ -38,7 +38,7 @@ const CRITICAL_MODULES = [
   'platform/approval.js', 'platform/signed-audit.js', 'platform/policy.js',
   'platform/jwt.js', 'platform/ssrf.js', 'platform/http-gateway.js',
   'platform/sandbox-manager.js', 'platform/os-sandbox.js', 'platform/windows-sandbox.js',
-  'platform/windows-appcontainer.js', 'platform/macos-vm.js', 'platform/verification.js',
+  'platform/windows-appcontainer.js', 'platform/macos-vm.js', 'platform/verification.js', 'platform/metrics.js', 'platform/backup.js',
   'platform/mcp-http-bridge.js', 'platform/memory-guard.js',
   'platform/delegation.js', 'platform/aisvs.js',
   'platform/approval-service.js', 'platform/oauth-server.js', 'platform/runtime-monitor.js',

@@ -28,11 +28,13 @@ const { checkCommand } = require('../src/shell-guard');
 const { scanTextForInjection } = require('../src/mcp-audit');
 const { inspectPrompt } = require('../src/firewall');
 const { runInProcess, processIsolationSupported } = require('../src/sandbox');
-const { SandboxManager, defaultManager } = require('../src/platform/sandbox-manager');
+const { SandboxManager } = require('../src/platform/sandbox-manager');
 const { ISOLATION } = require('../src/platform/contracts');
 const { WindowsAppContainerSandbox } = require('../src/platform/windows-appcontainer');
 const { MacVMSandbox, buildQemuArgs } = require('../src/platform/macos-vm');
 const { saveVerification, loadVerification, hostFingerprint } = require('../src/platform/verification');
+const { createBackup, verifyBackup, restoreBackup } = require('../src/platform/backup');
+const { MetricsRegistry } = require('../src/platform/metrics');
 
 test('canonical JSON sorts keys and hashes deterministically', () => {
   assert.strictEqual(canonicalize({ b: 1, a: 'x' }), '{"a":"x","b":1}');
@@ -251,7 +253,7 @@ test('authenticated approval UI: password login, CSRF, signed decision, agent to
   const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: brokerPair.privateKey, keyId: 'a' });
   const storeFile = path.join(dir, 'approvals.json');
   const auditFile = path.join(dir, 'approval-audit.jsonl');
-  let service = await createApprovalService({
+  const service = await createApprovalService({
     broker,
     authority,
     storeFile,
@@ -414,7 +416,6 @@ test('approval key rotation: admin endpoint rotates a human key and the new proo
   const brokerPair = generateKeyPair();
   const oldPair = generateKeyPair();
   const newPair = generateKeyPair();
-  const adminPair = generateKeyPair();
   const approver = 'human:acme/alice';
   const admin = 'human:acme/admin';
   const authority = new IdentityAuthority({ issuer: 'human:acme/security@example.com', tenant: 'acme' });
@@ -436,6 +437,127 @@ test('approval key rotation: admin endpoint rotates a human key and the new proo
     const persisted = JSON.parse(fs.readFileSync(path.join(dir, 'approvals.json'), 'utf8'));
     assert(persisted.approverKeys[approver]);
   } finally { await service.close(); }
+});
+
+
+test('approval backup: verify hashes and signed audit, refuse tamper, restore atomically', () => {
+  const dir = tmp();
+  const state = path.join(dir, 'state');
+  const backup = path.join(dir, 'backup');
+  const restore = path.join(dir, 'restore');
+  fs.mkdirSync(state, { recursive: true });
+  const store = path.join(state, 'approvals.json');
+  const audit = path.join(state, 'approval-audit.jsonl');
+  const keyFile = `${audit}.key.pem`;
+  fs.writeFileSync(store, JSON.stringify({ tickets: [{ ticketId: 'tkt_1', status: 'pending' }] }), { mode: 0o600 });
+  const pair = generateKeyPair();
+  const log = new SignedAuditLog({ file: audit, privateKey: pair.privateKey });
+  log.append('approval.requested', { ticketId: 'tkt_1' }, { principal: 'agent:acme/ci' });
+  fs.writeFileSync(keyFile, privateKeyToPem(pair.privateKey), { mode: 0o600 });
+  const made = createBackup({ outDir: backup, files: [store, audit, `${audit}.checkpoint.json`, keyFile], auditFile: audit, auditKeyFile: keyFile, label: 'test' });
+  assert.strictEqual(made.verify.valid, true, JSON.stringify(made.verify.errors));
+  assert.strictEqual(verifyBackup(backup).valid, true);
+  const auditCopy = made.manifest.audit.file;
+  const auditPath = path.join(backup, 'files', auditCopy);
+  fs.appendFileSync(auditPath, '{"forged":true}\n');
+  assert.strictEqual(verifyBackup(backup).valid, false);
+  fs.writeFileSync(auditPath, fs.readFileSync(audit));
+  assert.strictEqual(verifyBackup(backup).valid, true);
+  const restored = restoreBackup(backup, { targetDir: restore });
+  assert(restored.restored.some((f) => f.endsWith('approvals.json')));
+  assert.strictEqual(fs.readFileSync(path.join(restore, 'approvals.json'), 'utf8'), fs.readFileSync(store, 'utf8'));
+  assert.throws(() => restoreBackup(backup, { targetDir: restore }), /overwrite|exists/i);
+});
+
+
+test('approval service: health, readiness, metrics token and graceful shutdown', async () => {
+  const http = require('http');
+  const { createApprovalService } = require('../src/platform/approval-service');
+  const dir = tmp();
+  const brokerPair = generateKeyPair();
+  const authority = new IdentityAuthority({ issuer: 'human:acme/security@example.com', tenant: 'acme' });
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: brokerPair.privateKey });
+  const service = await createApprovalService({ broker, authority, storeFile: path.join(dir, 'approvals.json'), host: '127.0.0.1', metricsToken: 'metrics-secret' });
+  const get = (url, token) => new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const headers = token ? { authorization: 'Bearer ' + token } : {};
+    const req = http.request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'GET', agent: false, headers }, (res) => { let s = ''; res.on('data', (c) => { s += c; }); res.on('end', () => resolve({ status: res.statusCode, body: s, headers: res.headers })); });
+    req.on('error', reject); req.end();
+  });
+  try {
+    assert.strictEqual((await get(service.url + '/health')).status, 200);
+    const ready = await get(service.url + '/ready');
+    assert.strictEqual(ready.status, 200);
+    assert.strictEqual(JSON.parse(ready.body).ready, true);
+    assert.strictEqual((await get(service.url + '/metrics')).status, 401);
+    const metrics = await get(service.url + '/metrics', 'metrics-secret');
+    assert.strictEqual(metrics.status, 200);
+    assert(/text\/plain/.test(metrics.headers['content-type']));
+    assert(metrics.body.includes('vibeguard_build_info'));
+    assert(metrics.body.includes('vibeguard_approval_ready 1'));
+    const agentToken = authority.issue({ principal: 'agent:acme/ci', capabilities: ['approval.request', 'approval.read'] }).token;
+    const post = (pathname, body) => new Promise((resolve, reject) => {
+      const u = new URL(service.url + pathname); const data = JSON.stringify(body);
+      const req = http.request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST', agent: false, headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data), authorization: 'Bearer ' + agentToken } }, (res) => { let s = ''; res.on('data', (c) => { s += c; }); res.on('end', () => resolve({ status: res.statusCode, body: s })); });
+      req.on('error', reject); req.write(data); req.end();
+    });
+    assert.strictEqual((await post('/approval/request', { action: { server: 's', tool: 't', capability: 'fs.write', arguments: { path: 'x' } } })).status, 200);
+    assert(service.metrics.render().includes('vibeguard_approval_requests_total 1'));
+    assert(service.ready().ready === true);
+    await service.close();
+    assert.strictEqual(service.ready().ready, false);
+    await assert.rejects(() => get(service.url + '/health'));
+  } finally { await service.close(); }
+});
+
+
+test('metrics: Prometheus rendering escapes labels and includes process/build gauges', () => {
+  const metrics = new MetricsRegistry({ service: 'test-service', version: '1.2.3' });
+  metrics.inc('vibeguard_test_total', { route: '/a"b', method: 'GET' }, 2);
+  metrics.set('vibeguard_test_gauge', 7);
+  metrics.observe('vibeguard_test_duration_seconds', 0.25);
+  const text = metrics.render();
+  assert(text.includes('# TYPE vibeguard_test_total counter'));
+  assert(text.includes('route="/a\\"b"'));
+  assert(text.includes('vibeguard_test_gauge 7'));
+  assert(text.includes('vibeguard_test_duration_seconds_sum 0.250000'));
+  assert(text.includes('vibeguard_build_info{service="test-service",version="1.2.3"'));
+  assert(text.includes('vibeguard_process_resident_memory_bytes'));
+});
+
+
+test('deployment artifacts: non-root image, single-writer, probes and hardening', () => {
+  const yaml = require('js-yaml');
+  const root = path.join(__dirname, '..');
+  const dockerfile = fs.readFileSync(path.join(root, 'deploy', 'Dockerfile'), 'utf8');
+  assert(/FROM node:22/.test(dockerfile));
+  assert(/USER node/.test(dockerfile));
+  assert(/HEALTHCHECK[\s\S]*\/ready/.test(dockerfile));
+  assert(/VOLUME \["\/var\/lib\/vibeguard"\]/.test(dockerfile));
+
+  const compose = yaml.load(fs.readFileSync(path.join(root, 'deploy', 'docker-compose.yml'), 'utf8'));
+  const app = compose.services.approval;
+  assert.strictEqual(app.read_only, true);
+  assert(app.security_opt.includes('no-new-privileges:true'));
+  assert(app.cap_drop.includes('ALL'));
+  assert.strictEqual(app.stop_grace_period, '20s');
+
+  const docs = yaml.loadAll(fs.readFileSync(path.join(root, 'deploy', 'kubernetes', 'vibeguard-approval.yaml'), 'utf8')).filter(Boolean);
+  const deployment = docs.find((d) => d.kind === 'Deployment');
+  assert.strictEqual(deployment.spec.replicas, 1);
+  assert.strictEqual(deployment.spec.strategy.type, 'Recreate');
+  const container = deployment.spec.template.spec.containers[0];
+  assert.strictEqual(container.securityContext.readOnlyRootFilesystem, true);
+  assert.strictEqual(container.securityContext.allowPrivilegeEscalation, false);
+  assert(container.readinessProbe.httpGet.path === '/ready');
+  assert(container.livenessProbe.httpGet.path === '/health');
+  assert(docs.some((d) => d.kind === 'PersistentVolumeClaim'));
+  assert(docs.some((d) => d.kind === 'NetworkPolicy'));
+
+  const unit = fs.readFileSync(path.join(root, 'deploy', 'systemd', 'vibeguard-approval.service'), 'utf8');
+  assert(/Restart=on-failure/.test(unit));
+  assert(/ProtectSystem=strict/.test(unit));
+  assert(/StateDirectory=vibeguard/.test(unit));
 });
 
 test('runtime monitor: RSS cap invokes quarantine callback once', () => {

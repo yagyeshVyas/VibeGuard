@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-11-23T01:48:21.793Z",
+  "generatedAt": "2026-11-23T02:07:16.578Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "764f02ee6d4a1dc95939642f120ac7c233f66aee2794dd71efa15f5690fc43b0",
@@ -48,11 +48,13 @@
     "platform/windows-appcontainer.js": "7ac776d2f46299cd1c2a09531d75b11a62ddbd4da67e2b857147d872607af5ad",
     "platform/macos-vm.js": "0e7ee1a4c5072466a4136f47f85a60d7b6a30f2ca94c240f0345731a64b452cc",
     "platform/verification.js": "098b67da5eda0ecd8cdfaae1a8bc24cde786a304fe73442df5edecfdf9eb2c02",
+    "platform/metrics.js": "183be619a6f8b17ab6a7c9d23708b5b46b36e06d7df9b3f1857328539dce770a",
+    "platform/backup.js": "27e7c3e1745a6c593c87e5db773f1260bccb768d81c486fe814761c9aaf6e30f",
     "platform/mcp-http-bridge.js": "2dc473db787e031520aa81bbe6e6378274f77ae35e6c7c9f6d3af0d9fa407640",
     "platform/memory-guard.js": "468da6d5483cb44ae2e2f3051b011afee44bbc0a900892950aabf9ac26ee3eae",
     "platform/delegation.js": "b7d4aa6c0885528f26de47c072b5e53e1b96bdc393a02fce3c6e8cbd780ad5cb",
     "platform/aisvs.js": "37f37cac8f7eee5920fc096e15c6d080560fd59af8fd233ddda6ef9ec56dd38c",
-    "platform/approval-service.js": "b70baee63a770dc4a3954d30252e862c9a9acf061ad5adfc09c420d06189a589",
+    "platform/approval-service.js": "35d09384cc9f61089b86561d7b59c19fd27bb044f23f700f2db8e8d143f258f2",
     "platform/oauth-server.js": "bc41bfd676a19766dde9399958e4db70d0512dc028ec37585d17267cabd5dc29",
     "platform/runtime-monitor.js": "b3b18bc0164869ba32fd8bf1927f25aa376dbc72d5d1ae0de4b459b3f179737c"
   }

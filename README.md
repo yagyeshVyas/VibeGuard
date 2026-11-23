@@ -92,7 +92,7 @@ production-ready; it is the verified internal-testing build described in
   `sandbox verify`.
 - Memory provenance and multi-agent delegation guards; labeled detection corpus;
   AISVS-style readiness mapping.
-- **647 tests, 0 failures** and **46/46 platform tests** on the audit host;
+- **651 tests, 0 failures** and **50/50 platform tests** on the audit host;
   Windows AppContainer verification: all 11 evidence classes pass.
 
 Install note: v1.14.0 is distributed as `@yagyeshvyas/vibeguard@1.14.0`. If a
@@ -142,7 +142,7 @@ the code plane: the MCP channel between an agent and its tools.
   `--isolation auto` prefers a verified OS backend. The lower
   `--isolation process` mode remains a separate Node process under the
   permission model; it is explicitly not an OS boundary.
-- **Tests:** 647 passing, 0 failures, including a live stdio proxy test that
+- **Tests:** 651 passing, 0 failures, including a live stdio proxy test that
   spawns the CLI and a fixture MCP server. **Offline by default, zero telemetry,
   Windows 11 supported.**
 
@@ -218,6 +218,7 @@ Not implemented or not verified:
   HttpOnly sessions and CSRF, human-token + signed VGAPPROVER proofs, optional
   multi-human quorum, durable tickets/used tokens, signed approval audit and
   approver key rotation. It is a local service, not an enterprise SSO/IdP.
+  Production deployment, monitoring and recovery: [docs/OPERATIONS.md](docs/OPERATIONS.md) and [deploy/](deploy/).
 - A **local OAuth 2.1 code+PKCE server** and TLS/mTLS bridge options exist;
   multi-session persistence and a full remote IdP/lifecycle remain incomplete.
 - Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
