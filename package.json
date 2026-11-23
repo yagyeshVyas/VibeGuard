@@ -113,7 +113,12 @@
     "runtime-security",
     "linux-namespace",
     "http-mcp",
-    "ed25519"
+    "ed25519",
+    "human-in-the-loop",
+    "approval-workflow",
+    "windows-appcontainer",
+    "macos-vm",
+    "agent-firewall"
   ],
   "engines": {
     "node": ">=18"

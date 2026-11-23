@@ -73,7 +73,7 @@ public issue.
 - Independent reports that survive reproduction and become regression tests.
 - Support burden: repeated install/doc failures, time to first result.
 
-Run `npm run adoption:report` for a dated public snapshot. Stars and downloads are vanity-adjacent. The useful adoption signal is a
+Run `npm run adoption:report` for a dated public snapshot (current baseline in [reports/adoption.md](../reports/adoption.md)). Stars and downloads are vanity-adjacent. The useful adoption signal is a
 non-maintainer running the tool on their own code and either filing a
 reproducible bug or stating that a limitation was not disclosed.
 
