@@ -133,7 +133,8 @@ class IdentityAuthority {
     }
     this.issuer = opts.issuer;
     this.tenant = opts.tenant;
-    this.keyId = opts.keyId || `key_${crypto.randomBytes(4).toString('hex')}`;
+    const publicDer = publicKey.export({ type: 'spki', format: 'der' });
+    this.keyId = opts.keyId || `key_${crypto.createHash('sha256').update(publicDer).digest('hex').slice(0, 16)}`;
     this.privateKey = privateKey;
     this.publicKey = publicKey;
     this.now = opts.now || (() => new Date());

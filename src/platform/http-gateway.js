@@ -50,6 +50,17 @@ function createHttpGateway(opts = {}) {
   const jwt = opts.jwt; // { jwks, issuer, audience, scopes }
   const policy = opts.policy;
   const handler = opts.handler;
+  let approvalVerifier = opts.approvalVerifier || null;
+  if (!approvalVerifier && opts.approvalPublicKey) {
+    const { ApprovalBroker } = require('./approval');
+    approvalVerifier = new ApprovalBroker({
+      issuer: opts.approvalIssuer || 'human:local/approval',
+      tenant: opts.approvalTenant || 'local',
+      publicKey: opts.approvalPublicKey,
+      keyId: opts.approvalKeyId,
+      usedTokensFile: opts.approvalUsedTokensFile,
+    });
+  }
   if (typeof handler !== 'function') throw new Error('http gateway requires a message handler');
   if (!policy) throw new Error('http gateway requires an authorization policy; refusing an unprotected listener');
   if (typeof policy.evaluate !== 'function') throw new Error('http gateway policy must implement evaluate()');
@@ -73,6 +84,33 @@ function createHttpGateway(opts = {}) {
   const server = opts.tls
     ? https.createServer(opts.tls, async (req, res) => { gatewayHandler(req, res); })
     : http.createServer(async (req, res) => { gatewayHandler(req, res); });
+
+  function approvalToken(req, params) {
+    return String(req.headers['x-vibeguard-approval'] || (params && params.approvalToken) || '');
+  }
+
+  function verifyApproval(req, params, decision) {
+    const token = approvalToken(req, params);
+    if (!token) return null;
+    if (!approvalVerifier) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval verifier is not configured', { status: 500 });
+    try {
+      const approval = approvalVerifier.verifyStandalone(token, decision.actionDigest);
+      if (opts.audit && typeof opts.audit.append === 'function') {
+        try {
+          opts.audit.append('approval.consumed', { ticketId: approval.ticketId, actionDigest: approval.actionDigest, approvers: approval.approvers }, { principal: approval.approver, decision: 'allow' });
+        } catch {
+          throw new VibeGuardError(ERROR_CODES.AUDIT_UNAVAILABLE, 'approval audit sink unavailable', { status: 503 });
+        }
+      }
+      if (typeof opts.onApproval === 'function') opts.onApproval(approval, decision);
+      return approval;
+    } catch (err) {
+      if (err instanceof VibeGuardError) {
+        throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, err.message, { status: err.code === ERROR_CODES.REPLAY_DETECTED ? 401 : 403, details: { cause: err.code } });
+      }
+      throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval verification failed', { status: 403 });
+    }
+  }
 
   async function gatewayHandler(req, res) {
     try {
@@ -112,11 +150,14 @@ function createHttpGateway(opts = {}) {
           });
         }
         if (decision.decision === 'approval_required') {
-          return json(res, 202, {
-            jsonrpc: '2.0',
-            id: message.id,
-            result: { approvalRequired: true, actionDigest: decision.actionDigest, reason: decision.reasonCode },
-          });
+          const approval = verifyApproval(req, params, decision);
+          if (!approval) {
+            return json(res, 202, {
+              jsonrpc: '2.0',
+              id: message.id,
+              result: { approvalRequired: true, actionDigest: decision.actionDigest, reason: decision.reasonCode, approvalHeader: 'x-vibeguard-approval' },
+            });
+          }
         }
       }
       if (policy && message.method !== 'tools/call' && message.method !== 'initialize' && message.method !== 'ping') {
@@ -143,9 +184,16 @@ function createHttpGateway(opts = {}) {
             });
           }
           if (decision.decision === 'approval_required') {
-            return json(res, 202, { jsonrpc: '2.0', id: message.id, result: { approvalRequired: true, actionDigest: decision.actionDigest } });
+            const approval = verifyApproval(req, params, decision);
+            if (!approval) {
+              return json(res, 202, { jsonrpc: '2.0', id: message.id, result: { approvalRequired: true, actionDigest: decision.actionDigest, approvalHeader: 'x-vibeguard-approval' } });
+            }
           }
         }
+      }
+      if (message && message.params && Object.prototype.hasOwnProperty.call(message.params, 'approvalToken')) {
+        const { approvalToken: _ignored, ...rest } = message.params;
+        message = { ...message, params: rest };
       }
       const result = await handler(message, principal, { req, res });
       if (result !== undefined) return json(res, 200, { jsonrpc: '2.0', id: message.id, result });

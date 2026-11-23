@@ -679,6 +679,7 @@ function startProxy(opts = {}) {
       tenant: opts.approvalTenant || 'local',
       publicKey: fs.readFileSync(path.resolve(root, opts.approvalPublicKey)),
       keyId: opts.approvalKeyId || undefined,
+      usedTokensFile: opts.approvalUsedTokensFile || undefined,
     });
   }
   const serverDef = resolveServer(root, opts);

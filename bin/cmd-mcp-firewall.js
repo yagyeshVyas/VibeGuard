@@ -175,6 +175,7 @@ function cmdMcpFirewall(args, flags) {
     approvalToken: flags['approval-token'],
     approvalPublicKey: flags['approval-pub'],
     approvalIssuer: flags['approval-issuer'],
+    approvalUsedTokensFile: flags['approval-used'],
     approvalTenant: flags['approval-tenant'],
     approvalKeyId: flags['approval-key-id'],
     maxBlocks: flags['max-blocks'] ? Number(flags['max-blocks']) : 0,

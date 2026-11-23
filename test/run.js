@@ -2697,6 +2697,8 @@ test('audit trail: export and import', () => {
 test('MCP: new tools exist', () => {
   const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'mcp-server.js'), 'utf8');
   assert(code.includes("name: 'sandbox_exec'"), 'should have sandbox_exec');
+  assert(code.includes("name: 'approval_request'"), 'should have approval_request');
+  assert(code.includes("name: 'approval_status'"), 'should have approval_status');
   assert(code.includes("name: 'behavior_analysis'"), 'should have behavior_analysis');
   assert(code.includes("name: 'supply_chain_audit'"), 'should have supply_chain_audit');
   assert(code.includes("name: 'vault_manage'"), 'should have vault_manage');

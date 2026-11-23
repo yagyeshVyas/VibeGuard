@@ -3,6 +3,22 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- Authenticated human approval workflow: password login (scrypt), HttpOnly `SameSite=Strict` sessions, CSRF-protected dashboard, signed VGAPPROVER decisions, durable approval/quorum state, signed approval audit, and approver key rotation.
+- `vibeguard approval serve|issue|request|status|list|decide|verify|hash-password` commands.
+- HTTP gateway consumes `x-vibeguard-approval` / `params.approvalToken` for `approval_required` actions, verifies digest/tenant/expiry/nonce, consumes the JTI and only then forwards upstream.
+- Multi-human quorum approvals (1..5 distinct approvers) and durable used-token replay stores for HTTP and stdio approval verification.
+- Deterministic default identity key IDs so separately launched CLI/service processes can verify the same key.
+
+### Changed
+
+- `approval-service` now requires human approval capability `approval.decide`; agent requests require `approval.request`; status/read requires `approval.read`.
+- Approval service defaults to loopback; remote binding requires `--allow-remote` and a TLS reverse proxy (the service itself is HTTP loopback-first).
+- Approval UI is authenticated; the old public read-only dashboard is replaced.
+
 ## [1.14.0] - 2026-11-23
 
 ### Security

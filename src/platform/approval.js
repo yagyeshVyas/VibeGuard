@@ -4,19 +4,30 @@
  * src/platform/approval.js — signed, single-use human approvals.
  *
  * An approval ticket binds a canonical action digest to a requesting agent.
- * A human approver (a different principal in the same tenant) signs a VGAPPROVAL
+ * A human approver (a different principal in the same tenant) signs a VGAPPROVER
+ * proof. When the configured quorum is reached the broker issues a VGAPPROVAL
  * JWS. The gateway verifies the signature, digest, ticket, identity, expiry and
  * nonce before executing the action. Tokens are single-use and cannot be
  * self-approved.
  *
- * This module is intentionally in-memory for the first platform baseline.
- * Production persistence/replication belongs behind the ApprovalStore port.
+ * The broker is deliberately storage-agnostic. `usedTokensFile` makes consumed
+ * approval JTIs durable across gateway restarts/processes; ticket persistence is
+ * provided by the hosted approval service.
  */
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { ERROR_CODES, VibeGuardError, newId } = require('./contracts');
 const { signJws, verifyJws, loadPrivateKey, loadPublicKey, generateKeyPair } = require('./identity');
 const { actionDigest } = require('./canonical');
+
+const MAX_TTL_SECONDS = 900;
+const MAX_QUORUM = 5;
+
+function tenantOf(principal) {
+  return String(principal).split(':')[1].split('/')[0];
+}
 
 class ApprovalBroker {
   constructor(opts = {}) {
@@ -48,6 +59,45 @@ class ApprovalBroker {
     this.requireApproverProof = opts.requireApproverProof !== false;
     this.tickets = new Map();
     this.usedTokens = new Set();
+    this.usedTokensFile = opts.usedTokensFile ? path.resolve(opts.usedTokensFile) : null;
+    this._refreshUsedTokens();
+  }
+
+  _refreshUsedTokens() {
+    if (!this.usedTokensFile) return;
+    try {
+      const raw = fs.readFileSync(this.usedTokensFile, 'utf8');
+      // New format is append-only JSONL; accept the old JSON object for
+      // forward compatibility with pre-release stores.
+      if (raw.trim().startsWith('{')) {
+        for (const jti of JSON.parse(raw).usedTokens || []) this.usedTokens.add(String(jti));
+      } else {
+        for (const line of raw.split(/\r?\n/)) if (line.trim()) this.usedTokens.add(line.trim());
+      }
+    } catch { /* missing/corrupt cache is not a trust anchor */ }
+  }
+
+  _recordUsedToken(jti) {
+    this.usedTokens.add(jti);
+    if (!this.usedTokensFile) return;
+    fs.mkdirSync(path.dirname(this.usedTokensFile), { recursive: true, mode: 0o700 });
+    try {
+      if (fs.lstatSync(this.usedTokensFile).isSymbolicLink()) throw new Error('refusing symlinked approval-used-token store');
+    } catch (err) {
+      if (err && err.code !== 'ENOENT') throw err;
+    }
+    // Append-only is atomic for small lines and avoids a read-modify-write race
+    // between two gateway processes verifying the same token. Convert a legacy
+    // JSON object store once before appending.
+    try {
+      const raw = fs.readFileSync(this.usedTokensFile, 'utf8');
+      if (raw.trim().startsWith('{')) {
+        const existing = JSON.parse(raw).usedTokens || [];
+        fs.writeFileSync(this.usedTokensFile, [...new Set([...existing, ...this.usedTokens])].map(String).join('\n') + '\n', { mode: 0o600 });
+        return;
+      }
+    } catch { /* new file */ }
+    fs.appendFileSync(this.usedTokensFile, `${jti}\n`, { mode: 0o600 });
   }
 
   request(request = {}) {
@@ -55,15 +105,16 @@ class ApprovalBroker {
     if (!request.principal || !String(request.principal).startsWith('agent:')) {
       throw new VibeGuardError(ERROR_CODES.AUTH_INVALID, 'approval requester must be an agent principal');
     }
-    const requesterTenant = String(request.principal).split(':')[1].split('/')[0];
-    if (requesterTenant !== this.tenant) {
+    if (tenantOf(request.principal) !== this.tenant) {
       throw new VibeGuardError(ERROR_CODES.AUTH_INVALID, 'requester tenant mismatch');
     }
     if (!request.action || typeof request.action !== 'object') {
       throw new VibeGuardError(ERROR_CODES.SCHEMA_INVALID, 'approval action is required');
     }
-    const ttl = Math.min(Number(request.ttlSeconds || this.defaultTtlSeconds), 900);
+    const ttl = Math.min(Number(request.ttlSeconds || this.defaultTtlSeconds), MAX_TTL_SECONDS);
     if (!Number.isFinite(ttl) || ttl <= 0) throw new VibeGuardError(ERROR_CODES.SCHEMA_INVALID, 'invalid approval ttl');
+    const requiredApprovals = Math.min(Math.max(Math.trunc(Number(request.requiredApprovals || 1)), 1), MAX_QUORUM);
+    if (!Number.isFinite(requiredApprovals)) throw new VibeGuardError(ERROR_CODES.SCHEMA_INVALID, 'invalid requiredApprovals');
     const now = this.now();
     const expires = new Date(now.getTime() + ttl * 1000);
     const ticket = {
@@ -73,10 +124,13 @@ class ApprovalBroker {
       actionDigest: actionDigest(request.action),
       nonce: crypto.randomBytes(16).toString('base64url'),
       reason: String(request.reason || '').slice(0, 500),
+      requiredApprovals,
+      approvals: [],
       createdAt: now.toISOString(),
       expiresAt: expires.toISOString(),
       status: 'pending',
       approver: null,
+      decisionReason: '',
       approvalToken: null,
     };
     this.tickets.set(ticket.ticketId, ticket);
@@ -95,9 +149,9 @@ class ApprovalBroker {
     if (!approver.startsWith('human:')) {
       throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver must be a human principal');
     }
-    const tenant = (x) => String(x).split(':')[1].split('/')[0];
-    if (tenant(approver) !== this.tenant) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver tenant mismatch');
+    if (tenantOf(approver) !== this.tenant) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver tenant mismatch');
     if (approver === ticket.principal) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'self-approval is not allowed');
+    if (ticket.approvals.some((a) => a.approver === approver)) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver already decided this ticket');
 
     if (this.requireApproverProof) {
       const key = this.approverKeys.get(approver);
@@ -112,11 +166,23 @@ class ApprovalBroker {
       if (!Number.isInteger(pp.exp) || pp.exp <= Math.floor(this.now().getTime() / 1000)) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approver proof expired');
     }
 
+    const decidedAt = this.now().toISOString();
     if (decision.approve !== true) {
       ticket.status = 'denied';
       ticket.approver = approver;
-      ticket.decidedAt = this.now().toISOString();
+      ticket.decidedAt = decidedAt;
+      ticket.decisionReason = String(decision.reason || '').slice(0, 500);
+      ticket.approvals.push({ approver, decision: 'deny', at: decidedAt });
       return { status: 'denied', ticket: publicTicket(ticket) };
+    }
+
+    ticket.approvals.push({ approver, decision: 'approve', at: decidedAt });
+    if (ticket.approvals.length < ticket.requiredApprovals) {
+      return {
+        status: 'pending_approval',
+        ticket: publicTicket(ticket),
+        remaining: ticket.requiredApprovals - ticket.approvals.length,
+      };
     }
 
     const payload = {
@@ -127,16 +193,18 @@ class ApprovalBroker {
       exp: Math.floor(new Date(ticket.expiresAt).getTime() / 1000),
       jti: crypto.randomBytes(12).toString('base64url'),
       typ: 'VGAPPROVAL',
+      tenant: this.tenant,
       ticketId: ticket.ticketId,
       actionDigest: ticket.actionDigest,
       nonce: ticket.nonce,
       requestedBy: ticket.principal,
+      approvers: ticket.approvals.map((a) => a.approver),
     };
     const token = signJws({ alg: 'EdDSA', typ: 'VGAPPROVAL', kid: this.keyId }, payload, this.privateKey);
     ticket.status = 'approved';
     ticket.approver = approver;
     ticket.approvalToken = token;
-    ticket.decidedAt = this.now().toISOString();
+    ticket.decidedAt = decidedAt;
     return { status: 'approved', ticket: publicTicket(ticket), approvalToken: token };
   }
 
@@ -145,7 +213,11 @@ class ApprovalBroker {
   }
 
   importState(state = {}) {
-    this.tickets = new Map((state.tickets || []).map((t) => [t.ticketId, t]));
+    this.tickets = new Map((state.tickets || []).map((t) => [t.ticketId, {
+      ...t,
+      approvals: Array.isArray(t.approvals) ? t.approvals : [],
+      requiredApprovals: Number.isInteger(t.requiredApprovals) ? t.requiredApprovals : 1,
+    }]));
     this.usedTokens = new Set(state.usedTokens || []);
     return this;
   }
@@ -171,6 +243,7 @@ class ApprovalBroker {
       throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval action digest mismatch');
     }
     if (ticket.usedAt) throw new VibeGuardError(ERROR_CODES.REPLAY_DETECTED, 'approval replay detected (already used)');
+    this._refreshUsedTokens();
     const decoded = verifyJws(approvalToken, this.publicKey);
     if (decoded.header.typ !== 'VGAPPROVAL' || decoded.header.alg !== 'EdDSA') {
       throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'invalid approval token type');
@@ -178,15 +251,16 @@ class ApprovalBroker {
     const p = decoded.payload;
     const now = Math.floor(this.now().getTime() / 1000);
     if (p.iss !== this.issuer || p.aud !== 'vibeguard-approval') throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval issuer/audience mismatch');
+    if (p.tenant && p.tenant !== this.tenant) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval tenant mismatch');
     if (p.ticketId !== ticketId) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval ticket mismatch');
     if (p.actionDigest !== expectedActionDigest) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval digest mismatch');
     if (p.nonce !== ticket.nonce) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval nonce mismatch');
     if (!Number.isInteger(p.exp) || p.exp <= now) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval expired');
     if (p.sub !== ticket.approver) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval approver mismatch');
     if (this.usedTokens.has(p.jti)) throw new VibeGuardError(ERROR_CODES.REPLAY_DETECTED, 'approval replay');
-    this.usedTokens.add(p.jti);
+    this._recordUsedToken(p.jti);
     ticket.usedAt = this.now().toISOString();
-    return { approved: true, approver: p.sub, ticket: publicTicket(ticket) };
+    return { approved: true, approver: p.sub, approvers: p.approvers || [p.sub], ticket: publicTicket(ticket) };
   }
 
   listPending() {
@@ -195,6 +269,7 @@ class ApprovalBroker {
 
   verifyStandalone(approvalToken, expectedActionDigest) {
     if (!expectedActionDigest) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'action digest required');
+    this._refreshUsedTokens();
     const decoded = verifyJws(approvalToken, this.publicKey);
     if (decoded.header.typ !== 'VGAPPROVAL' || decoded.header.alg !== 'EdDSA') {
       throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'invalid approval token type');
@@ -202,12 +277,13 @@ class ApprovalBroker {
     const p = decoded.payload;
     const now = Math.floor(this.now().getTime() / 1000);
     if (p.iss !== this.issuer || p.aud !== 'vibeguard-approval') throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval issuer/audience mismatch');
+    if (p.tenant && p.tenant !== this.tenant) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval tenant mismatch');
     if (p.actionDigest !== expectedActionDigest) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval digest mismatch');
     if (!Number.isInteger(p.exp) || p.exp <= now) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval expired');
     if (!p.sub || !String(p.sub).startsWith('human:')) throw new VibeGuardError(ERROR_CODES.APPROVAL_INVALID, 'approval approver is not human');
     if (this.usedTokens.has(p.jti)) throw new VibeGuardError(ERROR_CODES.REPLAY_DETECTED, 'approval replay');
-    this.usedTokens.add(p.jti);
-    return { approved: true, approver: p.sub, actionDigest: p.actionDigest };
+    this._recordUsedToken(p.jti);
+    return { approved: true, approver: p.sub, approvers: p.approvers || [p.sub], actionDigest: p.actionDigest, ticketId: p.ticketId };
   }
 }
 
@@ -218,12 +294,15 @@ function publicTicket(t) {
     actionDigest: t.actionDigest,
     nonce: t.nonce,
     reason: t.reason,
+    requiredApprovals: t.requiredApprovals || 1,
+    approvals: (t.approvals || []).map((a) => ({ approver: a.approver, decision: a.decision, at: a.at })),
     createdAt: t.createdAt,
     expiresAt: t.expiresAt,
     status: t.status,
     approver: t.approver,
+    decisionReason: t.decisionReason || '',
     used: !!t.usedAt,
   };
 }
 
-module.exports = { ApprovalBroker };
+module.exports = { ApprovalBroker, MAX_QUORUM };

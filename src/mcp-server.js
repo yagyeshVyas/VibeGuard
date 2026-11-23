@@ -7,7 +7,7 @@
  * Exposes the scanner and the agent runtime guard to MCP clients (Claude Code,
  * Cursor) over stdio.
  *
- * Scanner tools: scan_project, suggest_fixes, verify_fixes, ... (93 tools).
+ * Scanner tools: scan_project, suggest_fixes, verify_fixes, ... (95 tools).
  * Agent runtime tools: mcp_firewall, scan_skills, agent_risk, owasp_coverage,
  * agent_monitor, sandbox_exec.
  *
@@ -631,6 +631,30 @@ const TOOLS = [
         memory: { type: 'number', description: 'Memory cap in MB for the OS backend (default: backend default).' },
       },
       required: ['code'],
+    },
+  },
+  {
+    name: 'approval_request',
+    description: 'Request a human approval ticket from the configured VibeGuard approval service. Requires VIBEGUARD_APPROVAL_URL and VIBEGUARD_AGENT_TOKEN. The human decision happens out-of-band (authenticated UI or human token + signed proof); this tool cannot self-approve.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'object', description: 'Exact action to approve: {server, tool, capability, arguments}.' },
+        reason: { type: 'string', description: 'Human-readable request reason.' },
+        ttlSeconds: { type: 'number', description: 'Ticket lifetime (max 900).' },
+      },
+      required: ['action'],
+    },
+  },
+  {
+    name: 'approval_status',
+    description: 'Get the status of an approval ticket and, when approved, the single-use VGAPPROVAL token. Agents can only read their own tickets. Requires VIBEGUARD_APPROVAL_URL and VIBEGUARD_AGENT_TOKEN.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ticketId: { type: 'string', description: 'Approval ticket id.' },
+      },
+      required: ['ticketId'],
     },
   },
   {
@@ -1505,6 +1529,37 @@ async function handleTracePrompt(args) {
   const { trace } = require('./trace');
   const tr = trace(dir, result.findings);
   return textResult(JSON.stringify({ sessions: tr.sessions, traces: tr.traces }, null, 2));
+}
+
+async function approvalServiceRequest(path, init = {}) {
+  const base = String(process.env.VIBEGUARD_APPROVAL_URL || 'http://127.0.0.1:8787').replace(/\/$/, '');
+  const token = process.env.VIBEGUARD_AGENT_TOKEN || '';
+  if (!token) return { error: 'VIBEGUARD_AGENT_TOKEN is not configured' };
+  try {
+    const res = await fetch(base + path, {
+      ...init,
+      signal: typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(15000) : undefined,
+      headers: { 'content-type': 'application/json', accept: 'application/json', authorization: `Bearer ${token}`, ...(init.headers || {}) },
+    });
+    const body = await res.json().catch(() => ({}));
+    return { status: res.status, body };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+async function handleApprovalRequest(args) {
+  if (!args.action || typeof args.action !== 'object') return textResult('approval_request requires an "action" object.', true);
+  const r = await approvalServiceRequest('/approval/request', { method: 'POST', body: JSON.stringify({ action: args.action, reason: args.reason, ttlSeconds: args.ttlSeconds }) });
+  if (r.error) return textResult(`approval_request failed: ${r.error}`, true);
+  return textResult(JSON.stringify(r.body, null, 2), r.status >= 300);
+}
+
+async function handleApprovalStatus(args) {
+  if (!args.ticketId) return textResult('approval_status requires a "ticketId".', true);
+  const r = await approvalServiceRequest('/approval/ticket/' + encodeURIComponent(args.ticketId));
+  if (r.error) return textResult(`approval_status failed: ${r.error}`, true);
+  return textResult(JSON.stringify(r.body, null, 2), r.status >= 300);
 }
 
 async function handleBehaviorAnalysis(args) {
@@ -2452,6 +2507,8 @@ async function main() {
       else if (name === 'self_check') result = await handleSelfCheck(args);
       else if (name === 'tamper_check') result = await handleTamperCheck(args);
       else if (name === 'sandbox_exec') result = await handleSandboxExec(args);
+      else if (name === 'approval_request') result = await handleApprovalRequest(args);
+      else if (name === 'approval_status') result = await handleApprovalStatus(args);
       else if (name === 'supply_chain_audit') result = await handleSupplyAudit(args);
       else if (name === 'vault_manage') result = await handleVaultManage(args);
       else if (name === 'audit_log') result = await handleAuditLog(args);

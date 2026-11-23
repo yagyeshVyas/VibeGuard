@@ -6,13 +6,13 @@
   <img src="website/banner.svg" alt="VibeGuard — security scanner for code you didn't write" width="880" />
 </picture>
 
-<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;861+rules+%C2%B7+93+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;offline+by+default+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
+<a href="https://git.io/typing-svg"><img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=21&duration=2800&pause=900&color=22C55E&center=true&vCenter=true&width=760&lines=%24+npx+%40yagyeshvyas%2Fvibeguard+scan;861+rules+%C2%B7+95+MCP+tools+%C2%B7+18+languages;catches+what+AI+forgets+%E2%80%94+before+you+ship;offline+by+default+%C2%B7+zero+telemetry+%C2%B7+free+forever" alt="Typing animation: npx @yagyeshvyas/vibeguard scan" /></a>
 
 <h3>🔒 The AI-era security scanner for code you didn't write.</h3>
 
 <p>
 Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped agent loops.<br/>
-<strong>861 rules</strong> · <strong>93 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
+<strong>861 rules</strong> · <strong>95 MCP tools</strong> · <strong>18 languages</strong> · <strong>10 compliance frameworks</strong><br/>
 Offline by default · Zero telemetry · No paid APIs · Free forever.
 </p>
 
@@ -27,7 +27,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 <p>
   <img src="https://img.shields.io/badge/benchmark-119%2F119%20cases-brightgreen?style=flat-square" alt="119/119 benchmark cases" />
   <img src="https://img.shields.io/badge/rules-861-blue?style=flat-square" alt="861 rules" />
-  <img src="https://img.shields.io/badge/MCP%20tools-93-purple?style=flat-square" alt="93 MCP tools" />
+  <img src="https://img.shields.io/badge/MCP%20tools-95-purple?style=flat-square" alt="95 MCP tools" />
   <img src="https://img.shields.io/badge/languages-18-green?style=flat-square" alt="18 languages" />
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
@@ -92,7 +92,7 @@ production-ready; it is the verified internal-testing build described in
   `sandbox verify`.
 - Memory provenance and multi-agent delegation guards; labeled detection corpus;
   AISVS-style readiness mapping.
-- **634 tests, 0 failures** and **40/40 platform tests** on the audit host;
+- **647 tests, 0 failures** and **46/46 platform tests** on the audit host;
   Windows AppContainer verification: all 11 evidence classes pass.
 
 Install note: v1.14.0 is distributed as `@yagyeshvyas/vibeguard@1.14.0`. If a
@@ -142,7 +142,7 @@ the code plane: the MCP channel between an agent and its tools.
   `--isolation auto` prefers a verified OS backend. The lower
   `--isolation process` mode remains a separate Node process under the
   permission model; it is explicitly not an OS boundary.
-- **Tests:** 634 passing, 0 failures, including a live stdio proxy test that
+- **Tests:** 647 passing, 0 failures, including a live stdio proxy test that
   spawns the CLI and a fixture MCP server. **Offline by default, zero telemetry,
   Windows 11 supported.**
 
@@ -214,8 +214,10 @@ Not implemented or not verified:
   not a VM/hardware boundary.
 - **External audit anchor** and checkpoint sidecars are supported; legacy
   non-strict gateway audit is still the legacy hash chain.
-- **Approval service**: hosted API with authenticated tickets, signed approver
-  proofs, JSON persistence, key rotation and a read-only dashboard; no SSO/IdP.
+- **Approval service**: loopback API + password-authenticated human UI with
+  HttpOnly sessions and CSRF, human-token + signed VGAPPROVER proofs, optional
+  multi-human quorum, durable tickets/used tokens, signed approval audit and
+  approver key rotation. It is a local service, not an enterprise SSO/IdP.
 - A **local OAuth 2.1 code+PKCE server** and TLS/mTLS bridge options exist;
   multi-session persistence and a full remote IdP/lifecycle remain incomplete.
 - Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
@@ -245,7 +247,7 @@ Three things no other offline scanner does: it knows which findings are **live**
 - 🧭 **Deterministic exploit chains.** `vibeguard attack-surface` now emits chains: `precondition → entrypoint → sink → impact`. Unauthenticated route → command injection → remote code execution (CWE-94); IDOR endpoint → cross-user data access (CWE-639); SSRF → cloud metadata credential theft. No LLM, identical input → identical chain — the narrative capability of ZeroPath/DryRun without their nondeterminism or per-scan cost.
 - 🧱 **`vibeguard bundle-scan` — secrets in `dist/`, `build/`, `.next/static`, `out/`.** Every source scanner skips build output; that is exactly where bundlers inline `process.env` values and `NEXT_PUBLIC_*` secrets. Reuses the 75 secret rules + entropy engine on minified artifacts and flags shipped source maps. A key found here is public to every visitor.
 - 🔗 **Agent surface:** `scan_bundle` + `live`/`reachabilityGrade` on `scan_project`; `attack_surface` returns chains in JSON and in the lean payload.
-- 🧪 **564 tests, 0 failures** · **861 rules** · **93 MCP tools** · Grade A self-scan.
+- 🧪 **564 tests, 0 failures** · **861 rules** · **95 MCP tools** · Grade A self-scan.
 
 ```bash
 vibeguard scan . --live                 # only what production can reach
@@ -268,7 +270,7 @@ Built from the 2025-26 evidence base: Veracode GenAI (45% of generated samples s
 - 🕵️ **Backdoor engine + `scan_backdoors` MCP tool** — decodes base64/hex/unicode/fromCharCode layers, flags encoded payloads in executable position, javascript-obfuscator fingerprints, fetch→eval loaders, curl|sh, PowerShell `-enc`, remote imports, hidden Unicode/bidi (Trojan-Source class), and capability combinations (exec + network + env = dropper/exfil). Skips minified vendor bundles so it stays quiet on real repos.
 - 🧬 **AST coverage fix (critical)** — every `.jsx` file failed to parse (no JSX plugin) and every `.tsx` crashed the walker (`No walker function defined for node type JSXElement`), silently disabling AST/taint on most React/Next code. Fixed with a JSX parser and JSX walkers merged into acorn-walk's base, plus a generic TS-node fallback. Self-scan degraded files: **27 → 0**.
 - 🔥 **Firebase `.rules` files are scanned at all now** — the extension was never in the allowlist, so open Firestore/Storage rules were invisible.
-- 🧪 **564 tests, 0 failures** · **861 rules** · **93 MCP tools** · Grade A self-scan.
+- 🧪 **564 tests, 0 failures** · **861 rules** · **95 MCP tools** · Grade A self-scan.
 
 ```bash
 vibeguard attack-surface .            # what is exposed right now, ranked
@@ -298,7 +300,7 @@ db.query(`SELECT * FROM users WHERE id = ${req.body.id}`);
 - 🚨 **No more silent fail-open.** A crash inside the AST taint pass used to drop analysis to the weaker regex engine *silently* — every dataflow finding vanished while the scan still printed a clean grade. It is now recorded as degraded coverage, so the CLI warns and `--strict` refuses to call that scan clean. (Found the honest way: a temporal-dead-zone bug of mine triggered exactly this, and nothing said a word.)
 - 🎯 **`process` is no longer a blanket taint source.** Only `argv`/`argv0`/`env` carry outside input; `process.execPath`, `platform`, `version` and friends do not. Treating the whole namespace as attacker-controlled made `spawn(process.execPath, [script])` — the standard way to launch a child Node process — look like command injection.
 - 📊 **Harder benchmark, honest scoring.** Added 8 laundered-source and 8 adversarial-clean cases. The scorer now runs the same de-duplication the product does, so it measures what a user actually sees instead of raw pre-dedupe rule hits. Result: **119/119 cases, 0 FP, 0 FN** (was 96.0% F1). See the caveat in [Benchmark](#benchmark) — a saturated corpus means the corpus got easy, not that the scanner is perfect.
-- 🧪 **508 tests, 0 failures** (11 new regression tests, all asserted against a *default* scan — a finding only visible under `--all` is not protection) · **861 rules** · **93 MCP tools** · Grade A self-scan on 309 files.
+- 🧪 **508 tests, 0 failures** (11 new regression tests, all asserted against a *default* scan — a finding only visible under `--all` is not protection) · **861 rules** · **95 MCP tools** · Grade A self-scan on 309 files.
 
 </details>
 
@@ -311,10 +313,10 @@ Every security scanner answers an AI agent with pretty-printed JSON — two-spac
 - 🎯 **Hard token budgets** (`--budget 2000`, or `VIBEGUARD_TOKEN_BUDGET`). The budget is spent on the highest-**risk** findings first — severity × confidence, with dataflow-confirmed and exploitable rules outranking pattern-only matches at equal severity. Anything cut is reported as an explicit rollup that states `NOT an all-clear`. A clipped scan can never be misread as a clean one.
 - ⚡ **Delta scans** (`--lean --delta`). In an edit→scan→fix loop, the common answer is "nothing changed" — and that answer now costs **~20 tokens instead of ~5,000**. New findings are shown; already-reported ones are not repeated. Resolved findings are counted.
 - 🔧 **Lean fix plans** — `suggest_fixes` states each remediation once per rule and drops the diagnosis, because when the task is "apply the fix" the diagnosis is not what the agent needs.
-- 🛡️ **Context-window DoS protection** — a 14th defense layer clamps *any* of the 93 MCP tools to the budget, so one dependency-tree dump can't evict an agent's working memory. Truncation is always disclosed.
+- 🛡️ **Context-window DoS protection** — a 14th defense layer clamps *any* of the 95 MCP tools to the budget, so one dependency-tree dump can't evict an agent's working memory. Truncation is always disclosed.
 - 📐 **`vibeguard tokens [dir]`** — reproduce the savings claim on your own repository. No marketing number you have to take on faith.
 - 🔒 **Zero new dependencies.** The token estimator is an offline model (~±10% of a real BPE tokenizer), because VibeGuard stays zero-dependency and offline by contract.
-- 🧪 **497 tests, 0 failures** · **861 rules** · **93 MCP tools** · Grade A self-scan on 293 files.
+- 🧪 **497 tests, 0 failures** · **861 rules** · **95 MCP tools** · Grade A self-scan on 293 files.
 
 ```bash
 vibeguard scan --lean --budget 2000    # fits any context window, highest-risk first
@@ -333,7 +335,7 @@ vibeguard tokens                       # prove the saving on your own repo
 - ✅ **`vibeguard fix --apply --verify` — the "fix verified" loop**: applies the snapshot-backed auto-fixes, re-scans, and reports ✓/⚠ per finding (Strix's headline workflow, deterministic).
 - 🚦 **`vibeguard pre-deploy --pentest-url <url>`** — 14th gate: live pentest runs inside the deploy gate; critical/high findings block the deploy.
 - ⚔️ **vs Strix.ai (their own numbers):** their deep scan costs ~$1.7–3.9/run in LLM tokens, takes 30 min–4 h, is non-deterministic, and needs Docker+Kali+an API key. VibeGuard: zero cost, ~1.6 s for the demo run, identical input → identical output, no Docker, no keys — plus runtime AI-agent protection and git-history scanning Strix doesn't have.
-- 🧪 **497 tests, 0 failures** · **861 rules** · **93 MCP tools** · Grade A self-scan on 291 files.
+- 🧪 **497 tests, 0 failures** · **861 rules** · **95 MCP tools** · Grade A self-scan on 291 files.
 
 </details>
 
@@ -947,5 +949,5 @@ Found a bug? [🐛 Open an issue](https://github.com/yagyeshVyas/VibeGuard/issue
 
 <!-- COUNTS:START -->
 <!-- Auto-generated by scripts/counts.js — do not edit manually -->
-<!-- Rules: 861 | MCP Tools: 93 | Defense Layers: 13 -->
+<!-- Rules: 861 | MCP Tools: 95 | Defense Layers: 13 -->
 <!-- COUNTS:END -->

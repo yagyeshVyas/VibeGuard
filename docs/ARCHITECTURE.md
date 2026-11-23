@@ -11,7 +11,7 @@ Legacy v1.10 scanner + MCP server (preserved)
         │
         ├─ platform/canonical + contracts
         ├─ platform/identity  (Ed25519 VGAT capability tokens, replay cache)
-        ├─ platform/approval  (signed, single-use human approvals, in-memory)
+        ├─ platform/approval  (signed, single-use human approvals + authenticated service)
         ├─ platform/signed-audit (Ed25519 event chain + Merkle checkpoints)
         ├─ platform/policy    (strict v2 engine, signed policies, default deny)
         ├─ platform/jwt       (offline EdDSA JWT/JWKS validation)
@@ -60,7 +60,7 @@ vibeguard sandbox backends ──► explicitly unverified/verified status
   multi-session persistence.
 - Strict mode writes signed gateway audit events; non-strict mode still uses the
   legacy hash chain. External checkpoint/anchor remains absent.
-- Persistent identity/approval stores and an authenticated approval UI; the broker is in-memory.
+- Approval tickets and used tokens are persisted by the hosted approval service; the broker itself remains storage-agnostic. The authenticated human UI uses a password login (scrypt), HttpOnly session cookies, CSRF tokens, signed approver proofs, optional quorum and signed approval audit events.
 - Independent runtime monitors and quarantine service; an optional kill-on-block switch exists.
 - REST API/SDK/dashboard/IDE integrations beyond the primitive HTTP gateway.
 - AISVS 1.01 mapping, evidence-backed OWASP statuses, complete supply-chain
@@ -81,6 +81,6 @@ See `reports/known-limitations.md` for the authoritative list.
 
 ## Compatibility
 
-Legacy CLI commands and the 93 MCP tools remain. New strict behavior is opt-in
+Legacy CLI commands and the 95 MCP tools remain. New strict behavior is opt-in
 for existing commands; new platform commands are additive. Partial unsafe
 behavior is explicitly labeled in output (`verified=NO`).

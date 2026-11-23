@@ -120,7 +120,53 @@ vibeguard mcp-firewall --exec "<server>" --dir . \
   --token-tenant acme --token-key-id k1
 ```
 
-A signed single-use approval can be supplied with `--approval-token`, `--approval-pub`, `--approval-issuer`, `--approval-tenant`, `--approval-key-id`. There is no authenticated approval UI yet.
+A signed single-use approval can be supplied with `--approval-token`, `--approval-pub`, `--approval-issuer`, `--approval-tenant`, `--approval-key-id` and the durable replay store `--approval-used`.
+
+## Authenticated human approval workflow
+
+The hosted approval service provides the request → human decision → agent token
+workflow. It is loopback-first; the browser UI requires a scrypt password hash
+and uses HttpOnly `SameSite=Strict` sessions plus CSRF tokens. Decisions are
+bound to the exact action digest and written to a signed audit log.
+
+```bash
+# 1. Configure humans and the private keys used by the service to sign proofs
+vibeguard approval hash-password        # reads VG_APPROVAL_PASSWORD or stdin
+vibeguard approval serve --users users.json --signing-keys keys.json \
+  --key approval-private.pem --identity-key identity-private.pem \
+  --store .vibeguard/approvals.json --port 8787
+
+# 2. Issue a short-lived agent token
+vibeguard approval issue --key identity-private.pem \
+  --principal agent:acme/ci --issuer human:acme/security --tenant acme
+
+# 3. Agent requests approval for the exact action
+vibeguard approval request --url http://127.0.0.1:8787 --token <agent-token> \
+  --action '{"server":"files","tool":"delete_file","capability":"fs.write","arguments":{"path":"x"}}' \
+  --reason "cleanup"
+
+# 4. Human logs in at http://127.0.0.1:8787/approval and approves/denies.
+#    Headless equivalent:
+vibeguard approval decide --url http://127.0.0.1:8787 --ticket <ticket-id> \
+  --principal human:acme/alice --password "$VG_APPROVAL_PASSWORD"
+
+# 5. Agent retrieves the single-use approval token
+vibeguard approval status --url http://127.0.0.1:8787 --token <agent-token> \
+  --ticket <ticket-id>
+```
+
+`users.json` maps human principals to `{"passwordHash":"scrypt$..."}`.
+`keys.json` maps each human principal to the path of their Ed25519 private key.
+The service derives the public verification key and signs the VGAPPROVER proof
+only after an authenticated human session or a valid human token + proof.
+
+MCP agents can use `approval_request` and `approval_status` when
+`VIBEGUARD_APPROVAL_URL` and `VIBEGUARD_AGENT_TOKEN` are set; no MCP tool can
+approve a ticket. For an HTTP MCP gateway, pass the approval on the retry as
+`x-vibeguard-approval: <VGAPPROVAL>` (or `params.approvalToken`); the gateway
+verifies the digest, tenant, expiry and nonce, consumes the JTI (durably when a replay store is configured) and only
+then forwards the message upstream. Missing/invalid approval returns
+`202 approvalRequired` or a 4xx error, never a silent execute.
 
 ## HTTP/SSE bridge
 

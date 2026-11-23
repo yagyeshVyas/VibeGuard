@@ -23,7 +23,7 @@ const {
 } = require('../src/report');
 
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id', 'anchor', 'max-rss']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'host', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id', 'approval-used', 'anchor', 'max-rss', 'url', 'users', 'store', 'signing-keys', 'identity-key', 'principal', 'capabilities', 'ttl', 'action', 'reason', 'required', 'ticket', 'proof', 'used', 'admin', 'session-ttl', 'password', 'issuer', 'tenant', 'approval-key-id']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -87,6 +87,7 @@ Advanced:
   vibeguard policy validate <file>  Validate a signed policy v2.
   vibeguard policy sign <file>      Sign a policy v2 with Ed25519.
   vibeguard audit verify <log>      Verify signed audit events/checkpoints.
+  vibeguard approval <action>       Authenticated human approval workflow (serve/issue/request/status/decide/verify).
   vibeguard sandbox backends        Show isolation backends.
   vibeguard sandbox verify          Verify Linux network/PID namespace isolation.
   vibeguard aisvs [--json]          AISVS-style internal control readiness mapping.
@@ -964,7 +965,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall', 'policy', 'audit', 'aisvs']);
+  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall', 'policy', 'audit', 'approval', 'aisvs']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     process.exit(2);
@@ -1113,7 +1114,7 @@ async function main() {
     else if (cmd === 'output-guard') code = cmdOutputGuard(args, flags);
     else if (cmd === 'env-lock') code = cmdEnvLock(dir, flags);
     else if (cmd === 'self-check') code = cmdSelfCheck(dir, flags);
-    else if (cmd === 'policy' || cmd === 'audit' || cmd === 'aisvs' || (cmd === 'sandbox' && (args._[1] === 'backends' || args._[1] === 'verify'))) {
+    else if (cmd === 'policy' || cmd === 'audit' || cmd === 'aisvs' || cmd === 'approval' || (cmd === 'sandbox' && (args._[1] === 'backends' || args._[1] === 'verify'))) {
       const { cmdPlatform } = require('./cmd-platform');
       code = await cmdPlatform(args, flags);
     }

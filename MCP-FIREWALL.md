@@ -225,6 +225,8 @@ The same engines are available to an agent through the MCP server:
 | `owasp_coverage` | OWASP mapping |
 | `agent_monitor` | runtime activity and anomaly report |
 | `sandbox_exec` | run untrusted code (`isolation: auto/os/process/vm`) |
+| `approval_request` | request a human approval ticket for an exact action |
+| `approval_status` | read a ticket's status and single-use approval token |
 
 ## Sandbox
 
@@ -304,7 +306,7 @@ macOS VM isolation requires a configured guest image. Do not describe
 ## Signed audit, auth and kill switch
 
 - Strict mode writes signed Ed25519 gateway events by default and fails closed if the audit sink is unavailable.
-- `--token` + `--token-pub` enforce a VGAT principal capability set on stdio; `--approval-token` + `--approval-pub` enforce a signed single-use approval for approval-required rules.
+- `--token` + `--token-pub` enforce a VGAT principal capability set on stdio; `--approval-token` + `--approval-pub` enforce a signed single-use approval for approval-required rules; `--approval-used` makes the replay store durable across processes. Human decisions can be collected through `vibeguard approval serve`/the authenticated UI.
 - `--kill-on-block` / `--max-blocks N` quarantine-kills the upstream and exits 3 after blocked calls.
 - `src/platform/mcp-http-bridge.js` provides authenticated JSON-RPC POST and SSE notification flow over stdio; it is loopback-tested and does not provide TLS/OAuth remote deployment.
 - Linux `unshare`/bubblewrap, Windows AppContainer and macOS hardware-VM isolation are verified through `vibeguard sandbox verify` when the host (and, for macOS, a guest image) provides them.

@@ -18,8 +18,9 @@ function test(name, fn) { tests.push({ name, fn }); }
 function tmp(prefix = 'vg-v2-') { return fs.mkdtempSync(path.join(os.tmpdir(), prefix)); }
 
 const { canonicalize, sha256Hex, actionDigest } = require('../src/platform/canonical');
-const { IdentityAuthority, generateKeyPair } = require('../src/platform/identity');
+const { IdentityAuthority, generateKeyPair, privateKeyToPem, publicKeyToPem } = require('../src/platform/identity');
 const { ApprovalBroker } = require('../src/platform/approval');
+const { hashPassword } = require('../src/platform/approval-service');
 const { SignedAuditLog } = require('../src/platform/signed-audit');
 const { StrictPolicyEngine, signPolicy, verifyPolicy, loadPolicyFile } = require('../src/platform/policy');
 const { createEngine } = require('../src/mcp-firewall');
@@ -194,8 +195,8 @@ test('hosted approval service: authenticated request, signed proof, persistence 
   const storeFile = path.join(dir, 'approvals.json');
   let service = await createApprovalService({ broker, authority, storeFile });
   try {
-    const agentToken = authority.issue({ principal: 'agent:acme/ci', capabilities: ['mcp.tool.invoke'] }).token;
-    const humanToken = authority.issue({ principal: approver, capabilities: [] }).token;
+    const agentToken = authority.issue({ principal: 'agent:acme/ci', capabilities: ['mcp.tool.invoke', 'approval.request', 'approval.read'] }).token;
+    const humanToken = authority.issue({ principal: approver, capabilities: ['approval.decide', 'approval.read'] }).token;
     const action = { server: 's', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
     const req = await request(service.url + '/approval/request', agentToken, { action });
     assert.strictEqual(req.status, 200);
@@ -210,6 +211,231 @@ test('hosted approval service: authenticated request, signed proof, persistence 
   broker.importState(JSON.parse(fs.readFileSync(storeFile, 'utf8')));
   service = await createApprovalService({ broker, authority, storeFile });
   try { assert.strictEqual(service.broker.tickets.size, 1); } finally { await service.close(); }
+});
+
+
+test('approval quorum: distinct humans only, duplicate rejected, token at threshold', () => {
+  const now = new Date('2026-11-21T00:00:00Z');
+  const alicePair = generateKeyPair();
+  const bobPair = generateKeyPair();
+  const alice = 'human:acme/alice@example.com';
+  const bob = 'human:acme/bob@example.com';
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', now: () => now, approverKeys: { [alice]: alicePair.publicKey, [bob]: bobPair.publicKey } });
+  const action = { server: 'files', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
+  const ticket = broker.request({ principal: 'agent:acme/ci', action, requiredApprovals: 2 }).ticket;
+  assert.strictEqual(ticket.requiredApprovals, 2);
+  const aliceProof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver: alice, privateKey: alicePair.privateKey });
+  const first = broker.decide(ticket.ticketId, { approver: alice, approve: true, proof: aliceProof });
+  assert.strictEqual(first.status, 'pending_approval');
+  assert.strictEqual(first.remaining, 1);
+  assert.strictEqual(first.approvalToken, undefined);
+  assert.throws(() => broker.decide(ticket.ticketId, { approver: alice, approve: true, proof: aliceProof }), /already decided/i);
+  const bobProof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver: bob, privateKey: bobPair.privateKey });
+  const second = broker.decide(ticket.ticketId, { approver: bob, approve: true, proof: bobProof });
+  assert.strictEqual(second.status, 'approved');
+  assert(second.approvalToken);
+  assert.deepStrictEqual(second.ticket.approvals.map((a) => a.approver), [alice, bob]);
+  const verified = broker.verify(ticket.ticketId, second.approvalToken, actionDigest(action));
+  assert.deepStrictEqual(verified.approvers, [alice, bob]);
+});
+
+test('authenticated approval UI: password login, CSRF, signed decision, agent token retrieval and audit', async () => {
+  const http = require('http');
+  const { createApprovalService } = require('../src/platform/approval-service');
+  const dir = tmp();
+  const approverPair = generateKeyPair();
+  const brokerPair = generateKeyPair();
+  const approver = 'human:acme/alice';
+  const password = 'correct horse battery staple';
+  const authority = new IdentityAuthority({ issuer: 'human:acme/security@example.com', tenant: 'acme' });
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: brokerPair.privateKey, keyId: 'a' });
+  const storeFile = path.join(dir, 'approvals.json');
+  const auditFile = path.join(dir, 'approval-audit.jsonl');
+  let service = await createApprovalService({
+    broker,
+    authority,
+    storeFile,
+    auditFile,
+    humanUsers: { [approver]: { passwordHash: hashPassword(password), displayName: 'Alice' } },
+    approverSigningKeys: { [approver]: privateKeyToPem(approverPair.privateKey) },
+  });
+  const call = (url, opts = {}) => new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const data = opts.body === undefined ? null : JSON.stringify(opts.body);
+    const headers = { accept: opts.accept || 'application/json', ...(opts.headers || {}) };
+    if (data !== null) { headers['content-type'] = 'application/json'; headers['content-length'] = Buffer.byteLength(data); }
+    if (opts.token) headers.authorization = 'Bearer ' + opts.token;
+    if (opts.cookie) headers.cookie = opts.cookie;
+    const req = http.request({ hostname: u.hostname, port: u.port, path: u.pathname + u.search, method: opts.method || 'GET', agent: false, headers }, (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => { let parsed = null; try { parsed = body ? JSON.parse(body) : null; } catch { parsed = { raw: body }; } resolve({ status: res.statusCode, headers: res.headers, body: parsed }); });
+    });
+    req.on('error', reject);
+    if (data !== null) req.write(data);
+    req.end();
+  });
+  const cookiesFrom = (res) => {
+    const values = {};
+    for (const entry of (Array.isArray(res.headers['set-cookie']) ? res.headers['set-cookie'] : [])) {
+      const [pair] = String(entry).split(';');
+      const index = pair.indexOf('=');
+      values[pair.slice(0, index)] = pair.slice(index + 1);
+    }
+    return values;
+  };
+  try {
+    const agentToken = authority.issue({ principal: 'agent:acme/ci', capabilities: ['approval.request', 'approval.read'] }).token;
+    const action = { server: 'files', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
+    const req = await call(service.url + '/approval/request', { method: 'POST', token: agentToken, body: { action, reason: '<script>alert(1)</script>' } });
+    assert.strictEqual(req.status, 200, JSON.stringify(req.body));
+    const ticket = req.body.ticket;
+
+    assert.strictEqual((await call(service.url + '/approval')).status, 401);
+    assert.strictEqual((await call(service.url + '/auth/login', { method: 'POST', body: { principal: approver, password: 'wrong password' } })).status, 401);
+    const login = await call(service.url + '/auth/login', { method: 'POST', body: { principal: approver, password } });
+    assert.strictEqual(login.status, 200, JSON.stringify(login.body));
+    const cookies = cookiesFrom(login);
+    const cookieHeader = Object.entries(cookies).map(([k, v]) => `${k}=${v}`).join('; ');
+    assert(cookies.vg_approval_session);
+    assert(cookies.vg_approval_csrf);
+
+    const page = await call(service.url + '/approval', { cookie: cookieHeader, accept: 'text/html' });
+    assert.strictEqual(page.status, 200);
+    assert(page.body.raw.includes(ticket.ticketId));
+    assert(!page.body.raw.includes('<script>alert(1)</script>'), 'request reason must be HTML-escaped');
+    assert(page.body.raw.includes('Sign out'));
+
+    assert.strictEqual((await call(service.url + '/approval/decision', { method: 'POST', cookie: cookieHeader, body: { ticketId: ticket.ticketId, decision: 'approve' } })).status, 403);
+    const decision = await call(service.url + '/approval/decision', { method: 'POST', cookie: cookieHeader, body: { ticketId: ticket.ticketId, decision: 'approve', _csrf: login.body.csrfToken } });
+    assert.strictEqual(decision.status, 200, JSON.stringify(decision.body));
+    assert.strictEqual(decision.body.status, 'approved');
+    assert(decision.body.approvalToken);
+
+    const statusToken = authority.issue({ principal: 'agent:acme/ci', capabilities: ['approval.read'] }).token;
+    const status = await call(service.url + '/approval/ticket/' + ticket.ticketId, { token: statusToken });
+    assert.strictEqual(status.status, 200, JSON.stringify(status.body));
+    assert(status.body.approvalToken);
+    assert.strictEqual(status.body.ticket.status, 'approved');
+
+    const verifier = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', publicKey: brokerPair.publicKey });
+    assert.strictEqual(verifier.verifyStandalone(status.body.approvalToken, actionDigest(action)).approved, true);
+    assert.throws(() => verifier.verifyStandalone(status.body.approvalToken, actionDigest(action)), /replay/i);
+
+    assert(service.audit && service.audit.publicKey);
+    assert.strictEqual(SignedAuditLog.verifyFile(auditFile, { publicKey: service.audit.publicKey }).valid, true);
+    const persisted = JSON.parse(fs.readFileSync(storeFile, 'utf8'));
+    assert.strictEqual(persisted.tickets.length, 1);
+    assert.strictEqual(persisted.tickets[0].status, 'approved');
+  } finally { await service.close(); }
+});
+
+test('HTTP gateway: approval_required returns 202, accepts a single-use approval, rejects replay', async () => {
+  const http = require('http');
+  const { createHttpGateway } = require('../src/platform/http-gateway');
+  const authority = new IdentityAuthority({ issuer: 'human:acme/security@example.com', tenant: 'acme' });
+  const brokerPair = generateKeyPair();
+  const approverPair = generateKeyPair();
+  const approver = 'human:acme/alice';
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: brokerPair.privateKey, keyId: 'a', approverKeys: { [approver]: approverPair.publicKey } });
+  const policy = new StrictPolicyEngine({
+    schemaVersion: '2.0', policyId: 'gateway-approval', policyVersion: '1', mode: 'strict',
+    defaults: { decision: 'deny' },
+    subjects: [{ principal: 'agent:acme/ci', kind: 'agent', status: 'active', capabilities: ['mcp.tool.invoke'] }],
+    tools: [{ id: 'approval', effect: 'approval_required', match: { tool: 'danger', capability: 'mcp.tool.invoke' } }],
+  }, { root: process.cwd() });
+  let calls = 0;
+  const gateway = await createHttpGateway({
+    authority, policy, approvalVerifier: broker,
+    handler: async () => { calls++; return { ok: true }; },
+  });
+  const post = (token, header, body) => new Promise((resolve, reject) => {
+    const u = new URL(gateway.url + '/mcp'); const data = JSON.stringify(body);
+    const headers = { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) };
+    if (token) headers.authorization = 'Bearer ' + token;
+    if (header) headers['x-vibeguard-approval'] = header;
+    const req = http.request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST', agent: false, headers }, (res) => {
+      let s = ''; res.on('data', (c) => { s += c; }); res.on('end', () => { let b = null; try { b = JSON.parse(s); } catch { b = { raw: s }; } resolve({ status: res.statusCode, body: b }); });
+    });
+    req.on('error', reject); req.write(data); req.end();
+  });
+  try {
+    const tokenFor = () => authority.issue({ principal: 'agent:acme/ci', capabilities: ['mcp.tool.invoke'] }).token;
+    const body = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'danger', arguments: { x: 1 } } };
+    const pending = await post(tokenFor(), null, body);
+    assert.strictEqual(pending.status, 202);
+    assert.strictEqual(pending.body.result.approvalRequired, true);
+    const action = { server: 'http', tool: 'danger', capability: 'mcp.tool.invoke', arguments: { x: 1 } };
+    assert.strictEqual(pending.body.result.actionDigest, actionDigest(action));
+    const ticket = broker.request({ principal: 'agent:acme/ci', action }).ticket;
+    const proof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver, privateKey: approverPair.privateKey });
+    const approved = broker.decide(ticket.ticketId, { approver, approve: true, proof });
+    const allowed = await post(tokenFor(), approved.approvalToken, body);
+    assert.strictEqual(allowed.status, 200, JSON.stringify(allowed.body));
+    assert.strictEqual(calls, 1);
+    const replay = await post(tokenFor(), approved.approvalToken, body);
+    assert(replay.status >= 400, JSON.stringify(replay.body));
+  } finally { await gateway.close(); }
+});
+
+
+test('approval used-token store: single use survives a verifier restart', () => {
+  const dir = tmp();
+  const pair = generateKeyPair();
+  const approverPair = generateKeyPair();
+  const approver = 'human:acme/alice';
+  const usedFile = path.join(dir, 'used.json');
+  const issuer = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: pair.privateKey, approverKeys: { [approver]: approverPair.publicKey } });
+  const action = { server: 's', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
+  const ticket = issuer.request({ principal: 'agent:acme/ci', action }).ticket;
+  const proof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver, privateKey: approverPair.privateKey });
+  const approved = issuer.decide(ticket.ticketId, { approver, approve: true, proof });
+  const first = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', publicKey: pair.publicKey, usedTokensFile: usedFile });
+  assert.strictEqual(first.verifyStandalone(approved.approvalToken, actionDigest(action)).approved, true);
+  const second = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', publicKey: pair.publicKey, usedTokensFile: usedFile });
+  assert.throws(() => second.verifyStandalone(approved.approvalToken, actionDigest(action)), /replay/i);
+});
+
+test('CLI: approval help and password hashing are available without a service', () => {
+  const cli = path.join(__dirname, '..', 'bin', 'cli.js');
+  const help = spawnSync(process.execPath, [cli, 'approval', 'help'], { encoding: 'utf8', timeout: 20000 });
+  assert.strictEqual(help.status, 0, help.stderr);
+  assert(/serve/.test(help.stdout) && /hash-password/.test(help.stdout));
+  const hash = spawnSync(process.execPath, [cli, 'approval', 'hash-password'], { encoding: 'utf8', timeout: 30000, env: { ...process.env, VG_APPROVAL_PASSWORD: 'test-password-123' } });
+  assert.strictEqual(hash.status, 0, hash.stderr);
+  assert(/^scrypt\$16384\$8\$1\$/.test(hash.stdout.trim()), hash.stdout);
+});
+
+
+test('approval key rotation: admin endpoint rotates a human key and the new proof is accepted', async () => {
+  const http = require('http');
+  const { createApprovalService } = require('../src/platform/approval-service');
+  const dir = tmp();
+  const brokerPair = generateKeyPair();
+  const oldPair = generateKeyPair();
+  const newPair = generateKeyPair();
+  const adminPair = generateKeyPair();
+  const approver = 'human:acme/alice';
+  const admin = 'human:acme/admin';
+  const authority = new IdentityAuthority({ issuer: 'human:acme/security@example.com', tenant: 'acme' });
+  const broker = new ApprovalBroker({ issuer: 'human:acme/security@example.com', tenant: 'acme', privateKey: brokerPair.privateKey, keyId: 'a', approverKeys: { [approver]: oldPair.publicKey } });
+  const service = await createApprovalService({ broker, authority, storeFile: path.join(dir, 'approvals.json'), adminPrincipals: [admin] });
+  const post = (url, token, body) => new Promise((resolve, reject) => {
+    const u = new URL(url); const data = JSON.stringify(body);
+    const req = http.request({ hostname: u.hostname, port: u.port, path: u.pathname, method: 'POST', agent: false, headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data), authorization: 'Bearer ' + token } }, (res) => { let s = ''; res.on('data', (c) => { s += c; }); res.on('end', () => { let b = null; try { b = JSON.parse(s); } catch { b = { raw: s }; } resolve({ status: res.statusCode, body: b }); }); });
+    req.on('error', reject); req.write(data); req.end();
+  });
+  try {
+    const adminToken = authority.issue({ principal: admin, capabilities: ['approval.admin'] }).token;
+    const rotated = await post(service.url + '/approval/keys', adminToken, { principal: approver, publicKey: publicKeyToPem(newPair.publicKey) });
+    assert.strictEqual(rotated.status, 200, JSON.stringify(rotated.body));
+    const action = { server: 's', tool: 'delete_file', capability: 'fs.write', arguments: { path: 'x' } };
+    const ticket = broker.request({ principal: 'agent:acme/ci', action }).ticket;
+    const proof = ApprovalBroker.signApproverProof({ ticketId: ticket.ticketId, actionDigest: ticket.actionDigest, nonce: ticket.nonce, approver, privateKey: newPair.privateKey });
+    assert.strictEqual(broker.decide(ticket.ticketId, { approver, approve: true, proof }).status, 'approved');
+    const persisted = JSON.parse(fs.readFileSync(path.join(dir, 'approvals.json'), 'utf8'));
+    assert(persisted.approverKeys[approver]);
+  } finally { await service.close(); }
 });
 
 test('runtime monitor: RSS cap invokes quarantine callback once', () => {

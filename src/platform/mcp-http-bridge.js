@@ -171,6 +171,14 @@ async function createMcpHttpBridge(opts = {}) {
     authority: opts.authority,
     jwt: opts.jwt,
     policy: opts.policy,
+    approvalVerifier: opts.approvalVerifier,
+    approvalPublicKey: opts.approvalPublicKey,
+    approvalIssuer: opts.approvalIssuer,
+    approvalTenant: opts.approvalTenant,
+    approvalKeyId: opts.approvalKeyId,
+    approvalUsedTokensFile: opts.approvalUsedTokensFile,
+    onApproval: opts.onApproval,
+    audit: opts.audit,
     handler: async (message) => {
       if (!message.method && message.id != null) {
         bridge.send(message);
