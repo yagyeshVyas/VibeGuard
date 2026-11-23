@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 #
 # VibeGuard approval service image. Build from the repository root:
-#   docker build -f deploy/Dockerfile -t vibeguard-approval:1.14.0 .
+#   docker build -f deploy/Dockerfile -t vibeguard-approval:1.15.0 .
 #
 # The container is non-root, read-only at runtime, and keeps all mutable state
 # under /var/lib/vibeguard. TLS is terminated by a reverse proxy in front of it.

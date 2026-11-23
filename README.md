@@ -72,9 +72,35 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 
 ---
 
+## 🆕 What's New — v1.15.0
+
+**Latest release: v1.15.0 — strict by default and red-team hardened.** The MCP
+firewall now denies unknown tools unless an operator explicitly opts out, and
+strict mode writes signed audit by default. A fresh independent in-session
+red-team review found conditional URL, scrubbing and resource-URI gaps; all
+were fixed. **659 tests pass, with the full suite green on Windows, Linux and
+macOS in CI.**
+
+- Strict MCP default-deny; `--allow-unknown` is the warned compatibility opt-out.
+- Canonical URL hosts close metadata/SSRF bypasses (userinfo, root dots,
+  numeric IPv4, IPv4-mapped IPv6).
+- Secrets are scrubbed from tool definitions, errors, notifications and request
+  params, not only tool results.
+- Strict `resources/read` rejects credential-store/metadata and out-of-project
+  `file:` URIs.
+- Windows AppContainer profile/package cleanup is verified; stale owner markers
+  cannot name another profile.
+- macOS VM guest entry retries the 9p mount without weakening the image gate.
+- [Independent red-team review](reports/independent-security-review-2026-11-23b.md)
+  · [CI evidence](reports/ci-test-results.md) · [status](docs/STATUS.md).
+
+Install note: v1.15.0 is distributed as `@yagyeshvyas/vibeguard@1.15.0`. If a
+registry mirror still serves an older build, use the exact
+[v1.15.0 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.15.0).
+
 ## 🆕 What's New — v1.14.0
 
-**Latest release: v1.14.0 — verified OS isolation.** Windows AppContainer
+**v1.14.0 — verified OS isolation.** Windows AppContainer
 isolation passes its live suite on Windows, the macOS hardware-VM backend is
 implemented behind a guest-image verification gate, and an independent
 in-session audit found and fixed a thenable host-callback escape in the sandbox
@@ -100,10 +126,6 @@ production-ready; it is the verified internal-testing build described in
   AISVS-style readiness mapping.
 - **659 tests, 0 failures** and **50/50 platform tests** on the audit host;
   Windows AppContainer verification: all 11 evidence classes pass.
-
-Install note: v1.14.0 is distributed as `@yagyeshvyas/vibeguard@1.14.0`. If a
-registry mirror still serves an older build, use the exact
-[v1.14.0 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.14.0).
 
 ## 🆕 What's New — v1.10.0
 
@@ -165,12 +187,12 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — release 1.14.0 status (internal testing)
+## Security baseline v2 — release 1.15.0 status (internal testing)
 
-This repository contains the v1.14.0 security foundation plus unreleased
-hardening. It is **not** a production-ready agent security platform. Current
-counts, test evidence and isolation claims live in
-[docs/STATUS.md](docs/STATUS.md); release notes keep their historical counts.
+This repository contains the v1.15.0 security foundation. It is **not** a
+production-ready agent security platform. Current counts, test evidence and
+isolation claims live in [docs/STATUS.md](docs/STATUS.md); release notes keep
+their historical counts.
 
 Implemented and tested:
 

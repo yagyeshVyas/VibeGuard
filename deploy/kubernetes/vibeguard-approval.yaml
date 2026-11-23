@@ -38,7 +38,7 @@ spec:
         seccompProfile: { type: RuntimeDefault }
       containers:
         - name: approval
-          image: vibeguard-approval:1.14.0
+          image: vibeguard-approval:1.15.0
           imagePullPolicy: IfNotPresent
           args: ["serve"]
           ports:

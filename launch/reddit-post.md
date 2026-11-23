@@ -11,7 +11,7 @@ LLM response passed to `exec`. The code ships because it runs.
 VibeGuard is a local scanner and MCP/runtime firewall for that gap:
 `npx @yagyeshvyas/vibeguard scan .` No signup, no telemetry, no upload.
 
-**v1.14.0, honest scope**
+**v1.15.0, honest scope**
 
 - 861 rules, 95 MCP tools, 18 languages.
 - MCP firewall and human approval service for agent tool calls, with signed

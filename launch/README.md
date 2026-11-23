@@ -7,7 +7,7 @@ mass-posting is not performed.
 ## Runbook
 
 1. Confirm the release is live: `npm view @yagyeshvyas/vibeguard version` and
-   GitHub release `v1.14.0`.
+   GitHub release `v1.15.0`.
 2. Post one channel at a time, from the maintainer account, with a link to the
    independent feedback form.
 3. Do not buy stars, reviews or upvotes. Do not paraphrase a private reply into a

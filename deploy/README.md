@@ -30,7 +30,7 @@ active-active HA, replace it with a transactional shared backend first.
 
 ```bash
 # Build
-docker build -f deploy/Dockerfile -t vibeguard-approval:1.14.0 .
+docker build -f deploy/Dockerfile -t vibeguard-approval:1.15.0 .
 
 # Configure deploy/config (not committed with real keys), then:
 docker compose -f deploy/docker-compose.yml up -d

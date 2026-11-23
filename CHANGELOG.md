@@ -3,7 +3,15 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [1.15.0] - 2026-11-23
+
+### Security
+
+- Independent red-team review (`reports/independent-security-review-2026-11-23b.md`) found and fixed conditional URL-authority, MCP scrubbing, strict-mode and resource-URI gaps; no live-confirmed host escape or strict-default bypass was found.
+- URL hosts are canonicalized before deny checks, closing metadata/SSRF bypasses using userinfo, trailing root dots, numeric IPv4 and IPv4-mapped IPv6 forms.
+- MCP secrets are scrubbed from tool definitions, JSON-RPC errors and server-originated request/notification params, not only tool results.
+- Strict mode blocks `defaultAction:"warn"` for unknown tools and rejects credential-store/metadata or out-of-project `file:` resource URIs.
+- AppContainer stale-profile owner markers are validated against their own profile directory.
 
 ### Added
 

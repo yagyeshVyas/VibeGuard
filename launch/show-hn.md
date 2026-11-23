@@ -12,7 +12,7 @@ It is a local scanner and MCP/runtime firewall. No account, no telemetry, no
 cloud upload. `npx @yagyeshvyas/vibeguard scan .` runs on the repo you point it
 at.
 
-**What is new in 1.14.0**
+**What is new in 1.15.0**
 
 - 861 rules, 95 MCP tools, 18 languages.
 - Verified Windows AppContainer isolation (Job Object, no network capability),
@@ -39,8 +39,8 @@ at.
 **Try it**
 
 ```bash
-npx -y @yagyeshvyas/vibeguard@1.14.0 scan .
-npx -y @yagyeshvyas/vibeguard@1.14.0 scan . --json
+npx -y @yagyeshvyas/vibeguard@1.15.0 scan .
+npx -y @yagyeshvyas/vibeguard@1.15.0 scan . --json
 ```
 
 **What I want from HN**
