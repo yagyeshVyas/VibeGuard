@@ -1,13 +1,13 @@
 # Adoption Snapshot
 
-Generated: 2026-11-23T02:22:45.131Z
+Generated: 2026-11-23T03:27:08.799Z
 
 | Metric | Value |
 |---|---:|
 | GitHub stars | 7 |
 | GitHub forks | 2 |
 | Open issues | 3 |
-| npm latest | 1.14.0 |
+| npm latest | 1.15.0 |
 | npm downloads, last week | 6 |
 | npm downloads, last month | 56 |
 
