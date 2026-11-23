@@ -94,18 +94,17 @@ async function cmdSandbox(args, flags) {
   if (action === 'verify') {
     let backend;
     if (process.platform === 'win32') {
-      const { WindowsJobSandbox } = require('../src/platform/windows-sandbox');
-      backend = new WindowsJobSandbox();
+      const { WindowsAppContainerSandbox } = require('../src/platform/windows-appcontainer');
+      backend = new WindowsAppContainerSandbox();
     } else if (process.platform === 'darwin') {
-      const { MacSandboxExecSandbox } = require('../src/platform/os-sandbox');
-      backend = new MacSandboxExecSandbox();
+      const { MacVMSandbox } = require('../src/platform/macos-vm');
+      backend = new MacVMSandbox();
     } else {
       const { getLinuxBackend } = require('../src/platform/os-sandbox');
       backend = getLinuxBackend();
     }
-    if (!backend.available()) { process.stderr.write('OS backend unavailable on this host\n'); return 2; }
     const ok = await backend.verify();
-    out(JSON.stringify({ backend: backend.id, verified: ok, verification: backend.verification, limitations: backend.limitations }, null, 2));
+    out(JSON.stringify({ backend: backend.id, isolationClass: backend.isolationClass, verified: ok, verification: backend.verification, verifiedAt: backend.verifiedAt, evidence: backend.evidence, limitations: backend.limitations }, null, 2));
     return ok ? 0 : 1;
   }
   if (action === 'backends') {
@@ -114,8 +113,11 @@ async function cmdSandbox(args, flags) {
     if (flags.json) out(JSON.stringify(data, null, 2));
     else {
       out('Sandbox backends:');
-      for (const b of data) out(`  ${b.id.padEnd(12)} class=${b.isolationClass.padEnd(9)} verified=${b.verified ? 'yes' : 'NO'}  ${b.limitations.join('; ')}`);
-      out('No OS-level backend is verified in this build. Do not claim isolation.');
+      for (const b of data) out(`  ${b.id.padEnd(20)} class=${b.isolationClass.padEnd(12)} verified=${b.verified ? 'yes' : 'NO'}  ${b.limitations.join('; ')}`);
+      const verified = data.filter((b) => b.verified);
+      out(verified.length
+        ? `Verified on this host: ${verified.map((b) => `${b.id} (${b.isolationClass})`).join(', ')}`
+        : 'No OS-level backend is verified on this host. Run "vibeguard sandbox verify" and do not claim isolation until it passes.');
     }
     return 0;
   }

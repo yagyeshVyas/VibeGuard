@@ -377,11 +377,17 @@ function getAuditLog() {
 
 function renderSandboxReport(result) {
   const C = { red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', dim: '\x1b[2m', bold: '\x1b[1m', reset: '\x1b[0m' };
-  const isolation = result.isolation === 'isolated-vm'
-    ? C.green + 'isolated-vm (V8 isolate; not an OS boundary)' + C.reset
-    : result.isolation === 'process-permission'
-      ? C.yellow + 'process (unverified; same-user, not an OS boundary)' + C.reset
-      : C.red + 'vm (NOT a security boundary)' + C.reset;
+  const isolation = result.isolationClass === 'hardware-vm'
+    ? C.green + `${result.isolation} (hardware VM)` + C.reset
+    : result.isolationClass === 'os' && result.verified
+      ? C.green + `${result.isolation} (verified OS boundary)` + C.reset
+      : result.isolationClass === 'os'
+        ? C.yellow + `${result.isolation} (unverified; do not claim isolation)` + C.reset
+        : result.isolation === 'isolated-vm'
+          ? C.green + 'isolated-vm (V8 isolate; not an OS boundary)' + C.reset
+          : result.isolation === 'process-permission' || result.isolationClass === 'process'
+            ? C.yellow + 'process (unverified; same-user, not an OS boundary)' + C.reset
+            : C.red + 'vm (NOT a security boundary)' + C.reset;
   const lines = [
     `${C.bold}VibeGuard Sandbox Execution${C.reset}`,
     `${C.dim}${'─'.repeat(60)}${C.reset}`,

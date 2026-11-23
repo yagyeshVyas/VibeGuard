@@ -621,13 +621,14 @@ const TOOLS = [
   },
   {
     name: 'sandbox_exec',
-    description: 'Execute AI-generated code in a locked-down sandbox. No process.env, no fs, no child_process, no network. Time-limited and memory-limited. Full audit log of every operation attempted. isolation="process" runs in a separate Node process with the permission model enabled (Node 20+) — the strongest available mode; isolation="vm" is a raised floor, not a hard boundary.',
+    description: 'Execute AI-generated code in a locked-down sandbox. No process.env, no fs, no child_process, no network. Time-limited and memory-limited. isolation="os" selects a verified OS backend (Windows AppContainer or macOS hardware VM) and fails closed if none is verified; isolation="process" runs in a separate Node process with the permission model enabled; isolation="vm" is a raised floor, not a hard boundary. auto prefers a verified OS backend, then process.',
     inputSchema: {
       type: 'object',
       properties: {
         code: { type: 'string', description: 'The code to execute in sandbox.' },
         timeout: { type: 'number', description: 'Execution timeout in ms (default: 5000).' },
-        isolation: { type: 'string', enum: ['auto', 'process', 'vm'], description: 'Isolation mode. Default auto (process on Node 20+, vm otherwise).' },
+        isolation: { type: 'string', enum: ['auto', 'os', 'process', 'vm'], description: 'Isolation mode. Default auto (verified OS backend, then process on Node 20+, vm otherwise).' },
+        memory: { type: 'number', description: 'Memory cap in MB for the OS backend (default: backend default).' },
       },
       required: ['code'],
     },
@@ -2113,10 +2114,20 @@ async function handleSandboxExec(args) {
   const sandbox = require('./sandbox');
   const mode = String(args.isolation || 'auto').toLowerCase();
   let result;
-  if (mode === 'process') result = sandbox.runInProcess(code, { timeout: args.timeout });
-  else if (mode === 'vm') result = sandbox.runInSandbox(code, { timeout: args.timeout });
-  else if (sandbox.processIsolationSupported()) result = sandbox.runInProcess(code, { timeout: args.timeout });
-  else result = sandbox.runInSandbox(code, { timeout: args.timeout });
+  if (mode === 'os' || mode === 'auto') {
+    try {
+      const { defaultManager } = require('./platform/sandbox-manager');
+      const { ISOLATION } = require('./platform/contracts');
+      const backend = defaultManager().select(ISOLATION.OS);
+      result = await backend.run(code, { timeout: args.timeout, memoryMb: args.memory });
+    } catch (err) {
+      if (mode === 'os') return textResult(`No verified OS isolation backend is available: ${err.message}`, true);
+    }
+  }
+  if (!result && mode === 'process') result = sandbox.runInProcess(code, { timeout: args.timeout });
+  else if (!result && mode === 'vm') result = sandbox.runInSandbox(code, { timeout: args.timeout });
+  else if (!result && sandbox.processIsolationSupported()) result = sandbox.runInProcess(code, { timeout: args.timeout });
+  else if (!result) result = sandbox.runInSandbox(code, { timeout: args.timeout });
   return textResult(sandbox.renderSandboxReport(result));
 }
 

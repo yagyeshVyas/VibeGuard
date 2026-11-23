@@ -3,6 +3,25 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+
+- **Windows AppContainer isolation** (`src/platform/windows-appcontainer.js`, backend id `windows-appcontainer`). Creates a per-run AppContainer profile, copies the runtime into `GetAppContainerFolderPath`, launches a suspended `CreateProcessW` with `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES`, assigns the child to a Job Object (memory, process count, UI restrictions, kill-on-close) and resumes it. No capability SIDs are attached, so network egress is denied by the OS. A live suite verifies host file reads, home/credential reads, host writes, network connects, environment inheritance, wall-clock timeout and memory limits. Verification is host-specific and cached for 7 days.
+- **macOS hardware-VM isolation** (`src/platform/macos-vm.js`, backend id `macos-vm`). QEMU/HVF backend with a separate guest kernel, `-nic none`, read-only 9p share, snapshot disk and guest-side Node. Requires a caller-supplied guest image (`VIBEGUARD_VM_IMAGE` or `VIBEGUARD_VM_KERNEL`/`VIBEGUARD_VM_INITRD`); `sandbox verify` gates the claim.
+- `vibeguard sandbox --isolation os` and `sandbox_exec` `isolation: "os"`; `auto` prefers a verified OS backend and fails back to the process runner only when none is verified.
+- `src/platform/verification.js`: host- and suite-bound verification cache used by `vibeguard sandbox backends`.
+
+### Changed
+
+- `vibeguard sandbox verify` now verifies the Windows AppContainer backend (instead of the Job Object harness) and the macOS VM backend; `sandbox-exec` is no longer used for an isolation claim.
+- `sandbox backends` reports verification evidence and says "verified on this host" only when a backend passes.
+
+### Security notes
+
+- AppContainer shares the host kernel; no WFP filter is installed and Windows/Program Files remain readable by default. User-profile and credential reads and writable host paths are denied.
+- macOS VM verification is image-dependent and cannot pass without a bootable guest that satisfies the documented entry-point contract. The backend reports `unavailable` rather than claiming isolation.
+
 ## [1.13.4] - 2026-11-22
 
 ### Fixed

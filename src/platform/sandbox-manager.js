@@ -3,10 +3,11 @@
 /*
  * src/platform/sandbox-manager.js — isolation backend registry and selection.
  *
- * This build ships only an unverified process backend and a legacy vm backend.
  * Selection is fail-closed: a policy that requires an OS/container/microVM
- * class cannot run untrusted code until a backend passes its verification
- * suite. This prevents "sandbox" claims from exceeding the actual isolation.
+ * class cannot run untrusted code until a backend has current, host-specific
+ * verification evidence. `verified` is never inferred from the presence of a
+ * binary; it comes from the backend's verification suite and a short-lived
+ * cache keyed by host identity and suite version.
  */
 
 const { ERROR_CODES, ISOLATION, VibeGuardError } = require('./contracts');
@@ -40,6 +41,8 @@ class SandboxManager {
       isolationClass: b.isolationClass,
       verified: b.verified === true,
       verification: b.verification || 'unverified',
+      verifiedAt: b.verifiedAt || null,
+      evidence: Array.isArray(b.evidence) ? b.evidence : [],
       limitations: b.limitations || [],
     }));
   }
@@ -65,23 +68,27 @@ class SandboxManager {
   }
 }
 
-function defaultManager() {
+function defaultManager(opts = {}) {
   const manager = new SandboxManager();
   try {
     const { getLinuxBackend } = require('./os-sandbox');
     const linux = getLinuxBackend();
     if (linux.available()) manager.register(linux);
-    if (process.platform === 'win32') {
-      const { WindowsJobSandbox } = require('./windows-sandbox');
-      const win = new WindowsJobSandbox();
-      if (win.available()) manager.register(win);
-    }
-    if (process.platform === 'darwin') {
-      const { MacSandboxExecSandbox } = require('./os-sandbox');
-      const mac = new MacSandboxExecSandbox();
-      if (mac.available()) manager.register(mac);
-    }
   } catch { /* optional platform backend */ }
+  if (process.platform === 'win32') {
+    try {
+      const { WindowsAppContainerSandbox } = require('./windows-appcontainer');
+      const win = new WindowsAppContainerSandbox(opts);
+      if (win.available()) manager.register(win);
+    } catch { /* optional platform backend */ }
+  }
+  if (process.platform === 'darwin') {
+    try {
+      const { MacVMSandbox } = require('./macos-vm');
+      const mac = new MacVMSandbox(opts);
+      if (mac.available()) manager.register(mac);
+    } catch { /* optional platform backend */ }
+  }
   manager.register({
     id: 'process',
     isolationClass: ISOLATION.PROCESS,

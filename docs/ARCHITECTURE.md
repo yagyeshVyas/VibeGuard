@@ -46,10 +46,15 @@ vibeguard sandbox backends ──► explicitly unverified/verified status
 
 ## What is not implemented / not verified
 
-- **Windows AppContainer/Job Objects/WFP and macOS VM backends** are not
-  implemented. Linux has an `unshare` network/PID namespace backend verified by
-  a live probe; its filesystem is still host-readable. Do not claim
-  cross-platform OS isolation.
+- **Windows AppContainer** (`windows-appcontainer`) is implemented with a Job
+  Object and a live verification suite. Network denial is capability-based; no
+  WFP rule is installed, and Windows/Program Files remain readable by default.
+- **macOS hardware VM** (`macos-vm`) is implemented with QEMU/HVF, no NIC, a
+  read-only 9p share and a snapshot disk. It requires a caller-supplied guest
+  image and verifies only on a macOS host.
+- Linux has bubblewrap and `unshare` network/PID backends verified by live
+  probes. Do not claim cross-platform isolation until `sandbox verify` passes
+  on the target host.
 - The HTTP bridge supports authenticated JSON-RPC POST and SSE notifications
   over a spawned stdio upstream, but not TLS/mTLS, remote OAuth server flow or
   multi-session persistence.

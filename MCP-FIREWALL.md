@@ -224,20 +224,31 @@ The same engines are available to an agent through the MCP server:
 | `agent_risk` | unified agent risk score |
 | `owasp_coverage` | OWASP mapping |
 | `agent_monitor` | runtime activity and anomaly report |
-| `sandbox_exec` | run untrusted code (`isolation: auto/process/vm`) |
+| `sandbox_exec` | run untrusted code (`isolation: auto/os/process/vm`) |
 
 ## Sandbox
 
-`vibeguard sandbox "<code>"` executes JavaScript in a locked context. On Node
-20+ the default `auto` mode now uses **process isolation**: a separate Node
-process running under the permission model (filesystem and `child_process`
-denied by the runtime), with module loading for network/process modules
-blocked, `fetch`/`WebSocket` removed, a stripped environment, a memory cap and
-a hard timeout. Node 18 falls back to the vm sandbox. Neither mode is a
-container — same OS user, no kernel boundary — but `process` is a real process
-boundary with deny-by-default capabilities.
+`vibeguard sandbox "<code>"` executes JavaScript in a locked context.
+`isolation: "os"` selects a verified OS backend and **fails closed** if none
+is verified on the host:
+
+- **Windows** — AppContainer profile with no capability SIDs, Job Object
+  memory/process/UI limits, minimal environment and profile-scoped writes.
+  Network (including loopback) is denied by the OS. Verify with
+  `vibeguard sandbox verify`.
+- **macOS** — QEMU/HVF hardware VM, separate guest kernel, `-nic none`,
+  read-only 9p share and snapshot disk. Requires a caller-supplied guest image;
+  the backend reports unavailable until the image passes verification.
+
+`isolation: "auto"` prefers a verified OS backend, then the process backend.
+`process` remains a separate Node process under the permission model
+(filesystem and `child_process` denied by the runtime, network modules
+blocked, stripped environment, memory cap, hard timeout). It is a process
+boundary, not an OS boundary.
 
 ```bash
+vibeguard sandbox verify
+vibeguard sandbox "const x = 1 + 2; x" --isolation os --json
 vibeguard sandbox "const x = 1 + 2; x" --isolation process --json
 ```
 
@@ -268,8 +279,11 @@ The v2 gateway also inspects all content-bearing response methods
 ## Honest status
 
 The process sandbox is **unverified, same-user and not an OS boundary**. The
-`vibeguard sandbox backends` command reports `verified=NO`; do not describe it
-as isolation. OS-level backends are planned, not implemented.
+`vibeguard sandbox backends` command reports verification per backend; it says
+`verified=NO` until `vibeguard sandbox verify` passes on the host. Windows
+AppContainer is an OS boundary but shares the host kernel and has no WFP rule;
+macOS VM isolation requires a configured guest image. Do not describe
+`process`/`vm` as OS isolation.
 
 
 - The proxy currently speaks the **stdio** MCP transport (the transport Claude
@@ -284,7 +298,7 @@ as isolation. OS-level backends are planned, not implemented.
   prove absence of risk.
 - `pinToolDefinitions` pins on first sight. Review a server before first use;
   the pin only protects against later changes.
-- `sandbox_exec` is not a container and does not isolate the OS user.
+- `sandbox_exec` with `isolation: "process"` or `"vm"` is not an OS boundary; use `isolation: "os"` for a verified OS backend.
 - OWASP coverage maps controls, not perfect prevention.
 
 ## Signed audit, auth and kill switch
@@ -293,4 +307,4 @@ as isolation. OS-level backends are planned, not implemented.
 - `--token` + `--token-pub` enforce a VGAT principal capability set on stdio; `--approval-token` + `--approval-pub` enforce a signed single-use approval for approval-required rules.
 - `--kill-on-block` / `--max-blocks N` quarantine-kills the upstream and exits 3 after blocked calls.
 - `src/platform/mcp-http-bridge.js` provides authenticated JSON-RPC POST and SSE notification flow over stdio; it is loopback-tested and does not provide TLS/OAuth remote deployment.
-- Linux `unshare` network/PID isolation is available via `vibeguard sandbox verify`; Windows/macOS OS backends are not implemented.
+- Linux `unshare`/bubblewrap, Windows AppContainer and macOS hardware-VM isolation are verified through `vibeguard sandbox verify` when the host (and, for macOS, a guest image) provides them.

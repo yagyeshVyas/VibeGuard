@@ -29,16 +29,22 @@ node bin/cli.js sandbox backends
 
 ## What is not available or verified
 
-- **No Windows AppContainer/Job Object/WFP backend is implemented in this
-  build.** `sandbox backends` prints `verified=NO` on Windows. The Linux-only
-  `unshare` backend can be verified from WSL (`node bin/cli.js sandbox verify`)
-  but that is Linux network/PID isolation, not Windows isolation. Do not claim
-  Windows OS isolation.
+- **The Windows AppContainer backend is implemented** (`windows-appcontainer`).
+  It creates a per-run profile, runs the child in an AppContainer with no
+  capability SIDs, and confines it with a Job Object. Run
+  `node bin/cli.js sandbox verify` once per host; `sandbox backends` reports
+  `verified=NO` until that suite passes.
+- **No WFP filter is installed.** Network denial comes from the AppContainer
+  capability model (no internetClient/privateNetworkClientServer), not a
+  per-process firewall rule. The AppContainer boundary shares the host kernel.
+  Windows and Program Files remain readable under AppContainer's default grants;
+  the user profile, credentials and writable host paths are denied.
 - The process backend is same-user and does not block network at the Windows
   kernel/firewall layer. It is a code-execution convenience boundary, not a
   security boundary.
-- macOS-specific isolation is not available; Windows/Linux only for the
-  primitives that exist.
+- macOS hardware-VM isolation is implemented (`macos-vm`, QEMU/HVF) but needs a
+  caller-supplied guest image; it reports unavailable/unverified until that
+  image passes `sandbox verify` on a macOS host.
 - The HTTP gateway has not been integrated with a Windows service/TLS deployment.
 - Windows CI is configured; results depend on the GitHub runner and are not
   asserted by this local report beyond the Windows run recorded in
@@ -52,10 +58,14 @@ node bin/cli.js scan .
 node bin/cli.js policy validate docs/security-policy.strict.example.json `
   --pub docs/security-policy.strict.example.pub.pem
 
+# verify and use the AppContainer boundary (fails closed until verified)
+node bin/cli.js sandbox verify
+node bin/cli.js sandbox "const x = 1 + 2; x" --isolation os
+
 # explicit non-OS sandbox (reports unverified)
 node bin/cli.js sandbox "const x = 1 + 2; x" --isolation process
 
-# show truthful isolation status
+# show truthful isolation status and evidence
 node bin/cli.js sandbox backends --json
 ```
 

@@ -26,6 +26,11 @@ const { checkCommand } = require('../src/shell-guard');
 const { scanTextForInjection } = require('../src/mcp-audit');
 const { inspectPrompt } = require('../src/firewall');
 const { runInProcess, processIsolationSupported } = require('../src/sandbox');
+const { SandboxManager, defaultManager } = require('../src/platform/sandbox-manager');
+const { ISOLATION } = require('../src/platform/contracts');
+const { WindowsAppContainerSandbox } = require('../src/platform/windows-appcontainer');
+const { MacVMSandbox, buildQemuArgs } = require('../src/platform/macos-vm');
+const { saveVerification, loadVerification } = require('../src/platform/verification');
 
 test('canonical JSON sorts keys and hashes deterministically', () => {
   assert.strictEqual(canonicalize({ b: 1, a: 'x' }), '{"a":"x","b":1}');
@@ -229,6 +234,90 @@ test('Windows Job Object backend: process/memory containment when available', as
   assert(r.limitations.some((x) => /AppContainer|WFP|filesystem/i.test(x)), 'must disclose missing isolation');
   const timeout = await b.run('while (true) {}', { timeout: 1200 });
   assert.strictEqual(timeout.success, false);
+});
+
+test('Windows AppContainer backend: verified OS isolation, no host fs/network/env', async () => {
+  if (process.platform !== 'win32') return;
+  const dir = tmp();
+  const cacheFile = path.join(dir, 'verification.json');
+  const b = new WindowsAppContainerSandbox({ cacheFile });
+  try {
+    assert.strictEqual(b.available(), true);
+    assert.strictEqual(await b.verify(), true, b.verification);
+    const ids = b.evidence.map((e) => e.testId);
+    for (const id of ['safe-exec', 'host-file-read-denied', 'home-file-read-denied', 'host-write-denied', 'system-temp-write-denied', 'network-egress-denied', 'host-env-not-inherited', 'wall-clock-timeout-killed', 'memory-limit-enforced', 'profile-cleanup']) {
+      assert(ids.includes(id), `missing evidence: ${id}`);
+    }
+    const r = await b.run('const x = 2 + 3; x', { timeout: 15000 });
+    assert.strictEqual(r.success, true, r.error);
+    assert.strictEqual(String(r.output), '5');
+    assert.strictEqual(r.isolationClass, 'os');
+    assert.strictEqual(r.verified, true);
+    assert(r.limitations.some((x) => /kernel|WFP|AppContainer/i.test(x)), 'must disclose residual limitations');
+  } finally {
+    b.dispose();
+  }
+});
+
+test('sandbox manager: fails closed without verification and uses cached verification', async () => {
+  const unverified = { id: 'fake-os', isolationClass: ISOLATION.OS, verified: false, limitations: [] };
+  const manager = new SandboxManager();
+  manager.register(unverified);
+  assert.throws(() => manager.select(ISOLATION.OS), /VERIFIED|verified/i);
+  unverified.verified = true;
+  assert.strictEqual(manager.select(ISOLATION.OS).id, 'fake-os');
+
+  const dir = tmp();
+  const cacheFile = path.join(dir, 'verification.json');
+  saveVerification(cacheFile, 'fake-os', { verified: true, verification: 'test', verifiedAt: new Date().toISOString(), suiteVersion: 'v1', evidence: [] });
+  assert.strictEqual(loadVerification(cacheFile, 'fake-os', 'v1').verified, true);
+  assert.strictEqual(loadVerification(cacheFile, 'fake-os', 'v2'), null);
+  assert.strictEqual(loadVerification(cacheFile, 'other', 'v1'), null);
+
+  if (process.platform === 'win32') {
+    const first = new WindowsAppContainerSandbox({ cacheFile });
+    try { assert.strictEqual(await first.verify(), true, first.verification); } finally { first.dispose(); }
+    const second = new WindowsAppContainerSandbox({ cacheFile });
+    try {
+      assert.strictEqual(second.verified, true);
+      assert.strictEqual(second.verification, 'appcontainer-fs-network-env-timeout-memory-verified');
+    } finally { second.dispose(); }
+  }
+});
+
+test('macOS VM backend: fail-closed off macOS and no network device in VM config', async () => {
+  const b = new MacVMSandbox({ cacheFile: false });
+  if (process.platform !== 'darwin') {
+    assert.strictEqual(b.available(), false);
+    assert.strictEqual(await b.verify(), false);
+    assert(/unavailable/i.test(b.verification), b.verification);
+    const r = await b.run('1 + 1');
+    assert.strictEqual(r.success, false);
+    assert(/unavailable/i.test(String(r.error)));
+  }
+  const args = buildQemuArgs({ shareDir: '/tmp/vg-share', image: '/tmp/vg.qcow2', accel: 'hvf', memoryMb: 512 });
+  const text = args.join(' ');
+  assert(/-nic none/.test(text), text);
+  assert(/readonly=on/.test(text), text);
+  assert(/-snapshot/.test(text), text);
+  assert(!/-netdev/.test(text), 'VM must not attach a network backend');
+  const kernelArgs = buildQemuArgs({ shareDir: '/tmp/vg-share', kernel: '/tmp/vmlinuz', initrd: '/tmp/initrd', accel: 'hvf' }).join(' ');
+  assert(/-kernel \/tmp\/vmlinuz/.test(kernelArgs), kernelArgs);
+  assert(/-initrd \/tmp\/initrd/.test(kernelArgs), kernelArgs);
+  const { ENTRY_SCRIPT, parseGuestOutput } = require('../src/platform/macos-vm');
+  assert(/mount -t 9p/.test(ENTRY_SCRIPT), 'guest must mount the tagged 9p share');
+  assert(/node \/vibeguard\/run\.js/.test(ENTRY_SCRIPT), 'guest must run the shared program');
+  assert(/poweroff/.test(ENTRY_SCRIPT), 'guest must shut down after execution');
+  const h = parseGuestOutput('boot\n__VG_RESULT__{"ok":true,"result":"3"}\n');
+  assert.strictEqual(h.matched, true);
+  assert.strictEqual(h.success, true);
+  assert.strictEqual(h.output, '3');
+  const v = parseGuestOutput('__VG_VM_RESULT__{"ok":true,"result":{"nets":["lo"]}}');
+  assert.strictEqual(v.success, true);
+  assert.deepStrictEqual(v.output, { nets: ['lo'] });
+  const e = parseGuestOutput('__VG_ERROR__"boom"');
+  assert.strictEqual(e.matched, true);
+  assert.strictEqual(e.success, false);
 });
 
 test('macOS sandbox-exec backend when available', async () => {

@@ -1117,7 +1117,7 @@ async function main() {
       const { cmdPlatform } = require('./cmd-platform');
       code = await cmdPlatform(args, flags);
     }
-    else if (cmd === 'sandbox') code = cmdSandbox(args, flags);
+    else if (cmd === 'sandbox') code = await cmdSandbox(args, flags);
     else if (cmd === 'behavior') code = cmdBehavior(dir, flags);
     else if (cmd === 'supply-firewall') code = cmdSupplyFirewall(dir, flags);
     else if (cmd === 'vault') code = cmdVault(args, flags);
@@ -1832,21 +1832,35 @@ function cmdSelfCheck(dir, flags) {
   return ok ? 0 : 1;
 }
 
-function cmdSandbox(args, flags) {
+async function cmdSandbox(args, flags) {
   const code = (args._ || args || []).slice(1).join(' ');
-  if (!code) { process.stderr.write('Usage: vibeguard sandbox <code> [--isolation vm|process|auto] [--timeout ms] [--memory mb]\n'); return 1; }
+  if (!code) { process.stderr.write('Usage: vibeguard sandbox <code> [--isolation os|process|vm|auto] [--timeout ms] [--memory mb]\n'); return 1; }
   const sandbox = require('../src/sandbox');
   const timeout = flags.timeout ? Number(flags.timeout) : undefined;
   const maxMemory = flags.memory ? Number(flags.memory) * 1024 * 1024 : undefined;
+  const memoryMb = flags.memory ? Number(flags.memory) : undefined;
   const mode = String(flags.isolation || 'auto').toLowerCase();
   let result;
-  if (mode === 'process') {
+  if (mode === 'os' || mode === 'auto') {
+    try {
+      const { defaultManager } = require('../src/platform/sandbox-manager');
+      const { ISOLATION } = require('../src/platform/contracts');
+      const backend = defaultManager().select(ISOLATION.OS);
+      result = await backend.run(code, { timeout, memoryMb });
+    } catch (err) {
+      if (mode === 'os') {
+        process.stderr.write(`no verified OS isolation backend: ${err.message}\n`);
+        return 1;
+      }
+    }
+  }
+  if (!result && mode === 'process') {
     result = sandbox.runInProcess(code, { timeout, maxMemory });
-  } else if (mode === 'vm') {
+  } else if (!result && mode === 'vm') {
     result = sandbox.runInSandbox(code, { timeout, maxMemory });
-  } else if (sandbox.processIsolationSupported()) {
+  } else if (!result && sandbox.processIsolationSupported()) {
     result = sandbox.runInProcess(code, { timeout, maxMemory });
-  } else {
+  } else if (!result) {
     result = sandbox.runInSandbox(code, { timeout, maxMemory });
   }
   if (flags.json) process.stdout.write(JSON.stringify(result, null, 2) + '\n');

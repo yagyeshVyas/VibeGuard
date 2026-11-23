@@ -16,7 +16,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 Offline by default · Zero telemetry · No paid APIs · Free forever.
 </p>
 
-<p><strong>Security status: INTERNAL TESTING.</strong> Windows/macOS OS isolation is not implemented; Linux network/PID namespace isolation is available. See the <a href="research/RELEASE_READINESS.md">independent release gate</a>.</p>
+<p><strong>Security status: INTERNAL TESTING.</strong> Windows AppContainer isolation is implemented and passes its live verification suite on Windows; the macOS hardware-VM backend requires a caller-supplied guest image and is verified only on macOS. Linux network/PID namespace isolation is available. See the <a href="research/RELEASE_READINESS.md">independent release gate</a>.</p>
 
 <p>
   <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=for-the-badge&logo=npm&logoColor=white" alt="npm version" /></a>
@@ -130,11 +130,13 @@ the code plane: the MCP channel between an agent and its tools.
 - **`vibeguard agent-monitor`.** Runtime view of the hash-chained firewall log:
   allowed/warned/blocked counts, top blocked tools and servers, behavior
   anomalies, chain integrity. `--watch` tails it live.
-- **Process-isolated sandbox.** `vibeguard sandbox --isolation process` runs
-  untrusted code in a separate Node process under the permission model (fs and
-  child_process denied, network modules blocked, env stripped, hard timeout,
-  memory cap). Node 18 falls back to the vm sandbox.
-- **Tests:** 594 passing, 0 failures, including a live stdio proxy test that
+- **OS-isolated sandbox.** `vibeguard sandbox --isolation os` runs untrusted
+  code in a verified OS boundary: Windows AppContainer with no network
+  capabilities and a Job Object, or a macOS QEMU/HVF hardware VM with no NIC.
+  `--isolation auto` prefers a verified OS backend. The lower
+  `--isolation process` mode remains a separate Node process under the
+  permission model; it is explicitly not an OS boundary.
+- **Tests:** 632 passing, 0 failures, including a live stdio proxy test that
   spawns the CLI and a fixture MCP server. **Offline by default, zero telemetry,
   Windows 11 supported.**
 
@@ -155,7 +157,10 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 This repository contains the v1.13.x security foundation. It is **not** a
 production-ready agent security platform. Linux network/PID namespace isolation
-is available; Windows/macOS OS isolation is not implemented.
+is available. The Windows AppContainer backend passes its live verification
+suite when `vibeguard sandbox verify` runs on the host. The macOS hardware-VM
+backend is implemented but needs a caller-supplied guest image; it reports
+`unavailable`/unverified until that image passes its guest probes.
 
 Implemented and tested:
 
@@ -171,9 +176,15 @@ Implemented and tested:
 - Authenticated loopback **HTTP JSON-RPC + SSE** MCP bridge with upstream stdio.
 - Optional **kill-on-block/block-budget** quarantine response.
 - **Linux bubblewrap** sandbox with verified network/PID/filesystem isolation,
-  plus `unshare` fallback. **Windows Job Object** process/memory containment and
-  macOS `sandbox-exec` are available; AppContainer/WFP and macOS App Sandbox/VM
-  are still absent.
+  plus `unshare` fallback.
+- **Windows AppContainer** backend (`windows-appcontainer`): profile-scoped
+  filesystem, no capability SIDs (no network, not even loopback), Job Object
+  memory/process/UI limits, minimal environment, and a live verification suite
+  for host-file reads, writes, network, env, timeout and memory.
+- **macOS hardware VM** backend (`macos-vm`): QEMU/HVF, separate guest kernel,
+  no NIC, read-only 9p share, snapshot disk, guest-side Node. Requires a
+  configured guest image; `sandbox verify` is the gate.
+- macOS `sandbox-exec` remains a defense-in-depth profile, not a VM claim.
 - Memory provenance guard and signed multi-agent delegation library.
 - Labeled detection corpus runner and AISVS-style readiness mapping.
 - Target-controlled scanner plugins are **disabled by default**; code execution
@@ -186,10 +197,15 @@ Implemented and tested:
 
 Not implemented or not verified:
 
-- **Windows AppContainer/WFP and macOS VM backends are absent.** Windows Job
-  Object provides process/memory containment only; it does not isolate files or
-  network. Linux bubblewrap isolates network/PID/filesystem when installed, but
-  is not a VM/hardware boundary.
+- **No WFP filter is installed.** Windows network denial comes from the absence
+  of AppContainer capability SIDs; the AppContainer boundary shares the host
+  kernel. Windows system/Program Files reads remain available by default, while
+  the user profile, credentials and writable host paths are denied.
+- **macOS VM verification is image-dependent.** The repository does not ship a
+  guest image; the backend cannot claim hardware-VM isolation until the supplied
+  image boots and passes the guest probes on a macOS host.
+- **Linux bubblewrap** isolates network/PID/filesystem when installed, but is
+  not a VM/hardware boundary.
 - **External audit anchor** and checkpoint sidecars are supported; legacy
   non-strict gateway audit is still the legacy hash chain.
 - **Approval service**: hosted API with authenticated tickets, signed approver

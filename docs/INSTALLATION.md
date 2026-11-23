@@ -61,14 +61,23 @@ network policy; the current CLI does not start it automatically.
 
 ```bash
 node bin/cli.js sandbox backends
+node bin/cli.js sandbox verify
+node bin/cli.js sandbox "const x = 1 + 2; x" --isolation os
 node bin/cli.js sandbox "const x = 1 + 2; x" --isolation process
 ```
 
+`--isolation os` uses a verified OS backend and fails closed when none has
+passed verification on this host. On Windows, `sandbox verify` creates an
+AppContainer profile, runs the live probe suite (host reads/writes, network,
+environment, timeout, memory) and caches the result for 7 days. On macOS it
+verifies the QEMU/HVF hardware-VM backend; a caller-supplied guest image
+(`VIBEGUARD_VM_IMAGE` or `VIBEGUARD_VM_KERNEL`/`VIBEGUARD_VM_INITRD`) is
+required. On Linux it verifies the `unshare`/bubblewrap network/PID backend;
+Linux filesystem isolation requires bubblewrap.
+
 The process backend is explicitly unverified: fresh V8 context + Node
-permission model, same OS user, network not blocked by the kernel. On Linux
-(including WSL), `vibeguard sandbox verify` creates a `unshare` user/network/PID
-namespace and verifies network isolation. Filesystem isolation is not provided.
-Windows AppContainer/Job/WFP and macOS VM backends are not implemented.
+permission model, same OS user, network not blocked by the kernel. It is a
+convenience boundary, not an OS boundary.
 
 ## Offline operation
 
@@ -123,13 +132,32 @@ vibeguard mcp-firewall --exec "<server>" --strict --kill-on-block
 
 Exit code 3 means the proxy quarantined/killed the upstream after a blocked call.
 
-## Linux OS namespace verification
+## OS backend verification
 
 ```bash
-vibeguard sandbox verify   # only meaningful on Linux with unshare/user namespaces
+vibeguard sandbox verify   # Windows AppContainer, macOS VM, or Linux namespaces
+vibeguard sandbox backends # show the verified class and evidence
 ```
 
-Windows/macOS OS backends are not implemented.
+Windows uses AppContainer + Job Object; macOS uses a QEMU/HVF hardware VM when
+a guest image is configured; Linux uses bubblewrap or `unshare`. The command
+fails closed on a host where the expected backend cannot pass its probes.
+
+### macOS VM prerequisites
+
+1. Install QEMU (`brew install qemu`).
+2. Provide a bootable Linux guest image with Node.js on `PATH`:
+   - disk image: `VIBEGUARD_VM_IMAGE=/path/to/guest.qcow2`
+   - or kernel/initramfs: `VIBEGUARD_VM_KERNEL=/path/to/vmlinuz` and
+     `VIBEGUARD_VM_INITRD=/path/to/initrd`.
+3. The guest init must mount the 9p share tagged `vibeguard` at `/vibeguard`
+   and execute `/vibeguard/entry.sh`. The backend writes the harness as
+   `/vibeguard/run.js` and the program as `/vibeguard/user.js`, with no NIC,
+   a read-only share and a snapshot disk.
+4. Run `vibeguard sandbox verify`. It boots the VM and checks guest boot,
+   absence of a network interface, host-file invisibility, `-nic none`,
+   read-only 9p and snapshot mode. The backend stays unverified if any probe
+   fails.
 
 ## Detection corpus
 
