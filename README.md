@@ -66,12 +66,13 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 
 ---
 
-## 🆕 What's New — v1.13.4
+## 🆕 What's New — v1.14.0
 
-**Latest patch: v1.13.4** — publish workflow can create GitHub releases; version
-references corrected; independent Juice Shop benchmark run; README tone aligned
-with the Honest Scope section. The security feature set below shipped in
-**v1.13.0**; 1.13.1–1.13.4 are patch releases.
+**Latest release: v1.14.0 — verified OS isolation.** Windows AppContainer
+isolation passes its live suite on Windows, the macOS hardware-VM backend is
+implemented behind a guest-image verification gate, and an independent
+in-session audit found and fixed a thenable host-callback escape in the sandbox
+harness. See [the audit](reports/independent-security-audit-2026-11-23.md).
 
 **Security foundation v2 (internal testing).** This release is not beta or
 production-ready; it is the verified internal-testing build described in
@@ -83,15 +84,20 @@ production-ready; it is the verified internal-testing build described in
 - Authenticated HTTP JSON-RPC + SSE MCP bridge over a stdio upstream.
 - Stdio VGAT capability checks and signed single-use approval tokens.
 - `--kill-on-block` quarantine response.
-- Linux `unshare` network/PID namespace sandbox with `sandbox verify`.
+- Verified Windows AppContainer + Job Object isolation; `sandbox --isolation os`
+  and `sandbox_exec isolation:"os"` fail closed without a verified backend.
+- macOS QEMU/HVF hardware-VM backend with no NIC, a read-only 9p share and a
+  caller-supplied trusted image; `sandbox verify` gates the claim.
+- Linux `unshare`/bubblewrap network/PID namespace sandbox with persisted
+  `sandbox verify`.
 - Memory provenance and multi-agent delegation guards; labeled detection corpus;
   AISVS-style readiness mapping.
-- **629 tests, 0 failures** on Windows Node24/Node18 and Linux Node22; 35/35
-  platform tests on Windows/Linux/macOS CI.
+- **634 tests, 0 failures** and **40/40 platform tests** on the audit host;
+  Windows AppContainer verification: all 11 evidence classes pass.
 
-Install note: v1.13.4 is distributed as `@yagyeshvyas/vibeguard@1.13.4`. If a
+Install note: v1.14.0 is distributed as `@yagyeshvyas/vibeguard@1.14.0`. If a
 registry mirror still serves an older build, use the exact
-[v1.13.4 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.13.4).
+[v1.14.0 GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.14.0).
 
 ## 🆕 What's New — v1.10.0
 
@@ -153,7 +159,7 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — v1.13.4 status (internal testing)
+## Security baseline v2 — v1.14.0 status (internal testing)
 
 This repository contains the v1.13.x security foundation. It is **not** a
 production-ready agent security platform. Linux network/PID namespace isolation
@@ -215,7 +221,7 @@ Not implemented or not verified:
 - Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
   tested libraries only.
 - Independent penetration test, representative precision/recall corpus, macOS
-  full-suite evidence. npm 1.13.4 is published and the publish workflow's
+  full-suite evidence. npm 1.14.0 is published and the publish workflow's
   `Create GitHub Release` step now has `contents: write`.
 - Dashboard/SDK and full AISVS certification; AISVS is an internal mapping.
 

@@ -3,7 +3,7 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [1.14.0] - 2026-11-23
 
 ### Security
 
