@@ -714,7 +714,7 @@ _Per-category verdicts and full case list in [test/benchmark/benchmark-results.m
 
 <!-- BENCHMARK:END -->
 
-Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`. The scorer runs the same de-duplication the product does, so it measures what a user actually sees rather than raw pre-dedupe rule hits. Still a self-built corpus — plans to run against OWASP Benchmark and publish those numbers alongside.
+Run `npm run benchmark` to reproduce. Per-category breakdown in `test/benchmark/benchmark-results.md`. The scorer runs the same de-duplication the product does, so it measures what a user actually sees rather than raw pre-dedupe rule hits. Still a self-built corpus; the pinned external benchmark above complements it with a scoreable third-party target.
 
 ### Independent/third-party testing
 
@@ -731,6 +731,29 @@ records the false positives the run produced as plainly as the true positives.
 Read it as evidence that the scanner runs end-to-end on code its author did not
 write — not as a ranking, and not as a replacement for the 119/119 regression
 gate.
+
+### Reproducible external benchmark
+
+The scoreable external benchmark pins OWASP Juice Shop at
+`c9f99228d9d56afb5f5ca7925376292f7fa44b13`, scores only a curated file/line
+label set across seven vulnerability categories, and ignores the rest of the
+repository. Run it with:
+
+```bash
+npm run benchmark:external
+```
+
+The runner records the target commit, Git tree hash, working-tree hash, label
+hash, scanner source hash, per-case verdicts and metrics. `--offline --verify`
+re-runs against the committed report; `--gate` fails on metric drift against
+`benchmarks/external/baseline.json`. See
+[benchmarks/external/README.md](benchmarks/external/README.md) and the generated
+[report](reports/external-benchmark.md).
+
+This is a reproducible regression benchmark on external code, not a
+representative precision/recall study. Whole-repo findings are intentionally
+ignored because Juice Shop contains deliberate challenge snippets and test
+fixtures outside the labels.
 
 ---
 

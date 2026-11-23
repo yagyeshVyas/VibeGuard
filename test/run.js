@@ -4663,6 +4663,8 @@ const v19Suite = require('./v19-tests');
 for (const t of v19Suite.tests) test('v19: ' + t.name, t);
 const mcpFirewallSuite = require('./mcp-firewall-tests');
 for (const t of mcpFirewallSuite.tests) test('mcp-firewall: ' + t.name, t.fn);
+const externalBenchmarkSuite = require('./external-benchmark-tests');
+for (const t of externalBenchmarkSuite.tests) test('external-benchmark: ' + t.name, t.fn);
 const platformSecuritySuite = require('./platform-security-tests');
 for (const t of platformSecuritySuite.tests) test('platform: ' + t.name, t.fn);
 

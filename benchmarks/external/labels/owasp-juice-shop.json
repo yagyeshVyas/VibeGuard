@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.0",
+  "target": "owasp-juice-shop",
+  "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
+  "labelSource": "OWASP Juice Shop challenge documentation plus manual verification of the pinned checkout. Labels are file/line scoped, not whole-repository ground truth.",
+  "cases": [
+    {
+      "id": "juice-sqli-login",
+      "file": "routes/login.ts",
+      "line": 34,
+      "category": "sql-injection",
+      "cwe": "CWE-89",
+      "why": "Login query interpolates req.body.email and the password hash directly into SQL."
+    },
+    {
+      "id": "juice-sqli-search",
+      "file": "routes/search.ts",
+      "line": 23,
+      "category": "sql-injection",
+      "cwe": "CWE-89",
+      "why": "Product search interpolates req.query.q directly into a Sequelize query."
+    },
+    {
+      "id": "juice-eval-user-profile",
+      "file": "routes/userProfile.ts",
+      "line": 65,
+      "category": "code-injection",
+      "cwe": "CWE-95",
+      "why": "User profile code is passed to eval()."
+    },
+    {
+      "id": "juice-eval-captcha",
+      "file": "routes/captcha.ts",
+      "line": 22,
+      "category": "code-injection",
+      "cwe": "CWE-95",
+      "why": "Captcha expression is evaluated with eval()."
+    },
+    {
+      "id": "juice-path-order",
+      "file": "routes/order.ts",
+      "line": 45,
+      "category": "path-traversal",
+      "cwe": "CWE-22",
+      "why": "Order file path is built from request-controlled input."
+    },
+    {
+      "id": "juice-path-profile-image",
+      "file": "routes/profileImageFileUpload.ts",
+      "line": 42,
+      "category": "path-traversal",
+      "cwe": "CWE-22",
+      "why": "Uploaded profile image path is request-controlled."
+    },
+    {
+      "id": "juice-ssrf-profile-image",
+      "file": "routes/profileImageUrlUpload.ts",
+      "line": 24,
+      "category": "ssrf",
+      "cwe": "CWE-918",
+      "why": "Profile image URL is fetched server-side from request input."
+    },
+    {
+      "id": "juice-xss-chat",
+      "file": "routes/chat.ts",
+      "line": 219,
+      "category": "xss",
+      "cwe": "CWE-79",
+      "why": "Chat response reflects request-controlled content."
+    },
+    {
+      "id": "juice-private-key",
+      "file": "lib/insecurity.ts",
+      "line": 21,
+      "category": "hardcoded-secret",
+      "cwe": "CWE-798",
+      "why": "A literal RSA private key is embedded in source."
+    },
+    {
+      "id": "juice-demo-credentials",
+      "file": "data/static/users.yml",
+      "line": 3,
+      "category": "hardcoded-secret",
+      "cwe": "CWE-798",
+      "why": "Plaintext demo account passwords are stored in the repository."
+    },
+    {
+      "id": "juice-insecure-random",
+      "file": "lib/insecurity.ts",
+      "line": 53,
+      "category": "insecure-randomness",
+      "cwe": "CWE-338",
+      "why": "Security-sensitive token material is generated with Math.random()."
+    },
+    {
+      "id": "juice-benign-utils",
+      "file": "lib/utils.ts",
+      "benign": true,
+      "why": "General utility module; no labeled vulnerability. Low-confidence findings are ignored by the scorer."
+    },
+    {
+      "id": "juice-benign-models",
+      "file": "models/index.ts",
+      "benign": true,
+      "why": "Sequelize model bootstrap; no labeled vulnerability."
+    },
+    {
+      "id": "juice-benign-tsconfig",
+      "file": "tsconfig.json",
+      "benign": true,
+      "why": "TypeScript configuration; no executable security sink."
+    }
+  ],
+  "unsupported": [
+    {
+      "id": "juice-basket-idor",
+      "file": "routes/basket.ts",
+      "line": 19,
+      "category": "idor",
+      "cwe": "CWE-639",
+      "reason": "Basket lookup uses a request path id without an ownership predicate. VibeGuard does not claim generic IDOR detection; recorded as a coverage gap, not scored as a false negative."
+    }
+  ]
+}

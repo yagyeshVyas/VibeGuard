@@ -134,3 +134,28 @@ recall 1.0; zero misses/false positives on 23 prompt + 13 tool samples. This is
 a regression seed, **not** a representative precision/recall benchmark. The
 corpus is intentionally small and must be expanded with multilingual,
 paraphrased, mutation and schema cases before making quality claims.
+
+---
+
+## 7. External code benchmark (pinned)
+
+The self-built corpus is a regression gate, not an external measurement. A
+separate scoreable benchmark lives in `benchmarks/external/`:
+
+- Target: OWASP Juice Shop, commit `c9f99228d9d56afb5f5ca7925376292f7fa44b13`.
+- Labels: file/line scoped, seven categories plus three benign modules;
+  one business-logic IDOR case is recorded as an unsupported coverage gap.
+- Scope: labeled ranges only. Findings elsewhere in the target are counted as
+  `ignoredFindings` and do not affect precision/recall.
+- Reproducibility: target commit, Git tree hash, working-tree hash, label hash
+  and scanner source hash are recorded; the report contains no timestamp.
+
+```bash
+node benchmarks/external/run.js --refresh --update-baseline
+node benchmarks/external/run.js --offline --verify
+node benchmarks/external/run.js --gate
+```
+
+Current pinned result: **11 TP / 0 FP / 0 FN** across 14 labeled cases.
+That is a curated external regression set, not a representative benchmark; do
+not generalize it to whole-repository precision/recall.

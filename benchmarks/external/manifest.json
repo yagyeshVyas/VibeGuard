@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0",
+  "benchmark": "vibeguard-external-v1",
+  "description": "Reproducible external-code security benchmark. Targets are pinned by git commit; labels are curated from the target's public challenge documentation and verified at that commit. Only labeled paths are scored.",
+  "scannerOptions": {
+    "deps": false,
+    "trustPlugins": false
+  },
+  "categories": {
+    "sql-injection": [
+      "taint.sql-injection",
+      "code.sql-injection",
+      "db.sql-template-literal",
+      "py.sql-injection",
+      "go.sql-injection",
+      "go.sql-fmt-sprintf",
+      "kotlin.sql-injection",
+      "csharp.sql-injection"
+    ],
+    "code-injection": [
+      "taint.code-injection",
+      "ast.eval-dynamic",
+      "ast.function-constructor",
+      "code.eval"
+    ],
+    "path-traversal": [
+      "taint.path-traversal",
+      "ast.path-traversal",
+      "path-traversal.*"
+    ],
+    "ssrf": [
+      "taint.ssrf",
+      "ast.ssrf",
+      "api2026.ssrf-metadata-url"
+    ],
+    "xss": [
+      "taint.xss-reflected",
+      "taint.xss-stored",
+      "taint.xss-dom",
+      "xss.*"
+    ],
+    "hardcoded-secret": [
+      "secret.*",
+      "secret2026.private-key-block"
+    ],
+    "insecure-randomness": [
+      "crypto2026.math-random-token",
+      "crypto.insecure-random"
+    ]
+  },
+  "targets": [
+    {
+      "id": "owasp-juice-shop",
+      "repo": "https://github.com/juice-shop/juice-shop.git",
+      "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
+      "license": "MIT",
+      "labels": "labels/owasp-juice-shop.json",
+      "notes": "OWASP Juice Shop is deliberately vulnerable; findings outside the labeled ranges are intentionally not scored."
+    }
+  ]
+}

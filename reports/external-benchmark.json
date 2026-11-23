@@ -1,0 +1,371 @@
+{
+  "schemaVersion": "1.0",
+  "benchmark": "vibeguard-external-v1",
+  "scanner": {
+    "name": "@yagyeshvyas/vibeguard",
+    "version": "1.14.0",
+    "sourceHash": "5c16d030fcc56a00c2d626471bbdcc5e0808d728b94c859e29ca15adc4d95ac3:7025c38645e34bf43f55cd815419003dc2cadec9d9837c07d8648d7cc2a0c9cc"
+  },
+  "environment": {
+    "node": "v24.14.0",
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "scope": "labeled file/line ranges only; unlabeled findings are ignored",
+  "targets": [
+    {
+      "id": "owasp-juice-shop",
+      "repo": "https://github.com/juice-shop/juice-shop.git",
+      "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
+      "treeHash": "bd0a61e31231103b48ffa4f34d68a6d841138626",
+      "fileHash": "a15b6b4bd99636cbdec30c0ce1198ffbc57956c95f8f99c144059a340f800e2c",
+      "labelsHash": "0c00e3151504607896c19fe4676d31ad756623881877b1db209968b3a8bb252e",
+      "license": "MIT",
+      "metrics": {
+        "tp": 11,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1
+      },
+      "categories": {
+        "sql-injection": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "code-injection": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "path-traversal": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "ssrf": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "xss": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "hardcoded-secret": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "insecure-randomness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        }
+      },
+      "cases": [
+        {
+          "id": "juice-sqli-login",
+          "file": "routes/login.ts",
+          "line": 34,
+          "lines": null,
+          "category": "sql-injection",
+          "cwe": "CWE-89",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "taint.sql-injection",
+          "findings": [
+            {
+              "file": "routes/login.ts",
+              "line": 34,
+              "ruleId": "taint.sql-injection",
+              "severity": "high",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-sqli-search",
+          "file": "routes/search.ts",
+          "line": 23,
+          "lines": null,
+          "category": "sql-injection",
+          "cwe": "CWE-89",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "taint.sql-injection",
+          "findings": [
+            {
+              "file": "routes/search.ts",
+              "line": 23,
+              "ruleId": "taint.sql-injection",
+              "severity": "high",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-eval-user-profile",
+          "file": "routes/userProfile.ts",
+          "line": 65,
+          "lines": null,
+          "category": "code-injection",
+          "cwe": "CWE-95",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "taint.code-injection",
+          "findings": [
+            {
+              "file": "routes/userProfile.ts",
+              "line": 65,
+              "ruleId": "taint.code-injection",
+              "severity": "critical",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-eval-captcha",
+          "file": "routes/captcha.ts",
+          "line": 22,
+          "lines": null,
+          "category": "code-injection",
+          "cwe": "CWE-95",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "ast.eval-dynamic",
+          "findings": [
+            {
+              "file": "routes/captcha.ts",
+              "line": 22,
+              "ruleId": "ast.eval-dynamic",
+              "severity": "critical",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-path-order",
+          "file": "routes/order.ts",
+          "line": 45,
+          "lines": null,
+          "category": "path-traversal",
+          "cwe": "CWE-22",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "taint.path-traversal",
+          "findings": [
+            {
+              "file": "routes/order.ts",
+              "line": 45,
+              "ruleId": "taint.path-traversal",
+              "severity": "high",
+              "confidence": "high"
+            },
+            {
+              "file": "routes/order.ts",
+              "line": 45,
+              "ruleId": "taint.path-traversal",
+              "severity": "high",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-path-profile-image",
+          "file": "routes/profileImageFileUpload.ts",
+          "line": 42,
+          "lines": null,
+          "category": "path-traversal",
+          "cwe": "CWE-22",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "taint.path-traversal",
+          "findings": [
+            {
+              "file": "routes/profileImageFileUpload.ts",
+              "line": 42,
+              "ruleId": "taint.path-traversal",
+              "severity": "high",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-ssrf-profile-image",
+          "file": "routes/profileImageUrlUpload.ts",
+          "line": 24,
+          "lines": null,
+          "category": "ssrf",
+          "cwe": "CWE-918",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "taint.ssrf",
+          "findings": [
+            {
+              "file": "routes/profileImageUrlUpload.ts",
+              "line": 24,
+              "ruleId": "taint.ssrf",
+              "severity": "high",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-xss-chat",
+          "file": "routes/chat.ts",
+          "line": 219,
+          "lines": null,
+          "category": "xss",
+          "cwe": "CWE-79",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "taint.xss-reflected",
+          "findings": [
+            {
+              "file": "routes/chat.ts",
+              "line": 219,
+              "ruleId": "taint.xss-reflected",
+              "severity": "high",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-private-key",
+          "file": "lib/insecurity.ts",
+          "line": 21,
+          "lines": null,
+          "category": "hardcoded-secret",
+          "cwe": "CWE-798",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "secret2026.private-key-block",
+          "findings": [
+            {
+              "file": "lib/insecurity.ts",
+              "line": 21,
+              "ruleId": "secret2026.private-key-block",
+              "severity": "critical",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-demo-credentials",
+          "file": "data/static/users.yml",
+          "line": 3,
+          "lines": null,
+          "category": "hardcoded-secret",
+          "cwe": "CWE-798",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "secret.generic-credential",
+          "findings": [
+            {
+              "file": "data/static/users.yml",
+              "line": 3,
+              "ruleId": "secret.generic-credential",
+              "severity": "critical",
+              "confidence": "medium"
+            }
+          ]
+        },
+        {
+          "id": "juice-insecure-random",
+          "file": "lib/insecurity.ts",
+          "line": 53,
+          "lines": null,
+          "category": "insecure-randomness",
+          "cwe": "CWE-338",
+          "benign": false,
+          "verdict": "TP",
+          "matchedRule": "crypto2026.math-random-token",
+          "findings": [
+            {
+              "file": "lib/insecurity.ts",
+              "line": 53,
+              "ruleId": "crypto2026.math-random-token",
+              "severity": "high",
+              "confidence": "high"
+            }
+          ]
+        },
+        {
+          "id": "juice-benign-utils",
+          "file": "lib/utils.ts",
+          "line": null,
+          "lines": null,
+          "category": "benign",
+          "cwe": null,
+          "benign": true,
+          "verdict": "TN",
+          "matchedRule": null,
+          "findings": []
+        },
+        {
+          "id": "juice-benign-models",
+          "file": "models/index.ts",
+          "line": null,
+          "lines": null,
+          "category": "benign",
+          "cwe": null,
+          "benign": true,
+          "verdict": "TN",
+          "matchedRule": null,
+          "findings": []
+        },
+        {
+          "id": "juice-benign-tsconfig",
+          "file": "tsconfig.json",
+          "line": null,
+          "lines": null,
+          "category": "benign",
+          "cwe": null,
+          "benign": true,
+          "verdict": "TN",
+          "matchedRule": null,
+          "findings": []
+        }
+      ],
+      "unsupported": [
+        {
+          "id": "juice-basket-idor",
+          "file": "routes/basket.ts",
+          "line": 19,
+          "category": "idor",
+          "cwe": "CWE-639",
+          "reason": "Basket lookup uses a request path id without an ownership predicate. VibeGuard does not claim generic IDOR detection; recorded as a coverage gap, not scored as a false negative."
+        }
+      ],
+      "ignoredFindings": 3360,
+      "scopeFindings": 100,
+      "scan": {
+        "scannedFiles": 1057,
+        "totalFindings": 3460,
+        "engine": {
+          "astAvailable": true,
+          "mode": "ast"
+        }
+      }
+    }
+  ],
+  "overall": {
+    "tp": 11,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1
+  },
+  "limitations": [
+    "The label set is curated, not a representative sample of all vulnerabilities.",
+    "Whole-repository findings are ignored to avoid scoring deliberate Juice Shop noise outside the labels.",
+    "The target commit is pinned; changing the commit requires re-labeling.",
+    "Metrics are reproducible only with the same scanner source hash and target hashes.",
+    "This benchmark measures detection output, not exploitation or runtime enforcement."
+  ]
+}

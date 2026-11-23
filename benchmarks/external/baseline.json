@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0",
+  "benchmark": "vibeguard-external-v1",
+  "scannerSourceHash": "5c16d030fcc56a00c2d626471bbdcc5e0808d728b94c859e29ca15adc4d95ac3:7025c38645e34bf43f55cd815419003dc2cadec9d9837c07d8648d7cc2a0c9cc",
+  "targets": {
+    "owasp-juice-shop": {
+      "metrics": {
+        "tp": 11,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "f1": 1
+      },
+      "categories": {
+        "sql-injection": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "code-injection": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "path-traversal": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "ssrf": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "xss": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        },
+        "hardcoded-secret": {
+          "tp": 2,
+          "fp": 0,
+          "fn": 0
+        },
+        "insecure-randomness": {
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        }
+      }
+    }
+  },
+  "overall": {
+    "tp": 11,
+    "fp": 0,
+    "fn": 0,
+    "precision": 1,
+    "recall": 1,
+    "f1": 1
+  }
+}

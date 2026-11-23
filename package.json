@@ -51,6 +51,8 @@
     "coverage": "c8 node test/run.js",
     "counts": "node scripts/counts.js",
     "benchmark": "node test/benchmark/run.js",
+    "benchmark:external": "node benchmarks/external/run.js --gate",
+    "benchmark:external:verify": "node benchmarks/external/run.js --offline --verify",
     "integrity": "node scripts/gen-integrity.js",
     "postinstall": "node scripts/postinstall.js",
     "prepublishOnly": "node scripts/gen-integrity.js && node test/run.js && npm run lint",
