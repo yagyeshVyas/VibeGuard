@@ -357,7 +357,7 @@ function evaluateToolCall({ root, policy, server, tool, args, strict = false }) 
   const p = policy || { ...DEFAULT_POLICY };
   const projectRoot = path.resolve(root || p.projectRoot || process.cwd());
   const strictMode = strict === true || p.mode === 'strict';
-  const defaultAction = strictMode && p.defaultAction === 'allow' ? 'block' : p.defaultAction;
+  const defaultAction = strictMode && (p.defaultAction === 'allow' || p.defaultAction === 'warn') ? 'block' : p.defaultAction;
   const toolName = String(tool || '');
   const callArgs = args || {};
   const violations = [];
@@ -419,8 +419,10 @@ function evaluateToolCall({ root, policy, server, tool, args, strict = false }) 
 
   // 4. Filesystem scope (canonical paths; junctions/symlinks resolved).
   const rootCanonical = canonicalRoot(projectRoot);
+  const SENSITIVE_PATH_RE = /(?:^|[/\\])(?:\.env(?:\.[^/\\]+)?|\.ssh|\.aws|\.git-credentials|\.npmrc|\.netrc|id_rsa|id_ed25519|credentials\.json|service-account[^/\\]*\.json)(?:[/\\]|$)|(?:^|[/\\])AppData[/\\](?:Local[/\\]Google[/\\]Chrome|Roaming[/\\]Mozilla)(?:[/\\]|$)/i;
   for (const { key, value } of strings) {
-    if (!PATH_KEY_RE.test(key)) continue;
+    const sensitivePath = SENSITIVE_PATH_RE.test(value);
+    if (!PATH_KEY_RE.test(key) && !sensitivePath) continue;
     if (/^https?:\/\//i.test(value)) continue;
     if (!/[/\\]|\.(?:env|pem|key|json|ya?ml|toml|ini|conf|sql|db|txt|md|js|ts|py)$/i.test(value) && !path.isAbsolute(expandHome(value))) continue;
     const resolved = canonicalPath(projectRoot, value);

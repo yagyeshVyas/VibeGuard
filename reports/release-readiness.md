@@ -10,7 +10,7 @@ macOS isolation is absent.
 
 Current evidence:
 
-- Full suite: **654 passed, 0 failed** on the Windows audit host.
+- Full suite: **659 passed, 0 failed** on the Windows audit host.
 - Platform security suite: **50 passed, 0 failed** on the Windows audit host.
 - Windows AppContainer live verification: **11/11 checks passed**, including
   host-file/home-file/host-write denial, loopback and LAN egress denial,

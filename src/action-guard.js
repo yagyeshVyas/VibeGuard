@@ -34,18 +34,42 @@ const PRIVATE_IP_RE = /^(?:10\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/;
 // Cloud metadata endpoints — credential theft targets, ALWAYS untrusted.
 const METADATA_HOST_RE = /^(?:169\.254\.169\.254|metadata\.google\.internal|metadata\.goog)$/i;
 
+function canonicalHost(value) {
+  let host = String(value || '').trim().toLowerCase();
+  if (!host) return '';
+  // URL.hostname keeps IPv6 brackets; policy rules use the bare address.
+  host = host.replace(/^\[|\]$/g, '').replace(/\.$/, '');
+  // IPv4-mapped IPv6 forms (dotted or compressed hex) are the IPv4 host.
+  const dotted = host.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i);
+  if (dotted) return dotted[1];
+  const hexMapped = host.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/i);
+  if (hexMapped) {
+    const hi = parseInt(hexMapped[1], 16);
+    const lo = parseInt(hexMapped[2], 16);
+    return [hi >> 8, hi & 255, lo >> 8, lo & 255].join('.');
+  }
+  return host;
+}
+
 function hostOf(url) {
   if (typeof url !== 'string') return null;
-  const m = url.match(/^[a-z][a-z0-9+.-]*:\/\/([^/?#]+)/i);
+  // Prefer the WHATWG parser: it canonicalizes userinfo, numeric IPv4 forms,
+  // bracketed IPv6 and trailing root dots before policy matching.
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname) return canonicalHost(parsed.hostname);
+  } catch { /* fall through to the conservative regex */ }
+  const m = url.match(/^[a-z][a-z0-9+.-]*:\/\/(?:[^@/?#]*@)?([^/?#]+)/i);
   if (!m) return null;
-  return m[1].replace(/:\d+$/, '').toLowerCase(); // strip port
+  return canonicalHost(m[1].replace(/:\d+$/, ''));
 }
 
 function isExternalHost(host) {
-  if (!host) return false;
-  if (METADATA_HOST_RE.test(host)) return true; // metadata = worst-case external
-  if (LOCAL_HOST_RE.test(host)) return false;
-  if (PRIVATE_IP_RE.test(host)) return false;
+  const h = canonicalHost(host);
+  if (!h) return false;
+  if (METADATA_HOST_RE.test(h)) return true; // metadata = worst-case external
+  if (LOCAL_HOST_RE.test(h)) return false;
+  if (PRIVATE_IP_RE.test(h)) return false;
   return true;
 }
 

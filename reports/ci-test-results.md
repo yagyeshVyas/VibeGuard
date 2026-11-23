@@ -6,7 +6,7 @@ Current status: [`docs/STATUS.md`](../docs/STATUS.md).
 
 | Command | Result |
 |---|---|
-| `node test/run.js` | **654 passed, 0 failed** |
+| `node test/run.js` | **659 passed, 0 failed** |
 | `node test/run-platform.js` | **50 passed, 0 failed** |
 | `node bin/cli.js mcp-firewall --selftest` | **12/12 passed** |
 | `node bin/cli.js sandbox "const x=2+3; x" --isolation os --json` | success, output `5`, `verified: true` |

@@ -84,6 +84,8 @@ test('policy: defaults block credential paths and metadata, allow explicitly lis
   const engine = createEngine({ root, policy: { allowTools: ['read_file', 'echo'] }, logger: { log() {} } });
 
   assert.strictEqual(engine.checkToolCall('srv', 'read_file', { path: '.env' }).action, 'block');
+  assert.strictEqual(engine.checkToolCall('srv', 'read_file', { p: '~/.git-credentials' }).action, 'block');
+  assert.strictEqual(engine.checkToolCall('srv', 'read_file', { x: 'C:/Users/test/.ssh/id_rsa' }).action, 'block');
   assert.strictEqual(engine.checkToolCall('srv', 'fetch', { url: 'http://169.254.169.254/latest/meta-data/' }).action, 'block');
   assert.strictEqual(engine.checkToolCall('srv', 'read_file', { path: 'src/index.js' }).action, 'allow');
   assert.strictEqual(engine.checkToolCall('srv', 'echo', { text: 'hello' }).action, 'allow');
@@ -104,6 +106,28 @@ test('policy: unknown tools require an explicit allowUnknown opt-out', () => {
   const compat = createEngine({ root: tmpDir(), policy: {}, allowUnknown: true, logger: { log() {} } });
   assert.strictEqual(compat.checkToolCall('srv', 'unlisted_tool', {}).action, 'allow');
   assert.strictEqual(compat.policy.mode, 'compat');
+});
+
+test('policy: URL authority normalization cannot bypass metadata deny', () => {
+  const { createEngine } = require('../src/mcp-firewall');
+  const engine = createEngine({ root: tmpDir(), policy: { allowTools: ['fetch'] }, logger: { log() {} } });
+  for (const url of [
+    'http://169.254.169.254./latest/meta-data/',
+    'http://user@169.254.169.254/latest/meta-data/',
+    'http://[::ffff:169.254.169.254]/latest/meta-data/',
+    'http://[::ffff:a9fe:a9fe]/latest/meta-data/',
+    'http://2852039166/latest/meta-data/',
+  ]) {
+    const verdict = engine.checkToolCall('srv', 'fetch', { url });
+    assert.strictEqual(verdict.action, 'block', url);
+    assert(verdict.violations.some((v) => v.id === 'host-denied'), `${url}: ${JSON.stringify(verdict.violations)}`);
+  }
+});
+
+test('policy: strict mode downgrades warn to block for unknown tools', () => {
+  const { createEngine } = require('../src/mcp-firewall');
+  const engine = createEngine({ root: tmpDir(), policy: { mode: 'strict', defaultAction: 'warn' }, logger: { log() {} } });
+  assert.strictEqual(engine.checkToolCall('srv', 'unknown_tool', {}).action, 'block');
 });
 
 test('policy: secrets in arguments are blocked before reaching a server', () => {
@@ -167,6 +191,47 @@ test('policy: rate limit converts excess calls into a block', () => {
   const third = engine.checkToolCall('srv', 'echo', { text: '3' });
   assert.strictEqual(third.action, 'block');
   assert(third.violations.some((v) => v.id === 'rate-limit'));
+});
+
+test('tool definitions: secrets in descriptions are redacted before tools/list', () => {
+  const { createEngine } = require('../src/mcp-firewall');
+  const engine = createEngine({ root: tmpDir(), logger: { log() {} } });
+  const result = engine.inspectToolList('srv', [{
+    name: 'echo',
+    description: 'Echo text. token sk_live_FAKEKEY1234567890ABCD',
+    inputSchema: { type: 'object' },
+  }]);
+  assert.strictEqual(result.tools.length, 1);
+  const text = JSON.stringify(result.tools);
+  assert(!text.includes('FAKEKEY'), 'secret in tool description leaked');
+  assert(text.includes('REDACTED'), 'secret must be redacted');
+});
+
+test('server messages: secrets in errors and notifications are redacted', () => {
+  const { createEngine } = require('../src/mcp-firewall');
+  const engine = createEngine({ root: tmpDir(), logger: { log() {} } });
+  const error = engine.onServerMessage('srv', { jsonrpc: '2.0', id: 1, error: { code: -1, message: 'sk_live_FAKEKEY1234567890ABCD' } });
+  assert(!JSON.stringify(error.message).includes('FAKEKEY'), 'error secret leaked');
+  const note = engine.onServerMessage('srv', { jsonrpc: '2.0', method: 'notifications/message', params: { content: 'sk_live_FAKEKEY1234567890ABCD' } });
+  assert(!JSON.stringify(note.message).includes('FAKEKEY'), 'notification secret leaked');
+});
+
+test('policy: strict resources/read blocks credential paths outside the project', () => {
+  const { createEngine } = require('../src/mcp-firewall');
+  const engine = createEngine({
+    root: tmpDir(),
+    policy: { allowTools: ['resources/read'] },
+    strict: true,
+    logger: { log() {} },
+  });
+  for (const uri of [
+    'file:///C:/Users/test/.git-credentials',
+    'file:///C:/Users/test/AppData/Local/Google/Chrome/User Data/Default/Cookies',
+    'file:///etc/passwd',
+  ]) {
+    const result = engine.onClientMessage('srv', { jsonrpc: '2.0', id: 7, method: 'resources/read', params: { uri } });
+    assert.strictEqual(result.forward, false, uri);
+  }
 });
 
 test('tool definitions: poisoned description is removed from tools/list', () => {

@@ -633,6 +633,12 @@ class WindowsAppContainerSandbox {
       for (const marker of [path.join(dir, '.vg-owner'), path.join(dir, 'AC', '.vg-owner')]) {
         try { owner = JSON.parse(fs.readFileSync(marker, 'utf8')); break; } catch { /* try next */ }
       }
+      // The marker lives in a location sandboxed code may write. It can only
+      // authorize cleanup of the profile directory it describes; never let it
+      // name a different AppContainer profile.
+      if (owner && (typeof owner.name !== 'string' || owner.name.toLowerCase() !== entry.toLowerCase())) {
+        owner = null;
+      }
       let alive = false;
       if (owner && Number.isInteger(owner.pid) && owner.pid > 0) {
         try { process.kill(owner.pid, 0); alive = true; } catch { alive = false; }

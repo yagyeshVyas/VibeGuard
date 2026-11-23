@@ -6,7 +6,7 @@ hardening pass changed.
 
 ## Verified results
 
-- Full suite: **654 passed, 0 failed** on the Windows audit host.
+- Full suite: **659 passed, 0 failed** on the Windows audit host.
 - Platform security suite: **50 passed, 0 failed** on the Windows audit host.
 - Windows AppContainer live suite: **11/11 checks passed**.
 - Integrity manifest covers the platform and sandbox modules.

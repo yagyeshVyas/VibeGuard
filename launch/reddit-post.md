@@ -18,7 +18,7 @@ VibeGuard is a local scanner and MCP/runtime firewall for that gap:
   single-use approvals and signed audit.
 - Verified Windows AppContainer isolation; macOS hardware VM is implemented but
   requires a trusted guest image and verification on macOS.
-- 654 tests and a pinned external Juice Shop benchmark. That benchmark is a
+- 659 tests and a pinned external Juice Shop benchmark. That benchmark is a
   small curated label set, not a precision/recall ranking. The self-built
   119/119 corpus is saturated; read it as a regression gate.
 - Independent in-session security audit is in the repo, including the bugs it

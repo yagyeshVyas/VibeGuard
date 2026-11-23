@@ -28,7 +28,7 @@ Agent / MCP client  ──►  vibeguard mcp-firewall  ──►  MCP server
 | Command safety | Destructive/obfuscated shell commands, exfil pipelines | `tools/call` request |
 | Egress | Host allow/deny lists, cloud-metadata block, secret-in-URL | `tools/call` request |
 | Secret exfiltration | Live credentials in arguments, credential + destination in one call | `tools/call` request |
-| Result scrubbing | Secrets and PII redacted from tool output before it enters the model context | `tools/call` response |
+| Result scrubbing | Secrets and PII redacted from tool output, tool definitions, JSON-RPC errors and server-originated request/notification params before they enter the model context | all server→client content channels |
 | Result poisoning | Prompt-injection text inside tool output is withheld and replaced with an explicit notice | `tools/call` response |
 | Prompt prompts | Injection scan on `prompts/get` arguments | request |
 | Audit + risk | Every verdict appended to a hash-chained log with a risk value | always |
@@ -279,6 +279,9 @@ policy. See [`reports/known-limitations.md`](reports/known-limitations.md).
 
 The v2 gateway also inspects all content-bearing response methods
 (`resources/read`, `prompts/get`, unknown methods), not only `tools/call`.
+In strict mode, `resources/read` refuses credential-store/metadata URIs and
+`file:` URIs outside the project root; the tool must still be explicitly
+allowlisted.
 
 ## Honest status
 

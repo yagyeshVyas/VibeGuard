@@ -14,7 +14,7 @@ current status. `package.json` is the authoritative version number.
 | Languages | **18** |
 | Compliance frameworks | **10** |
 | Defense layers | **13** |
-| Full test suite on the Windows audit host | **654 passed, 0 failed** |
+| Full test suite on the Windows audit host | **659 passed, 0 failed** |
 | Platform security suite | **50 passed, 0 failed** |
 | npm package | `@yagyeshvyas/vibeguard@1.14.0` |
 | Telemetry | none |
@@ -62,11 +62,10 @@ node bin/cli.js sandbox verify
 ```
 
 On Windows, `sandbox verify` runs the AppContainer suite. On macOS, it requires
-a bootable guest image. CI run
+a bootable guest image. The local full suite is **659/659**; CI run
 [`45102610378`](https://github.com/yagyeshVyas/VibeGuard/actions/runs/45102610378)
-passed the full suite on Windows, Linux and macOS (654/654 each) and the
-platform suite on Windows and macOS (50/50 each); results are attached to the
-workflow run and summarized in
+recorded 654/654 on Windows, Linux and macOS before the final hardening commit.
+The current hardening CI run is recorded in
 [`reports/ci-test-results.md`](../reports/ci-test-results.md).
 
 ## Known gaps

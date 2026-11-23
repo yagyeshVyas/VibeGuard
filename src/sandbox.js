@@ -107,8 +107,9 @@ function createSandbox(opts = {}) {
 // runtime supports it (Node 20+), run the code in a *separate process* with
 // Node's permission model enabled: filesystem and child_process are denied by
 // the runtime, the environment is stripped, memory is capped and a hard
-// timeout kills the process. A prelude additionally blocks require() of
-// network and process modules and removes fetch/WebSocket globals.
+// timeout kills the process. The user program runs in a fresh vm context with
+// no require/fetch/WebSocket globals; network is NOT restricted by the Node
+// permission model, so a vm-level escape would regain network.
 //
 // This is the mode an agent should use for untrusted code. It is still not a
 // container: the code runs as the same OS user, and the permission model is

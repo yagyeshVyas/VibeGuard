@@ -52,8 +52,14 @@ const { scanTextForInjection } = require('./mcp-audit');
 const { inspectPrompt } = require('./firewall');
 
 const DEFAULT_AUDIT_FILE = path.join('.vibeguard', 'audit', 'mcp-firewall.jsonl');
+const { fileURLToPath } = require('url');
+const SENSITIVE_RESOURCE_RE = /(?:^|[\\/])(?:\.env(?:\.[^\\/]+)?|\.ssh|\.aws|\.git-credentials|\.npmrc|\.netrc|id_rsa|id_ed25519|credentials\.json|service-account[^\\/]*\.json|Cookies|Login Data|Web Data)(?:[\\/]|$)|(?:^|[\\/])AppData[\\/](?:Local[\\/]Google[\\/]Chrome|Roaming[\\/]Mozilla)(?:[\\/]|$)|169\.254\.169\.254|metadata\.google\.internal|metadata\.goog/i;
 const TOOL_PINS_FILE = path.join('.vibeguard', 'mcp-tool-pins.json');
 const CONFIG_CANDIDATES = ['.mcp.json', '.cursor/mcp.json', '.vscode/mcp.json'];
+function isInside(root, candidate) {
+  const rel = path.relative(root, candidate);
+  return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+}
 
 function sha16(text) {
   return crypto.createHash('sha256').update(String(text)).digest('hex').slice(0, 16);
@@ -204,6 +210,23 @@ function createEngine(opts = {}) {
   const pins = loadPins(projectRoot);
   const session = { rateWindow: null, calls: 0, events: [] };
   const pending = new Map();
+  function isSensitiveResourceUri(uri) {
+    const value = String(uri || '');
+    if (!value) return false;
+    if (SENSITIVE_RESOURCE_RE.test(value)) return true;
+    if (/^file:/i.test(value)) {
+      try {
+        const resolved = fileURLToPath(value);
+        // A file resource outside the project is not a project resource. This
+        // catches Windows profile/credential paths that the shallow regex
+        // above does not enumerate.
+        if (!isInside(projectRoot, path.resolve(resolved))) return true;
+      } catch {
+        return true; // malformed file URL: fail closed in strict mode
+      }
+    }
+    return false;
+  }
   const stats = {
     startedAt: Date.now(),
     messages: 0,
@@ -409,7 +432,14 @@ function createEngine(opts = {}) {
       if (def.action === 'warn') {
         logDecision('mcp_tool_warning', { server, tool: tool.name, hash, reasons: def.violations.map((v) => v.message) });
       }
-      allowedTools.push(tool);
+      // Tool descriptions/schemas are model-visible content too. A malicious or
+      // compromised server can place secrets there just as easily as in a
+      // tools/call result. Redact before the definition reaches the client.
+      const safeTool = scrubResult(tool);
+      if (safeJsonStringify(safeTool) !== safeJsonStringify(tool)) {
+        logDecision('mcp_tool_definition_scrubbed', { server, tool: tool.name, hash });
+      }
+      allowedTools.push(safeTool);
     }
 
     if (changed) {
@@ -550,7 +580,7 @@ function createEngine(opts = {}) {
       // Credential/metadata URI reads are refused in strict mode even if a
       // broad resources/read rule exists. URI authorization is still weaker
       // than the tool policy; do not treat this as complete.
-      if (policy.mode === 'strict' && /(?:\.env|\.ssh|\.aws|169\.254\.169\.254|metadata\.google|file:\/\/\/etc|file:\/\/\/root)/i.test(uri)) {
+      if (policy.mode === 'strict' && isSensitiveResourceUri(uri)) {
         stats.blocked++;
         const verdict = { blocked: true, reasons: ['credential/metadata resource URI'], violations: [{ id: 'resource-uri-denied' }], capability: 'fs.read', risk: 80, tool: 'resources/read' };
         logDecision('mcp_resource_blocked', { server, uri: uri.slice(0, 120), risk: 80 });
@@ -594,23 +624,44 @@ function createEngine(opts = {}) {
           blocked: true,
         };
       }
+      if (policy.scrubToolResults) {
+        const before = safeJsonStringify(msg.params);
+        const safeParams = scrubResult(msg.params);
+        if (before !== safeJsonStringify(safeParams)) {
+          msg.params = safeParams;
+          return { forward: true, message: msg, scrubbed: true };
+        }
+      }
     }
     const meta = msg.id != null ? pending.get(msg.id) : null;
     if (meta) pending.delete(msg.id);
 
     if (meta && meta.method === 'tools/list' && msg.result && Array.isArray(msg.result.tools)) {
+      const before = safeJsonStringify(msg.result.tools);
       const inspected = inspectToolList(server, msg.result.tools);
-      if (inspected.removed.length > 0 || inspected.findings.some((f) => f.action === 'warn')) {
-        msg.result.tools = inspected.tools;
-        if (inspected.removed.length > 0) {
-          msg.result._vibeguard = {
-            removedTools: inspected.removed.map((r) => r.name),
-            note: 'Poisoned or drifted tool definitions were removed by VibeGuard before the model saw them.',
-          };
-        }
-        return { forward: true, message: msg, inspected };
+      const toolsChanged = safeJsonStringify(inspected.tools) !== before;
+      if (toolsChanged) msg.result.tools = inspected.tools;
+      if (inspected.removed.length > 0) {
+        msg.result._vibeguard = {
+          removedTools: inspected.removed.map((r) => r.name),
+          note: 'Poisoned or drifted tool definitions were removed by VibeGuard before the model saw them.',
+        };
+      } else if (toolsChanged) {
+        msg.result._vibeguard = {
+          scrubbedTools: true,
+          note: 'Tool definitions contained redacted secrets or oversized content before reaching the model.',
+        };
       }
       return { forward: true, message: msg, inspected };
+    }
+
+    if ((policy.scrubToolResults || policy.blockToolResultInjection) && msg.error) {
+      const before = safeJsonStringify(msg.error);
+      const safeError = scrubResult(msg.error);
+      if (before !== safeJsonStringify(safeError)) {
+        msg.error = safeError;
+        return { forward: true, message: msg, scrubbed: true };
+      }
     }
 
     if ((policy.scrubToolResults || policy.blockToolResultInjection) && msg.result) {
