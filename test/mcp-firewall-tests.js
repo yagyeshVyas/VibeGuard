@@ -77,11 +77,11 @@ function test(name, fn) { tests.push({ name, fn }); }
 
 // ─── Policy + engine ───────────────────────────────────────────────────────
 
-test('policy: defaults block credential paths and metadata, allow normal reads', () => {
+test('policy: defaults block credential paths and metadata, allow explicitly listed normal reads', () => {
   const { createEngine } = require('../src/mcp-firewall');
   const root = tmpDir();
   writeFiles(root, { 'src/index.js': 'console.log(1)\n' });
-  const engine = createEngine({ root, logger: { log() {} } });
+  const engine = createEngine({ root, policy: { allowTools: ['read_file', 'echo'] }, logger: { log() {} } });
 
   assert.strictEqual(engine.checkToolCall('srv', 'read_file', { path: '.env' }).action, 'block');
   assert.strictEqual(engine.checkToolCall('srv', 'fetch', { url: 'http://169.254.169.254/latest/meta-data/' }).action, 'block');
@@ -89,9 +89,26 @@ test('policy: defaults block credential paths and metadata, allow normal reads',
   assert.strictEqual(engine.checkToolCall('srv', 'echo', { text: 'hello' }).action, 'allow');
 });
 
-test('policy: secrets in arguments are blocked before reaching a server', () => {
+test('policy: unknown tools are denied by default, with no policy file', () => {
   const { createEngine } = require('../src/mcp-firewall');
   const engine = createEngine({ root: tmpDir(), logger: { log() {} } });
+  const verdict = engine.checkToolCall('srv', 'unlisted_tool', {});
+  assert.strictEqual(verdict.action, 'block');
+  assert(verdict.violations.some((v) => v.id === 'default-deny'));
+  assert.strictEqual(engine.policy.mode, 'strict');
+  assert.strictEqual(engine.policy.failClosed, true);
+});
+
+test('policy: unknown tools require an explicit allowUnknown opt-out', () => {
+  const { createEngine } = require('../src/mcp-firewall');
+  const compat = createEngine({ root: tmpDir(), policy: {}, allowUnknown: true, logger: { log() {} } });
+  assert.strictEqual(compat.checkToolCall('srv', 'unlisted_tool', {}).action, 'allow');
+  assert.strictEqual(compat.policy.mode, 'compat');
+});
+
+test('policy: secrets in arguments are blocked before reaching a server', () => {
+  const { createEngine } = require('../src/mcp-firewall');
+  const engine = createEngine({ root: tmpDir(), policy: { allowTools: ['send_data'] }, logger: { log() {} } });
   const verdict = engine.checkToolCall('srv', 'send_data', { body: 'sk_live_FAKEKEY1234567890ABCD' });
   assert.strictEqual(verdict.action, 'block');
   assert(verdict.violations.some((v) => v.id === 'secret-in-arguments'));
@@ -99,14 +116,14 @@ test('policy: secrets in arguments are blocked before reaching a server', () => 
 
 test('policy: destructive shell commands are blocked, benign ones are not', () => {
   const { createEngine } = require('../src/mcp-firewall');
-  const engine = createEngine({ root: tmpDir(), logger: { log() {} } });
+  const engine = createEngine({ root: tmpDir(), policy: { allowTools: ['execute'] }, logger: { log() {} } });
   assert.strictEqual(engine.checkToolCall('srv', 'execute', { command: 'rm -rf /' }).action, 'block');
   assert.strictEqual(engine.checkToolCall('srv', 'execute', { command: 'ls -la' }).action, 'allow');
 });
 
 test('policy: malicious packages are blocked at runtime, unpinned ones warn', () => {
   const { createEngine } = require('../src/mcp-firewall');
-  const engine = createEngine({ root: tmpDir(), logger: { log() {} } });
+  const engine = createEngine({ root: tmpDir(), policy: { allowTools: ['execute'] }, logger: { log() {} } });
   const malicious = engine.checkToolCall('srv', 'execute', { command: 'npx -y cryptominer' });
   assert.strictEqual(malicious.action, 'block');
   assert(malicious.violations.some((v) => v.id === 'malicious-package'));
@@ -134,7 +151,7 @@ test('policy: egress allowlist blocks an unlisted external host', () => {
   const { createEngine } = require('../src/mcp-firewall');
   const engine = createEngine({
     root: tmpDir(),
-    policy: { allowedHosts: ['api.example.com'] },
+    policy: { allowedHosts: ['api.example.com'], allowTools: ['fetch'] },
     logger: { log() {} },
   });
   assert.strictEqual(engine.checkToolCall('srv', 'fetch', { url: 'https://evil.example.org/x' }).action, 'block');
@@ -144,7 +161,7 @@ test('policy: egress allowlist blocks an unlisted external host', () => {
 
 test('policy: rate limit converts excess calls into a block', () => {
   const { createEngine } = require('../src/mcp-firewall');
-  const engine = createEngine({ root: tmpDir(), policy: { maxCallsPerMinute: 2 }, logger: { log() {} } });
+  const engine = createEngine({ root: tmpDir(), policy: { maxCallsPerMinute: 2, allowTools: ['echo'] }, logger: { log() {} } });
   assert.strictEqual(engine.checkToolCall('srv', 'echo', { text: '1' }).action, 'allow');
   assert.strictEqual(engine.checkToolCall('srv', 'echo', { text: '2' }).action, 'allow');
   const third = engine.checkToolCall('srv', 'echo', { text: '3' });
@@ -325,7 +342,10 @@ test('agent-monitor: blocked events and behavior anomalies surface from the log'
 
 test('proxy: live stdio — poisoned tool hidden, unsafe calls blocked, safe call works, results scrubbed', async () => {
   const dir = tmpDir('vg-proxy-');
-  writeFiles(dir, { 'src/index.js': 'console.log(1)\n' });
+  writeFiles(dir, {
+    'src/index.js': 'console.log(1)\n',
+    '.vibeguard-mcp.json': JSON.stringify({ defaultAction: 'block', allowTools: ['echo', 'execute', 'read_file', 'get_status'] }),
+  });
   const exec = `"${process.execPath}" "${FAKE_SERVER}"`;
   const child = spawn(process.execPath, [CLI, 'mcp-firewall', '--exec', exec, '--dir', dir], {
     cwd: ROOT,
@@ -372,7 +392,7 @@ test('proxy: live stdio — poisoned tool hidden, unsafe calls blocked, safe cal
     assert(allStderr.includes('CALLED:echo'), 'safe call reached the server');
     assert(!allStderr.includes('CALLED:execute'), 'blocked call never reached the server');
 
-    const audit = path.join(dir, '.vibeguard', 'audit', 'mcp-firewall.jsonl');
+    const audit = path.join(dir, '.vibeguard', 'audit', 'mcp-firewall.signed.jsonl');
     assert(fs.existsSync(audit), 'audit log written');
     const auditText = fs.readFileSync(audit, 'utf8');
     assert(auditText.includes('mcp_blocked'), 'block decision audited');

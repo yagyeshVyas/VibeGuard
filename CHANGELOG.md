@@ -21,10 +21,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Changed
 
+- **Strict MCP default-deny:** unknown tools are denied by default, strict mode writes signed audit events, and policy parse failures fail closed. `--allow-unknown` is the explicit, warned compatibility opt-out. Example policies and documentation now match this default.
 - Approval service now reports readiness separately from liveness and exposes metrics without adding response bodies, passwords or tokens to logs.
 - `approval-service` now requires human approval capability `approval.decide`; agent requests require `approval.request`; status/read requires `approval.read`.
 - Approval service defaults to loopback; remote binding requires `--allow-remote` and a TLS reverse proxy (the service itself is HTTP loopback-first).
 - Approval UI is authenticated; the old public read-only dashboard is replaced.
+
+### Fixed
+
+- Windows AppContainer profile disposal now removes the per-backend package directory, not only the `AC` working folder, and the live cleanup check verifies both.
+- macOS VM guest entry retries the 9p mount when `/vibeguard/run.js` is absent, instead of assuming an init script already mounted the share.
 
 ## [1.14.0] - 2026-11-23
 

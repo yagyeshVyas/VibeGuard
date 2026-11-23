@@ -1,7 +1,7 @@
 {
-  "_comment": "VibeGuard MCP firewall policy. Copy to .vibeguard-mcp.json and edit. Deny-by-default example: set defaultAction to block and list the tools you trust in allowTools.",
+  "_comment": "VibeGuard MCP firewall policy. Copy to .vibeguard-mcp.json and edit. Strict default-deny is the default: add the tools you trust to allowTools. Use --allow-unknown only for a deliberate compatibility opt-out.",
   "version": 1,
-  "defaultAction": "allow",
+  "defaultAction": "block",
   "toolRules": [
     { "match": "mcp__filesystem__write_*", "action": "warn", "reason": "review writes" }
   ],
@@ -47,5 +47,5 @@
   "maxArgumentBytes": 65536,
   "maxCallsPerMinute": 240,
   "logAllowedCalls": true,
-  "failClosed": false
+  "failClosed": true
 }

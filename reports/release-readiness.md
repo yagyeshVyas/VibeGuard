@@ -1,30 +1,36 @@
-# Release Readiness (updated)
+# Release Readiness
 
 **Decision: INTERNAL TESTING**
 
-The independent gate report is
-[`research/RELEASE_READINESS.md`](../research/RELEASE_READINESS.md). Current
-evidence:
+The authoritative current status, counts and isolation evidence are in
+[`docs/STATUS.md`](../docs/STATUS.md). The dated independent gate report in
+[`research/RELEASE_READINESS.md`](../research/RELEASE_READINESS.md) is a
+historical snapshot and its findings are superseded where they say Windows or
+macOS isolation is absent.
 
-- Full suite: **629 passed, 0 failed** on Windows Node24, Windows Node18 and
-  Linux WSL Node22.
-- Platform security suite: **35/35** on Windows Node18/20/22/24 and Linux
-  Node22.
-- `npm audit --audit-level=high`: **0 critical/high**, 10 moderate.
-- Integrity: **49 modules** verified.
+Current evidence:
+
+- Full suite: **653 passed, 0 failed** on the Windows audit host.
+- Platform security suite: **50 passed, 0 failed** on the Windows audit host.
+- Windows AppContainer live verification: **11/11 checks passed**, including
+  host-file/home-file/host-write denial, loopback and LAN egress denial,
+  environment isolation, timeout, memory cap and profile cleanup.
+- Strict MCP default-deny is active; `--allow-unknown` is the explicit opt-out.
 - Signed gateway audit, HTTP/SSE bridge, stdio token/approval, kill switch,
   Linux network/PID namespace, memory/delegation libraries, corpus and
   AISVS-style mapping are implemented and tested.
 
 Still not beta/production ready:
 
-- Windows/macOS OS isolation absent; Linux filesystem not isolated.
-- Approval broker human identity is unauthenticated.
-- External anchor is opt-in; local anchor deletion/rollback remains possible.
-- TLS/mTLS server options exist; live OAuth/multi-session and independent runtime monitoring remain incomplete.
-- Memory/multi-agent controls not wired end-to-end.
-- Small curated corpus; no independent penetration test.
-- macOS full suite not run; npm publication is complete (`1.13.0`).
+- macOS hardware-VM verification requires a caller-supplied bootable guest on
+  a macOS host; this repository does not ship one.
+- Windows AppContainer shares the host kernel; no WFP filter is installed.
+- Independent external human penetration testing is outstanding.
+- macOS full-suite evidence is CI-produced, not local to the Windows host.
+- The external anchor remains opt-in; a local log + sidecar + anchor deletion
+  remains possible.
+- Memory/multi-agent controls are libraries, not a complete distributed
+  runtime.
 
-Allowed: controlled internal testing with no untrusted code on Windows/macOS.
+Allowed: controlled internal testing with all limitations disclosed.
 Not allowed: external beta, production candidate, or production-ready claims.

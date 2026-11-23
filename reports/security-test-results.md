@@ -1,9 +1,8 @@
 # Security Test Results — VibeGuard Security Baseline v2
 
-**Date:** 2026-11-21  
-**Environment:** Windows 11/Node24 (full), Windows Node18 (full), Linux WSL Node22 (full), Windows/macOS CI platform suites  
-**Base revision:** `2ce5b36` plus implementation changes  
-**Status:** results are local and reproducible; no independent penetration test has been performed.
+**Date:** 2026-11-23  
+**Environment:** Windows 11/Node 24 (full), Windows AppContainer live suite, Windows/macOS/Linux CI full suite  
+**Status:** results are local and reproducible; no independent external human penetration test has been performed. Current authoritative status: [`docs/STATUS.md`](../docs/STATUS.md).
 
 ---
 
@@ -11,13 +10,14 @@
 
 | Command | Result | Notes |
 |---|---|---|
-| `npm test` | **629 passed, 0 failed** | full legacy + platform suite; last local run |
-| `node test/run-platform.js` | **35 passed, 0 failed** | focused v2 security suite |
-| `node bin/cli.js mcp-firewall --selftest` | **11/11 passed** | firewall scenarios |
-| `node bin/cli.js sandbox backends` | process/legacy-vm `verified=NO` | intentional truthfulness |
+| `node test/run.js` | **653 passed, 0 failed** | full suite on the Windows audit host |
+| `node test/run-platform.js` | **50 passed, 0 failed** | focused v2 security suite |
+| `node bin/cli.js sandbox verify` | **11/11 evidence classes** | Windows AppContainer live suite |
+| `node bin/cli.js mcp-firewall --selftest` | **12/12 passed** | firewall scenarios, including strict-default denial |
+| `node bin/cli.js sandbox backends` | AppContainer `verified=yes` on this host; macOS VM `NO` without an image | host-bound truthfulness |
 | `node bin/cli.js policy validate docs/security-policy.strict.example.json --pub docs/security-policy.strict.example.pub.pem` | valid, signature verified | signed policy v2 |
 | `node bin/cli.js audit verify <signed-log> --pub <key>` | VALID (when key supplied) | signed chain/checkpoint |
-| `npm audit --audit-level=high` | exit 0 | **0 critical/high**, 10 moderate remain |
+| `npm audit --audit-level=high` | exit 0 | **0 critical/high** |
 | `node scripts/security-bench.js --out reports/benchmark.json` | success | metrics below |
 | `self-check` | 49/49 modules intact | SHA-256 manifest |
 
@@ -26,7 +26,11 @@
 
 ---
 
-## 2. Platform security tests (29)
+## 2. Platform security tests
+
+The focused suite contains 50 tests. The table below lists the original 29 and
+is extended by the MCP strict-default, AppContainer, macOS VM and deployment
+tests in `test/platform-security-tests.js`.
 
 | # | Test | Verified behavior |
 |---|---|---|

@@ -1,5 +1,8 @@
 # Release Notes — Security Preview
 
+> **Historical (1.13.0).** This note predates 1.14.0 and the strict MCP
+> default. Current status: [`docs/STATUS.md`](docs/STATUS.md).
+
 **Status:** published internal-testing build (`1.13.0`). **Not beta/production-ready.**
 
 This is the implementation change set built on v1.10.0 (`2ce5b36`). It is

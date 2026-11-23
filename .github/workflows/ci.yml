@@ -5,6 +5,7 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -53,3 +54,28 @@ jobs:
         run: node test/run-platform.js
       - name: Sandbox backend truthfulness
         run: node bin/cli.js sandbox backends
+
+  full-suite:
+    name: full suite (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm ci
+      - name: Full test suite
+        shell: bash
+        run: |
+          set -o pipefail
+          node test/run.js 2>&1 | tee full-suite-${{ matrix.os }}.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: full-suite-${{ matrix.os }}
+          path: full-suite-${{ matrix.os }}.txt

@@ -106,7 +106,13 @@ function cmdMcpFirewall(args, flags) {
       return 2;
     }
     const loaded = loadPolicy(root, flags.policy);
-    const verdict = evaluateToolCall({ root, policy: loaded.policy, server, tool, args: callArgs });
+    if (flags['allow-unknown'] === true) {
+      loaded.policy.mode = 'compat';
+      loaded.policy.defaultAction = 'allow';
+      loaded.policy.failClosed = false;
+      process.stderr.write('WARNING: unknown tools are explicitly allowed (--allow-unknown).\n');
+    }
+    const verdict = evaluateToolCall({ root, policy: loaded.policy, server, tool, args: callArgs, strict: loaded.policy.mode === 'strict' });
     if (json) out(JSON.stringify({ ...verdict, policySource: loaded.source, policyError: loaded.error }, null, 2));
     else {
       out(`VibeGuard MCP firewall: ${verdict.action.toUpperCase()} — ${tool} (${verdict.capability})`);
@@ -164,7 +170,7 @@ function cmdMcpFirewall(args, flags) {
     policyPath: flags.policy,
     auditFile: flags.audit || undefined,
     strict: flags.strict === true,
-    signedAudit: flags['signed-audit'] === true,
+    signedAudit: flags['signed-audit'] === true ? true : undefined,
     signedAuditFile: flags.audit || undefined,
     killOnBlock: flags['kill-on-block'] === true,
     token: flags.token,

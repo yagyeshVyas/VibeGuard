@@ -1,5 +1,10 @@
 # Attack Benchmark — VibeGuard Security Baseline v2
 
+> **Historical matrix (2026-11-21).** Rows that say the legacy default allows
+> unknown tools or that Windows/macOS OS isolation is absent are superseded by
+> strict default-deny and the AppContainer/macOS VM backends. Current status:
+> [`docs/STATUS.md`](../docs/STATUS.md).
+
 **Date:** 2026-11-21  
 **Purpose:** record reproducible attack scenarios exercised against this
 baseline, distinguish fixed / mitigated / partial / open, and publish

@@ -1,5 +1,10 @@
 # VibeGuard Independent Release Readiness
 
+> **Historical snapshot (2026-11-21/22).** This gate predates the Windows
+> AppContainer, macOS VM, authenticated approval service and strict MCP default.
+> For current status use [`docs/STATUS.md`](../docs/STATUS.md); do not cite the
+> stale "absent"/"FAIL" rows below as current.
+
 **Date:** 2026-11-21/22  
 **Decision: INTERNAL TESTING**
 

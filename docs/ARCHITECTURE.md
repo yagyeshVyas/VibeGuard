@@ -81,6 +81,7 @@ See `reports/known-limitations.md` for the authoritative list.
 
 ## Compatibility
 
-Legacy CLI commands and the 95 MCP tools remain. New strict behavior is opt-in
-for existing commands; new platform commands are additive. Partial unsafe
-behavior is explicitly labeled in output (`verified=NO`).
+Legacy CLI commands and the 95 MCP tools remain. The MCP firewall is strict
+default-deny; `--allow-unknown` is the explicit compatibility opt-out. New
+platform commands are additive. Partial unsafe behavior is explicitly labeled
+in output (`verified=NO`).

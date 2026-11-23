@@ -16,7 +16,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 Offline by default · Zero telemetry · No paid APIs · Free forever.
 </p>
 
-<p><strong>Security status: INTERNAL TESTING.</strong> Windows AppContainer isolation is implemented and passes its live verification suite on Windows; the macOS hardware-VM backend requires a caller-supplied guest image and is verified only on macOS. Linux network/PID namespace isolation is available. The linked release gate predates the Windows/macOS backends and remains a historical snapshot. Verification is cached per host; run `vibeguard sandbox verify` before trusting the cached claim. Independent in-session audit: <a href="reports/independent-security-audit-2026-11-23.md">2026-11-23 report</a>.</p>
+<p><strong>Security status: INTERNAL TESTING.</strong> The authoritative version, counts, test evidence and isolation claims are in <a href="docs/STATUS.md">docs/STATUS.md</a>. Windows AppContainer isolation is implemented and passes its live verification suite on Windows; the macOS hardware-VM backend requires a caller-supplied guest image and is verified only on macOS. Linux network/PID namespace isolation is available. Verification is cached per host; run `vibeguard sandbox verify` before trusting the cached claim. Independent in-session audit: <a href="reports/independent-security-audit-2026-11-23.md">2026-11-23 report</a>.</p>
 
 > **Independent feedback wanted.** If you did not build VibeGuard, run the
 > [10-minute evaluation](docs/ADOPTION.md) on your own repository and send a
@@ -165,20 +165,19 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — v1.14.0 status (internal testing)
+## Security baseline v2 — release 1.14.0 status (internal testing)
 
-This repository contains the v1.13.x security foundation. It is **not** a
-production-ready agent security platform. Linux network/PID namespace isolation
-is available. The Windows AppContainer backend passes its live verification
-suite when `vibeguard sandbox verify` runs on the host. The macOS hardware-VM
-backend is implemented but needs a caller-supplied guest image; it reports
-`unavailable`/unverified until that image passes its guest probes.
+This repository contains the v1.14.0 security foundation plus unreleased
+hardening. It is **not** a production-ready agent security platform. Current
+counts, test evidence and isolation claims live in
+[docs/STATUS.md](docs/STATUS.md); release notes keep their historical counts.
 
 Implemented and tested:
 
 - Strict default-deny policy engine (`src/platform/policy.js`) with signed
   Ed25519 policy v2, realpath checks, shell-egress checks and deep secret
-  detection.
+  detection. The MCP firewall is strict by default: unknown tools are denied,
+  signed audit is enabled, and `--allow-unknown` is the explicit opt-out.
 - Ed25519 agent capability tokens and signed single-use approvals.
 - Signed, hash-chained audit events with Merkle checkpoints and a verifier;
   **strict MCP gateway now writes signed events by default**.
@@ -229,14 +228,15 @@ Not implemented or not verified:
   multi-session persistence and a full remote IdP/lifecycle remain incomplete.
 - Persistent memory/multi-agent runtime; `MemoryGuard`/`DelegationGraph` are
   tested libraries only.
-- Independent penetration test, representative precision/recall corpus, macOS
-  full-suite evidence. npm 1.14.0 is published and the publish workflow's
-  `Create GitHub Release` step now has `contents: write`.
+- Independent external human penetration test remains outstanding. macOS
+  full-suite evidence is produced by CI; the release gate is a historical
+  snapshot, not the current status.
 - Dashboard/SDK and full AISVS certification; AISVS is an internal mapping.
 
 
 Read the evidence before relying on any control:
 
+- [Authoritative status](docs/STATUS.md)
 - [Implementation status](reports/implementation-status.md)
 - [Security test results](reports/security-test-results.md)
 - [Attack benchmark](reports/attack-benchmark.md)
@@ -245,6 +245,11 @@ Read the evidence before relying on any control:
 - [v2 architecture](docs/ARCHITECTURE.md) · [installation](docs/INSTALLATION.md) · [Windows](docs/WINDOWS.md)
 
 ---
+
+Historical release notes below preserve the test counts and feature numbers
+from their release dates. For current numbers, use
+[docs/STATUS.md](docs/STATUS.md); do not combine an old note with current
+counts.
 
 ## 🆕 What's New — v1.9.0
 

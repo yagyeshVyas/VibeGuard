@@ -907,7 +907,7 @@ test('shell guard: Windows destructive commands are blocked', () => {
 });
 
 test('MCP gateway: resources/read and prompts/get responses are inspected', () => {
-  const engine = createEngine({ root: tmp(), policy: {}, logger: { log() {} } });
+  const engine = createEngine({ root: tmp(), policy: { allowTools: ['resources/read', 'prompts/get'] }, logger: { log() {} } });
   for (const method of ['resources/read', 'prompts/get']) {
     const id = method === 'resources/read' ? 41 : 42;
     const req = engine.onClientMessage('s', { jsonrpc: '2.0', id, method, params: {} });

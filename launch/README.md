@@ -30,7 +30,8 @@ mass-posting is not performed.
 
 ## Claims that must stay accurate
 
-- 861 rules, 95 MCP tools, 18 languages, 651 tests, 50/50 platform tests.
+- 861 rules, 95 MCP tools, 18 languages, 653 tests, 50/50 platform tests.
+  See [`docs/STATUS.md`](docs/STATUS.md) for current counts and evidence.
 - Windows AppContainer verified on the audit host; macOS VM requires a guest
   image and is not live-verified in this repository.
 - The external Juice Shop benchmark is a curated label set, not a

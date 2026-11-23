@@ -90,20 +90,20 @@ vibeguard mcp-firewall --check '{"server":"fs","tool":"read_file","args":{"path"
 ## Policy
 
 Place `.vibeguard-mcp.json` in the project root (or pass `--policy`). Every
-field is optional; the defaults are safe but usable. See
+field is optional; the defaults are **strict default-deny**. See
 [`.vibeguard-mcp.example.json`](.vibeguard-mcp.example.json) for a copy-paste
 starting point.
 
 ```json
 {
   "version": 1,
-  "defaultAction": "allow",
+  "defaultAction": "block",
   "toolRules": [
     { "match": "mcp__filesystem__write_*", "action": "warn", "reason": "writes are reviewed" },
     { "match": "mcp__shell__*", "action": "block" }
   ],
   "denyTools": ["dangerous_*"],
-  "allowTools": [],
+  "allowTools": ["read_file", "list_directory"],
   "approvalRequired": ["delete_*"],
   "blockedCapabilities": ["shell"],
   "allowedPaths": ["../shared-config"],
@@ -123,14 +123,15 @@ starting point.
   "maxArgumentBytes": 65536,
   "maxCallsPerMinute": 240,
   "logAllowedCalls": true,
-  "failClosed": false
+  "failClosed": true
 }
 ```
 
 ### Field notes
 
 - `defaultAction` — `allow`, `warn` or `block` for tools with no matching rule.
-  Set `block` + an explicit `allowTools` list for a deny-by-default posture.
+  The default is `block`; add trusted tools to `allowTools`. Use
+  `--allow-unknown` only for a deliberate compatibility opt-out.
 - `toolRules` — ordered; first match wins. `match` is a glob (`*`, `**`, `?`).
   Actions: `allow`, `warn`, `block`, `approval` (headless proxies convert
   approval to a block with a clear reason).
@@ -267,13 +268,14 @@ vibeguard sandbox "const x = 1 + 2; x" --isolation process --json
 
 ## Strict mode
 
-`vibeguard mcp-firewall --server <name> --strict` forces the legacy policy
-engine into default-deny: an unknown tool is blocked unless an explicit allow
-rule/allowlist admits it. The additive v2 policy engine
-(`src/platform/policy.js`) supports signed Ed25519 policies, realpath path
-checks, approvals and per-resource rules; it is tested as a library/CLI but is
-not yet the live stdio gateway policy. See
-[`reports/known-limitations.md`](reports/known-limitations.md).
+Strict default-deny is the default. The MCP firewall blocks an unknown tool
+unless an explicit allow rule/allowlist admits it, and it writes signed audit
+events by default. `--strict` remains accepted as an explicit assertion of that
+mode; `--allow-unknown` is the deliberate compatibility opt-out and prints a
+warning. The additive v2 policy engine (`src/platform/policy.js`) supports
+signed Ed25519 policies, realpath path checks, approvals and per-resource
+rules; it is tested as a library/CLI but is not yet the live stdio gateway
+policy. See [`reports/known-limitations.md`](reports/known-limitations.md).
 
 The v2 gateway also inspects all content-bearing response methods
 (`resources/read`, `prompts/get`, unknown methods), not only `tools/call`.

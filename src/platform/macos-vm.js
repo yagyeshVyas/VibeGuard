@@ -126,7 +126,7 @@ function parseGuestOutput(stdout, kind = 'auto') {
 
 const ENTRY_SCRIPT = `#!/bin/sh
 set -u
-if [ ! -d /vibeguard ]; then
+if [ ! -f /vibeguard/run.js ]; then
   mkdir -p /vibeguard 2>/dev/null || true
   mount -t 9p -o trans=virtio,version=9p2000.L vibeguard /vibeguard 2>/dev/null || true
 fi

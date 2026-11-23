@@ -588,6 +588,8 @@ class WindowsAppContainerSandbox {
     }
     const profile = JSON.parse(marker.slice('__VG_PROFILE__'.length));
     profile.name = name;
+    const candidateRoot = path.dirname(profile.path);
+    if (/^vibeguard\.sbx\./i.test(path.basename(candidateRoot))) profile.root = candidateRoot;
     profile.binDir = path.join(profile.path, 'bin');
     profile.runsDir = path.join(profile.path, 'runs');
     fs.mkdirSync(profile.binDir, { recursive: true });
@@ -828,10 +830,12 @@ class WindowsAppContainerSandbox {
       record('memory-limit-enforced', ran(memory) && /SMALL_OK/.test(memory.stdout) && !/ALLOCATED/.test(memory.stdout), memory.error || memory.stdout.trim());
 
       const profilePath = this.profile ? this.profile.path : null;
+      const profileRoot = this.profile ? this.profile.root : null;
       this.dispose();
-      const cleaned = !profilePath || !fs.existsSync(profilePath);
+      const cleaned = (!profilePath || !fs.existsSync(profilePath))
+        && (!profileRoot || !fs.existsSync(profileRoot));
       const deleted = this._lastDisposeDeleted !== false;
-      record('profile-cleanup', cleaned && deleted, cleaned && deleted ? 'profile folder removed and profile deleted' : `folderGone=${cleaned} profileDeleted=${deleted}${profilePath ? ` path=${profilePath}` : ''}`);
+      record('profile-cleanup', cleaned && deleted, cleaned && deleted ? 'profile folder removed and profile deleted' : `folderGone=${cleaned} profileDeleted=${deleted}${profilePath ? ` path=${profilePath}` : ''}${profileRoot ? ` root=${profileRoot}` : ''}`);
 
       const passed = evidence.every((e) => e.passed);
       this.verified = passed;
@@ -885,6 +889,12 @@ class WindowsAppContainerSandbox {
       deleted = false;
     }
     try { fs.rmSync(profile.path, { recursive: true, force: true }); } catch { /* ignore */ }
+    // DeleteAppContainerProfile removes the registered profile but Windows
+    // leaves the package directory behind. Remove only this backend's
+    // package root, never the shared Packages directory.
+    if (profile.root && /^vibeguard\.sbx\./i.test(path.basename(profile.root))) {
+      try { fs.rmSync(profile.root, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
     this._lastDisposeDeleted = deleted;
     this.profile = null;
     if (dir) {
