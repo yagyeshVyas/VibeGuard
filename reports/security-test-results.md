@@ -19,7 +19,7 @@
 | `node bin/cli.js audit verify <signed-log> --pub <key>` | VALID (when key supplied) | signed chain/checkpoint |
 | `npm audit --audit-level=high` | exit 0 | **0 critical/high** |
 | `node scripts/security-bench.js --out reports/benchmark.json` | success | metrics below |
-| `self-check` | 49/49 modules intact | SHA-256 manifest |
+| `self-check` | 54/54 modules intact | SHA-256 manifest |
 
 > If the exact full-suite count changes after additional commits, rerun the
 > command and update this report; do not infer it from this snapshot.
@@ -82,7 +82,7 @@ The legacy suite remains green, including:
 - agentic/agent-scan, v18/v19 reachability/bundle, pentest, PR scan, token-lean, taint depth;
 - sandbox legacy tests (vm compatibility tests remain but are labeled unverified);
 - audit trail tests;
-- pre-deploy clean fixture gates (integrity manifest 49 modules).
+- pre-deploy clean fixture gates (integrity manifest 54 modules).
 
 One intentional test change: `test/run.js` plugin v2 test passes
 `{trustPlugins:true}` because target plugin execution is now disabled by
