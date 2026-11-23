@@ -17,10 +17,10 @@ Environment: Windows 11 (`10.0.26300`), x64, Node 24, PowerShell 5.1.
 The AppContainer suite was run live; its verification cache is host-bound and
 does not transfer to another machine.
 
-## GitHub Actions — final hardening commit
+## GitHub Actions — release commit
 
-Workflow run [`45104005496`](https://github.com/yagyeshVyas/VibeGuard/actions/runs/45104005496)
-on commit `238e021`:
+Workflow run [`45105480174`](https://github.com/yagyeshVyas/VibeGuard/actions/runs/45105480174)
+on commit `1c2572a`:
 
 | Job | OS | Node | Result |
 |---|---|---|---|
