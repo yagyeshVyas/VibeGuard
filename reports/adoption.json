@@ -1,0 +1,18 @@
+{
+  "generatedAt": "2026-11-23T02:22:45.131Z",
+  "package": "@yagyeshvyas/vibeguard",
+  "latestVersion": "1.14.0",
+  "github": {
+    "stars": 7,
+    "forks": 2,
+    "watchers": 0,
+    "openIssues": 3,
+    "description": "Free security & privacy scanner for AI-coded apps. 766 rules, 84 MCP tools, 13-layer defense, zero-trust sandbox, AI firewall. Runs locally, never sends data anywhere. Scan your AI-generated app for leaked keys, open databases, and injection holes in 5 seconds.",
+    "url": "https://github.com/yagyeshVyas/VibeGuard"
+  },
+  "npm": {
+    "lastWeekDownloads": 6,
+    "lastMonthDownloads": 56
+  },
+  "interpretation": "Stars/downloads measure attention only. The useful signal is a reproducible report from a non-maintainer on their own code."
+}

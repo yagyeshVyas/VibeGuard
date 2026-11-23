@@ -18,6 +18,12 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 
 <p><strong>Security status: INTERNAL TESTING.</strong> Windows AppContainer isolation is implemented and passes its live verification suite on Windows; the macOS hardware-VM backend requires a caller-supplied guest image and is verified only on macOS. Linux network/PID namespace isolation is available. The linked release gate predates the Windows/macOS backends and remains a historical snapshot. Verification is cached per host; run `vibeguard sandbox verify` before trusting the cached claim. Independent in-session audit: <a href="reports/independent-security-audit-2026-11-23.md">2026-11-23 report</a>.</p>
 
+> **Independent feedback wanted.** If you did not build VibeGuard, run the
+> [10-minute evaluation](docs/ADOPTION.md) on your own repository and send a
+> reproducible result through the [feedback form](https://github.com/yagyeshVyas/VibeGuard/issues/new?template=independent-feedback.yml)
+> or the pinned discussion. We do not pay for reviews or publish invented
+> testimonials.
+
 <p>
   <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=for-the-badge&logo=npm&logoColor=white" alt="npm version" /></a>
   <a href="https://github.com/yagyeshVyas/VibeGuard/actions"><img src="https://img.shields.io/github/actions/workflow/status/yagyeshVyas/VibeGuard/ci.yml?style=for-the-badge&logo=github&logoColor=white" alt="CI" /></a>
@@ -32,7 +38,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-629%20passed-blue?style=flat-square" alt="629 tests pass" />
+  <img src="https://img.shields.io/badge/tests-651%20passed-blue?style=flat-square" alt="651 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -938,7 +944,7 @@ MIT. Free forever. No ads. No tracking. No data collection.
   <a href="https://vibe-guard-site-ivory.vercel.app/"><img src="https://img.shields.io/badge/Website-vibe--guard--site-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Website" /></a>
 </p>
 
-Found a bug? [🐛 Open an issue](https://github.com/yagyeshVyas/VibeGuard/issues) &bull; Have a question? [💬 Start a discussion](https://github.com/yagyeshVyas/VibeGuard/discussions)
+Found a bug? [🐛 Open an issue](https://github.com/yagyeshVyas/VibeGuard/issues) &bull; Have a question or independent evaluation? [💬 Start a discussion](https://github.com/yagyeshVyas/VibeGuard/discussions) &bull; [📝 Feedback form](https://github.com/yagyeshVyas/VibeGuard/issues/new?template=independent-feedback.yml)
 
 <sub>&copy; 2026 Yagyesh Vyas. Released under the MIT License.</sub>
 

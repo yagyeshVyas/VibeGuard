@@ -1,0 +1,94 @@
+name: Independent developer feedback
+description: Report a real evaluation of VibeGuard on your own repository. Do not include live secrets.
+title: "[feedback] "
+labels: ["feedback", "independent-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for evaluating VibeGuard. This form is for developers who did not
+        build it. Use a repository you own, redact secrets, and state whether we
+        may quote you. Security vulnerabilities belong in the private process in
+        SECURITY.md, not here.
+  - type: dropdown
+    id: role
+    attributes:
+      label: Your role
+      options:
+        - Application developer
+        - Security engineer
+        - Platform / SRE
+        - Open-source maintainer
+        - Engineering manager / buyer
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, architecture, Node version, shell.
+      placeholder: Windows 11 x64, Node 22.14, PowerShell 7
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: VibeGuard version / install method
+      placeholder: 1.14.0 via npx (or npm -g, Docker image)
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands run
+      description: Redact repository names, paths, tokens and credentials if needed.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: Outcome
+      options:
+        - Worked as documented
+        - Worked, but noisy or confusing
+        - Blocked at install / execution
+        - Missed a vulnerability I know is present
+        - Trust or privacy concern
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: What you observed
+      description: Include the useful finding, false positive/negative, timings, and exact error text where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: trust
+    attributes:
+      label: Trust, privacy and permission observations
+      description: Did network, telemetry, sandbox or approval behavior match the documentation?
+  - type: dropdown
+    id: quote
+    attributes:
+      label: May we quote this feedback?
+      options:
+        - Yes, with my name and affiliation
+        - Yes, anonymised
+        - No, aggregate observations only
+    validations:
+      required: true
+  - type: checkboxes
+    id: independence
+    attributes:
+      label: Independence
+      options:
+        - label: I have not contributed code, policy or reviews to this repository.
+          required: true
+        - label: I used my own repository, not the published benchmark fixtures.
+          required: true
+        - label: I removed live secrets and personal data from this report.
+          required: true

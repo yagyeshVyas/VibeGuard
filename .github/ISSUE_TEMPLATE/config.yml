@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Independent developer feedback discussion
+    url: https://github.com/yagyeshVyas/VibeGuard/discussions
+    about: Ask a question, share an evaluation, or discuss a limitation before filing.
+  - name: Security vulnerability
+    url: https://github.com/yagyeshVyas/VibeGuard/security/policy
+    about: Report vulnerabilities privately; do not open a public issue.
+  - name: Adoption and feedback process
+    url: https://github.com/yagyeshVyas/VibeGuard/blob/master/docs/ADOPTION.md
+    about: How independent evaluations are handled and quoted.

@@ -54,6 +54,7 @@
     "benchmark": "node test/benchmark/run.js",
     "benchmark:external": "node benchmarks/external/run.js --gate",
     "benchmark:external:verify": "node benchmarks/external/run.js --offline --verify",
+    "adoption:report": "node scripts/adoption-report.js",
     "integrity": "node scripts/gen-integrity.js",
     "postinstall": "node scripts/postinstall.js",
     "prepublishOnly": "node scripts/gen-integrity.js && node test/run.js && npm run lint",

@@ -1,47 +1,56 @@
-# Show HN: VibeGuard – offline security scanner for AI-generated code
+# Show HN: VibeGuard – offline security scanner for AI-coded apps
 
-**Title:** Show HN: VibeGuard – offline security scanner for AI-generated code
+**Title:** Show HN: VibeGuard – offline security scanner for AI-coded apps
 
 **Body:**
 
-I built a security scanner that runs entirely on your machine and catches the mistakes AI coding tools make: hardcoded API keys, open Supabase/Firebase databases, SQL injection via template literals, prompt injection in system prompts, and LLM output piped to exec/eval.
+I built VibeGuard after reviewing AI-generated apps that shipped hardcoded API
+keys, open Supabase/Firebase rules, SQL injection through template literals and
+LLM output passed into `exec`.
 
-It's not another Semgrep. The specific gap I saw: AI tools (Claude Code, Cursor, Lovable, Bolt) generate code fast but leave security holes that no one checks before shipping. Existing SAST tools are either paid, cloud-based, or don't catch AI-specific patterns like prompt injection in code or LLM output reaching shell calls.
+It is a local scanner and MCP/runtime firewall. No account, no telemetry, no
+cloud upload. `npx @yagyeshvyas/vibeguard scan .` runs on the repo you point it
+at.
 
-**What it does:**
-- 698 rules across 14 languages (JS/TS/Python/Go/Java/Ruby/PHP/C#/Rust/Kotlin/Swift/Bash/SQL/YAML)
-- AST-based taint analysis (not just regex) — traces `req.body.x` through template literals, function params, and object properties to sinks like `exec()`, `db.query()`, `innerHTML`
-- Cross-file taint — catches `req.body` passed to an imported helper that hits a sink
-- AI-specific rules: prompt injection in system prompts, LLM output to exec/eval, agent loop without cap, MCP tool poisoning, user PII sent to LLM APIs
-- One-command layered protection: `vibeguard auto` starts a daemon (auto-scans on file change), installs git pre-commit hook, arms a shell guard that blocks `rm -rf` / `sudo` / `curl|sh` before execution
-- MCP server integration for Claude Code, Cursor, Windsurf — auto-scans every file the AI edits
+**What is new in 1.14.0**
 
-**Benchmark (honest, not rounded up):**
+- 861 rules, 95 MCP tools, 18 languages.
+- Verified Windows AppContainer isolation (Job Object, no network capability),
+  with a live verification suite; macOS hardware-VM backend is implemented but
+  needs a trusted guest image and is verified only on macOS.
+- Authenticated human approval service: password login, CSRF, quorum, signed
+  single-use approvals, signed audit and graceful shutdown.
+- MCP firewall: tool poisoning, secret exfiltration, path/command rules,
+  response inspection and kill-on-block.
+- Reproducible external benchmark pinned to an OWASP Juice Shop commit; a small
+  curated label set, not a representative precision/recall study.
+- 651 tests, 50/50 platform tests, independent in-session security audit in the
+  repository.
 
-| Category | Precision | Recall | F1 |
-|----------|-----------|--------|-----|
-| injection | 87.5% | 91.3% | 89.4% |
-| secrets | 100% | 100% | 100% |
-| xss | 100% | 100% | 100% |
-| path-traversal | 90.0% | 100% | 94.7% |
-| ai-safety | 100% | 100% | 100% |
-| **OVERALL** | **91.7%** | **95.1%** | **93.3%** |
+**What it does not do**
 
-Measured on a self-built corpus of 121 files. I know self-built corpora flatter the tool — I plan to run against OWASP Benchmark next.
+- Prove an app is safe.
+- Detect business-logic flaws or IDOR comprehensively.
+- Replace code review or a real pentest.
+- Make the macOS VM claim without a guest image and a passing verification run.
+- Hide a saturated self-built benchmark: 119/119 means the corpus is easy, not
+  that the scanner is perfect.
 
-**What it does NOT do:**
-- Prove your app is safe
-- Catch business logic flaws
-- Replace a security review
-- Work as a sandbox (the shell guard is accident prevention, not escape prevention — a determined adversary can bypass it)
+**Try it**
 
-**Privacy:** Zero telemetry. Zero network calls by default. Everything runs locally. The only opt-in network features are CVE lookups (OSV.dev) and URL header scans.
+```bash
+npx -y @yagyeshvyas/vibeguard@1.14.0 scan .
+npx -y @yagyeshvyas/vibeguard@1.14.0 scan . --json
+```
 
-**Stack:** Node.js, CommonJS, zero runtime dependencies except the MCP SDK. acorn is optional (enables AST taint analysis when installed).
+**What I want from HN**
 
-**Links:** [GitHub](https://github.com/yagyeshVyas/VibeGuard) | [npm](https://www.npmjs.com/package/@yagyeshvyas/vibeguard)
+I am looking for independent evaluations, not stars: run it on a repository you
+own, report one useful finding, one false positive and one false negative, and
+tell me where the documentation or CLI lied to you.
 
-I'd genuinely like criticism on:
-1. The benchmark methodology — is a self-built corpus meaningful, or should I wait for OWASP results before publishing numbers?
-2. The AI-specific rules — are there patterns I'm missing?
-3. The shell guard approach — is fail-open the right default?
+Feedback form:
+https://github.com/yagyeshVyas/VibeGuard/issues/new?template=independent-feedback.yml
+
+I will not pay for reviews or publish invented testimonials. Known limits:
+https://github.com/yagyeshVyas/VibeGuard/blob/master/docs/ADOPTION.md

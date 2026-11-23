@@ -1,55 +1,37 @@
-# Reddit Post — r/vibecoding
+# Reddit post — r/vibecoding
 
-**Title:** I built a free scanner that catches the security holes AI tools leave in your code
+**Title:** I built a free offline scanner for the security bugs AI coding tools leave behind
 
 **Body:**
 
-Every vibecoding project I've seen has the same problems: hardcoded API keys, Supabase databases with no RLS, SQL injection from template literals, and `dangerouslySetInnerHTML` with user input. Nobody checks before shipping.
+Every vibecoded project I review has the same shape: an API key in a client
+file, a Supabase table with no RLS, a template literal in a SQL query, and an
+LLM response passed to `exec`. The code ships because it runs.
 
-I built VibeGuard to fix this. It's a CLI tool that scans your project locally — no cloud, no telemetry, no signup.
+VibeGuard is a local scanner and MCP/runtime firewall for that gap:
+`npx @yagyeshvyas/vibeguard scan .` No signup, no telemetry, no upload.
 
-```
-$ npx @yagyeshvyas/vibeguard scan
+**v1.14.0, honest scope**
 
-VibeGuard security scan
-./my-lovable-app
+- 861 rules, 95 MCP tools, 18 languages.
+- MCP firewall and human approval service for agent tool calls, with signed
+  single-use approvals and signed audit.
+- Verified Windows AppContainer isolation; macOS hardware VM is implemented but
+  requires a trusted guest image and verification on macOS.
+- 651 tests and a pinned external Juice Shop benchmark. That benchmark is a
+  small curated label set, not a precision/recall ranking. The self-built
+  119/119 corpus is saturated; read it as a regression gate.
+- Independent in-session security audit is in the repo, including the bugs it
+  found and fixed.
 
-CRITICAL  api/route.ts:3  [secret.openai-key]
-  OpenAI API key hardcoded in server code
-  fix: Move to environment variable.
+**What it will not do:** prove an app safe, catch business-logic flaws, or replace
+a review.
 
-HIGH      db/query.ts:5   [taint.sql-injection]
-  User input flows into SQL query via template literal (dataflow-confirmed)
-  fix: Use parameterized queries.
+If you try it on your repo, I want the unflattering version: one useful finding,
+one false positive, one missed vulnerability, and the install/doc step that
+wasted your time.
 
-Grade D  (12 files)  1 critical  3 high  2 medium  1 low
+Feedback form:
+https://github.com/yagyeshVyas/VibeGuard/issues/new?template=independent-feedback.yml
 
-Run vibeguard fix to auto-fix 4 issues
-```
-
-**What it catches that other scanners miss:**
-- AI-specific stuff: prompt injection in system prompts, LLM output piped to `exec()`, agent loops with no cap, user PII sent to OpenAI API without redaction
-- Supabase/Firebase: missing RLS, fake RLS policies (`USING (true)`), service-role keys in client components
-- AST taint analysis: traces `req.body.x` through variables, template literals, and function calls to sinks — not just regex matching
-
-**One command for layered protection:**
-```bash
-vibeguard auto    # daemon + git hook + shell guard + post-edit hook
-```
-
-This starts a background daemon that auto-scans every file change, installs a git pre-commit hook that blocks on critical, and arms a shell guard that blocks `rm -rf` and `curl|sh` before they execute.
-
-**Wire into Claude Code / Cursor:**
-```bash
-claude mcp add vibeguard -- npx @yagyeshvyas/vibeguard mcp
-```
-
-Every file Claude edits gets auto-scanned. If it writes a leaked key, you see a red warning instantly.
-
-**Honest benchmark:** 93.3% F1 on a 121-file corpus. Full breakdown in the [README](https://github.com/yagyeshVyas/VibeGuard#benchmark).
-
-**What it doesn't do:** Prove your app is safe. Catch logic bugs. Replace a real security review. It catches the mechanical holes AI tools create by default.
-
-[GitHub](https://github.com/yagyeshVyas/VibeGuard) | [npm](https://www.npmjs.com/package/@yagyeshvyas/vibeguard)
-
-Free forever. MIT. Zero telemetry. Star if it helps.
+No paid reviews, no referral scheme, no invented testimonials.

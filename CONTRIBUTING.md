@@ -1,5 +1,13 @@
 # Contributing to VibeGuard
 
+## Independent evaluation and feedback
+
+If you are evaluating VibeGuard without contributing code, use the
+[independent feedback form](https://github.com/yagyeshVyas/VibeGuard/issues/new?template=independent-feedback.yml)
+or the pinned discussion. The process, quotation policy and adoption metrics
+are documented in [docs/ADOPTION.md](docs/ADOPTION.md).
+
+
 ## The false-positive contract
 
 `test/fixtures/clean/` contains realistic SAFE code. It MUST always scan to zero findings.
@@ -41,7 +49,7 @@ If a PR breaks the clean fixture, it is blocked.
 ## Running tests
 
 ```bash
-npm test          # 63 tests, zero deps
+npm test          # full suite
 npm run lint      # eslint
 npm run coverage  # c8 coverage report
 ```
