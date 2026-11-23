@@ -398,7 +398,7 @@ function renderMarkdown(report) {
     lines.push(`- Repository: ${target.repo}`);
     lines.push(`- Commit: \`${target.commit}\``);
     lines.push(`- Git tree: \`${target.treeHash}\``);
-    lines.push(`- Working-tree hash: \`${target.fileHash}\``);
+    lines.push(`- Working-tree hash (local cache): \`${target.fileHash}\``);
     lines.push(`- Labels hash: \`${target.labelsHash}\``);
     lines.push(`- Files scanned: ${target.scan.scannedFiles}; total findings: ${target.scan.totalFindings}; engine: ${target.scan.engine.mode}`);
     lines.push('');

@@ -61,13 +61,16 @@ exits non-zero on any stable-field difference from `reports/external-benchmark.j
 A report is reproducible when these match:
 
 - `benchmark` id;
-- `scanner.sourceHash` (SHA-256 of `src/` excluding generated `integrity.json`,
-  line endings normalized, plus `package.json`);
-- target `commit`, Git `treeHash`, working-tree `fileHash`, `labelsHash`;
+- `scanner.sourceHash` (committed `src` Git tree id + `package.json` blob id;
+  a normalized worktree hash is used when source is dirty);
+- target `commit`, Git `treeHash`, `labelsHash`;
 - per-target metrics, category counts, case verdicts and recorded gaps.
 
 The report deliberately has no wall-clock timestamp. The environment (Node,
-OS) is recorded separately and ignored by `--verify`.
+OS) is recorded separately and ignored by `--verify`. The target working-tree
+`fileHash` is recorded for local cache-integrity checks only; line endings can
+differ by checkout platform, so cross-platform verification uses the Git tree
+hash instead.
 
 ## Adding a target
 

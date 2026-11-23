@@ -20,7 +20,7 @@
 - Repository: https://github.com/juice-shop/juice-shop.git
 - Commit: `c9f99228d9d56afb5f5ca7925376292f7fa44b13`
 - Git tree: `bd0a61e31231103b48ffa4f34d68a6d841138626`
-- Working-tree hash: `a15b6b4bd99636cbdec30c0ce1198ffbc57956c95f8f99c144059a340f800e2c`
+- Working-tree hash (local cache): `a15b6b4bd99636cbdec30c0ce1198ffbc57956c95f8f99c144059a340f800e2c`
 - Labels hash: `0c00e3151504607896c19fe4676d31ad756623881877b1db209968b3a8bb252e`
 - Files scanned: 1057; total findings: 3460; engine: ast
 
