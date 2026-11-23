@@ -2113,15 +2113,27 @@ async function handleSandboxExec(args) {
   if (!code) return textResult('sandbox_exec requires a "code" argument.', true);
   const sandbox = require('./sandbox');
   const mode = String(args.isolation || 'auto').toLowerCase();
+  if (!['auto', 'os', 'process', 'vm'].includes(mode)) {
+    return textResult(`Unknown isolation mode: ${mode} (expected auto|os|process|vm)`, true);
+  }
   let result;
   if (mode === 'os' || mode === 'auto') {
+    let backend = null;
     try {
       const { defaultManager } = require('./platform/sandbox-manager');
       const { ISOLATION } = require('./platform/contracts');
-      const backend = defaultManager().select(ISOLATION.OS);
-      result = await backend.run(code, { timeout: args.timeout, memoryMb: args.memory });
+      backend = defaultManager().select(ISOLATION.OS);
     } catch (err) {
       if (mode === 'os') return textResult(`No verified OS isolation backend is available: ${err.message}`, true);
+    }
+    if (backend) {
+      try {
+        result = await backend.run(code, { timeout: args.timeout, memoryMb: args.memory });
+      } catch (err) {
+        return textResult(`OS isolation backend failed: ${err.message}`, true);
+      } finally {
+        if (typeof backend.dispose === 'function') backend.dispose();
+      }
     }
   }
   if (!result && mode === 'process') result = sandbox.runInProcess(code, { timeout: args.timeout });

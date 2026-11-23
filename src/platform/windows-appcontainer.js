@@ -28,6 +28,10 @@ const { HARNESS_SOURCE } = require('../sandbox');
 const { defaultCacheFile, loadVerification, saveVerification } = require('./verification');
 
 const SUITE_VERSION = 'windows-appcontainer-job-v2';
+const BACKEND_HASH = (() => {
+  try { return require('crypto').createHash('sha256').update(fs.readFileSync(__filename)).digest('hex').slice(0, 16); }
+  catch { return 'unknown'; }
+})();
 const DEFAULT_TIMEOUT = 5000;
 const DEFAULT_MEMORY_MB = 256;
 const DEFAULT_PROCESS_LIMIT = 16;
@@ -192,6 +196,9 @@ public static class VGAppContainer
     static extern bool TerminateJobObject(IntPtr hJob, uint uExitCode);
 
     [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool TerminateProcess(IntPtr hProcess, uint uExitCode);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
     static extern bool CloseHandle(IntPtr hObject);
 
     [DllImport("kernel32.dll", SetLastError = true)]
@@ -274,6 +281,7 @@ public static class VGAppContainer
         env["TMP"] = workDir;
         env["PATH"] = env["SystemRoot"] + "\\System32";
         env["LOCALAPPDATA"] = localAppData ?? "";
+        env["VG_KEEP"] = "keep";
         var sb = new StringBuilder();
         foreach (var kv in env)
         {
@@ -295,7 +303,6 @@ public static class VGAppContainer
                 int want = (int)Math.Min(read, cap - ms.Length);
                 ms.Write(buf, 0, want);
             }
-            if (read < buf.Length) break;
         }
         return Encoding.UTF8.GetString(ms.ToArray());
     }
@@ -390,10 +397,16 @@ public static class VGAppContainer
 
             if (!AssignProcessToJobObject(job, hProcess))
             {
-                TerminateJobObject(job, 1);
-                return "__VG_STDERR__AssignProcessToJobObject failed: " + Marshal.GetLastWin32Error();
+                int assignError = Marshal.GetLastWin32Error();
+                TerminateProcess(hProcess, 1);
+                return "__VG_STDERR__AssignProcessToJobObject failed: " + assignError;
             }
-            ResumeThread(hThread);
+            if (ResumeThread(hThread) == 0xFFFFFFFF)
+            {
+                int resumeError = Marshal.GetLastWin32Error();
+                TerminateJobObject(job, 1);
+                return "__VG_STDERR__ResumeThread failed: " + resumeError;
+            }
 
             var outTask = Task.Run(() => ReadPipe(outRead, 1024 * 1024));
             var errTask = Task.Run(() => ReadPipe(errRead, 1024 * 1024));
@@ -444,6 +457,12 @@ function randomId() {
   return crypto.randomBytes(8).toString('hex');
 }
 
+function clampInt(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(number)));
+}
+
 function parseRunnerOutput(raw) {
   const so = raw.indexOf('__VG_STDOUT64__');
   const se = raw.indexOf('__VG_STDERR64__');
@@ -483,7 +502,7 @@ class WindowsAppContainerSandbox {
     this.verification = 'unverified';
     this.verifiedAt = null;
     this.evidence = [];
-    this.suiteVersion = SUITE_VERSION;
+    this.suiteVersion = `${SUITE_VERSION}:${BACKEND_HASH}`;
     this.limitations = [
       'AppContainer is OS-mediated; the host kernel is shared',
       'network is denied by the absence of internetClient/privateNetworkClientServer capability SIDs',
@@ -496,11 +515,13 @@ class WindowsAppContainerSandbox {
     this.nodePath = opts.nodePath || process.execPath;
     this.memoryMb = opts.memoryMb || DEFAULT_MEMORY_MB;
     this.processLimit = opts.processLimit || DEFAULT_PROCESS_LIMIT;
+    this.configKey = require('crypto').createHash('sha256').update(JSON.stringify({ node: this.nodePath, powershell: this.powershell, memoryMb: this.memoryMb, processLimit: this.processLimit })).digest('hex').slice(0, 24);
     this.cacheFile = opts.cacheFile === undefined ? defaultCacheFile() : opts.cacheFile;
     this.profile = null;
     this._helperDir = null;
     this._exitHook = null;
-    const cached = loadVerification(this.cacheFile, this.id, this.suiteVersion);
+    this._lastDisposeDeleted = null;
+    const cached = loadVerification(this.cacheFile, this.id, this.suiteVersion, { configKey: this.configKey });
     if (cached && cached.verified === true) {
       this.verified = true;
       this.verification = cached.verification || 'cached';
@@ -524,6 +545,7 @@ class WindowsAppContainerSandbox {
 
   _invoke(mode, values, timeoutMs) {
     const dir = this._helper();
+    const helperTimeout = clampInt(timeoutMs, DEFAULT_TIMEOUT, 100, 300000);
     const env = {
       ...process.env,
       VG_CS: path.join(dir, 'helper.cs'),
@@ -532,9 +554,9 @@ class WindowsAppContainerSandbox {
       VG_WORK: values.workDir || '',
       VG_EXE: values.exe || '',
       VG_ARGS: values.args || '',
-      VG_TIMEOUT: String(values.timeoutMs || DEFAULT_TIMEOUT),
-      VG_MEM: String(values.memoryMb || this.memoryMb),
-      VG_PROC: String(values.processLimit || this.processLimit),
+      VG_TIMEOUT: String(clampInt(values.timeoutMs, DEFAULT_TIMEOUT, 100, 300000)),
+      VG_MEM: String(clampInt(values.memoryMb, this.memoryMb, 16, 16384)),
+      VG_PROC: String(clampInt(values.processLimit, this.processLimit, 1, 256)),
       VG_LOCALAPPDATA: values.localAppData || process.env.LOCALAPPDATA || '',
     };
     const child = spawnSync(this.powershell, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.join(dir, 'helper.ps1')], {
@@ -543,7 +565,7 @@ class WindowsAppContainerSandbox {
       encoding: 'utf8',
       windowsHide: true,
       maxBuffer: 16 * 1024 * 1024,
-      timeout: (timeoutMs || DEFAULT_TIMEOUT) + 60000,
+      timeout: helperTimeout + 60000,
     });
     return {
       status: child.status,
@@ -570,7 +592,15 @@ class WindowsAppContainerSandbox {
     profile.runsDir = path.join(profile.path, 'runs');
     fs.mkdirSync(profile.binDir, { recursive: true });
     fs.mkdirSync(profile.runsDir, { recursive: true });
-    fs.writeFileSync(path.join(profile.path, '.vg-owner'), JSON.stringify({ pid: process.pid, name }), 'utf8');
+    // The package root is host-writable but not writable by the AppContainer
+    // SID; keep the liveness marker there so untrusted code cannot rewrite it.
+    profile.ownerFile = path.join(path.dirname(profile.path), '.vg-owner');
+    try {
+      fs.writeFileSync(profile.ownerFile, JSON.stringify({ pid: process.pid, name }), 'utf8');
+    } catch {
+      profile.ownerFile = path.join(profile.path, '.vg-owner');
+      fs.writeFileSync(profile.ownerFile, JSON.stringify({ pid: process.pid, name }), 'utf8');
+    }
     const stagedNode = path.join(profile.binDir, 'node.exe');
     const source = fs.statSync(this.nodePath);
     let staged = null;
@@ -598,7 +628,9 @@ class WindowsAppContainerSandbox {
       if (!/^vibeguard\.sbx\./i.test(entry)) continue;
       const dir = path.join(root, entry);
       let owner = null;
-      try { owner = JSON.parse(fs.readFileSync(path.join(dir, '.vg-owner'), 'utf8')); } catch { /* unmarked */ }
+      for (const marker of [path.join(dir, '.vg-owner'), path.join(dir, 'AC', '.vg-owner')]) {
+        try { owner = JSON.parse(fs.readFileSync(marker, 'utf8')); break; } catch { /* try next */ }
+      }
       let alive = false;
       if (owner && Number.isInteger(owner.pid) && owner.pid > 0) {
         try { process.kill(owner.pid, 0); alive = true; } catch { alive = false; }
@@ -639,10 +671,14 @@ class WindowsAppContainerSandbox {
       limitations: this.limitations.slice(),
       exitCode: parsed.exit,
       stderr: parsed.stderr,
+      isolationApplied: parsed.exit !== null,
     };
     if (parsed.exit === 124) out.error = 'VibeGuard AppContainer: execution timed out';
-    else if (parsed.exit === null) out.error = (parsed.stderr || parsed.stdout || result.stderr || result.error || 'AppContainer helper failed').trim().slice(0, 500);
-    else out.error = parsed.stderr.trim() || null;
+    else if (parsed.exit === null) {
+      out.error = (parsed.stderr || parsed.stdout || result.stderr || result.error || 'AppContainer helper failed').trim().slice(0, 500);
+      out.verified = false;
+      out.verification = 'run-failed';
+    } else out.error = parsed.stderr.trim() || null;
     out._stdout = parsed.stdout;
     out._rawExit = parsed.exit;
     out._helperStatus = result.status;
@@ -663,9 +699,9 @@ class WindowsAppContainerSandbox {
       return {
         success: false, output: null, error: err.message, duration: Date.now() - started,
         isolation: 'os-windows-appcontainer', isolationClass: ISOLATION.OS,
-        verified: this.verified, verification: this.verification, limitations: this.limitations.slice(),
+        verified: false, verification: 'run-failed', limitations: this.limitations.slice(),
         memoryCap: (opts.memoryMb || this.memoryMb) * 1024 * 1024, memoryEnforced: true,
-        audit: [],
+        isolationApplied: false, audit: [],
       };
     }
     const dir = this._newRunDir(profile);
@@ -682,11 +718,12 @@ class WindowsAppContainerSandbox {
       duration: Date.now() - started,
       isolation: 'os-windows-appcontainer',
       isolationClass: ISOLATION.OS,
-      verified: this.verified,
-      verification: this.verification,
+      verified: raw.verified === false ? false : this.verified,
+      verification: raw.verified === false ? raw.verification : this.verification,
       limitations: this.limitations.slice(),
       memoryCap: (opts.memoryMb || this.memoryMb) * 1024 * 1024,
       memoryEnforced: true,
+      isolationApplied: raw.isolationApplied !== false,
       audit: [],
       exitCode: raw.exitCode,
     };
@@ -724,60 +761,77 @@ class WindowsAppContainerSandbox {
     }
     const evidence = [];
     const record = (testId, passed, details) => evidence.push({ testId, passed: !!passed, details: details ? String(details).slice(0, 500) : undefined });
+    const probeCode = (body) => `console.log('__VG_PROBE__');${body}`;
+    const ran = (result) => Boolean(result && /__VG_PROBE__/.test(String(result.stdout || '')));
     const marker = path.join(os.tmpdir(), `vg-ac-marker-${randomId()}`);
     const writeTarget = path.join(os.tmpdir(), `vg-ac-write-${randomId()}`);
     const homeDir = os.homedir();
     const homeMarker = path.join(homeDir, `.vibeguard-ac-probe-${randomId()}`);
     let server = null;
+    let lanServer = null;
     try {
       const safe = await this.run('const x = 1 + 2; x', { timeout: 10000 });
       record('safe-exec', safe.success && String(safe.output) === '3', safe.error || `output=${safe.output}`);
 
       fs.writeFileSync(marker, 'HOST-SECRET', 'utf8');
-      const readHost = await this.probe(`const fs=require('fs');try{fs.readFileSync(${JSON.stringify(marker)});console.log('VISIBLE')}catch(e){console.log('DENIED:'+e.code)}`, { timeout: 10000 });
-      record('host-file-read-denied', /DENIED/.test(readHost.stdout) && !/VISIBLE/.test(readHost.stdout), readHost.stdout.trim());
+      const readHost = await this.probe(probeCode(`const fs=require('fs');try{fs.readFileSync(${JSON.stringify(marker)});console.log('VISIBLE')}catch(e){console.log('DENIED:'+e.code)}`), { timeout: 10000 });
+      record('host-file-read-denied', ran(readHost) && /DENIED/.test(readHost.stdout) && !/VISIBLE/.test(readHost.stdout), readHost.stdout.trim());
 
       fs.writeFileSync(homeMarker, 'HOME-SECRET', 'utf8');
-      const readHome = await this.probe(`const fs=require('fs');try{fs.readFileSync(${JSON.stringify(homeMarker)});console.log('VISIBLE')}catch(e){console.log('DENIED:'+e.code)}`, { timeout: 10000 });
-      record('home-file-read-denied', /DENIED/.test(readHome.stdout) && !/VISIBLE/.test(readHome.stdout), readHome.stdout.trim());
+      const readHome = await this.probe(probeCode(`const fs=require('fs');try{fs.readFileSync(${JSON.stringify(homeMarker)});console.log('VISIBLE')}catch(e){console.log('DENIED:'+e.code)}`), { timeout: 10000 });
+      record('home-file-read-denied', ran(readHome) && /DENIED/.test(readHome.stdout) && !/VISIBLE/.test(readHome.stdout), readHome.stdout.trim());
 
-      const writeHost = await this.probe(`const fs=require('fs');try{fs.writeFileSync(${JSON.stringify(writeTarget)},'x');console.log('WROTE')}catch(e){console.log('DENIED:'+e.code)}`, { timeout: 10000 });
-      record('host-write-denied', /DENIED/.test(writeHost.stdout) && !/WROTE/.test(writeHost.stdout), writeHost.stdout.trim());
+      const writeHost = await this.probe(probeCode(`const fs=require('fs');try{fs.writeFileSync(${JSON.stringify(writeTarget)},'x');console.log('WROTE')}catch(e){console.log('DENIED:'+e.code)}`), { timeout: 10000 });
+      record('host-write-denied', ran(writeHost) && /DENIED/.test(writeHost.stdout) && !/WROTE/.test(writeHost.stdout), writeHost.stdout.trim());
 
       const systemTemp = path.join(process.env.SystemRoot || 'C:\\Windows', 'Temp', `vg-ac-system-${randomId()}.txt`);
-      const writeSystem = await this.probe(`const fs=require('fs');try{fs.writeFileSync(${JSON.stringify(systemTemp)},'x');console.log('WROTE')}catch(e){console.log('DENIED:'+e.code)}`, { timeout: 10000 });
-      record('system-temp-write-denied', /DENIED/.test(writeSystem.stdout) && !/WROTE/.test(writeSystem.stdout), writeSystem.stdout.trim());
+      const writeSystem = await this.probe(probeCode(`const fs=require('fs');try{fs.writeFileSync(${JSON.stringify(systemTemp)},'x');console.log('WROTE')}catch(e){console.log('DENIED:'+e.code)}`), { timeout: 10000 });
+      record('system-temp-write-denied', ran(writeSystem) && /DENIED/.test(writeSystem.stdout) && !/WROTE/.test(writeSystem.stdout), writeSystem.stdout.trim());
       try { fs.rmSync(systemTemp, { force: true }); } catch { /* ignore */ }
 
       server = net.createServer();
       await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
       const port = server.address().port;
-      const network = await this.probe(`const net=require('net');const s=net.connect(${port},'127.0.0.1');s.setTimeout(1500);const done=(v)=>{console.log(v);s.destroy();process.exit(0)};s.on('connect',()=>done('REACHABLE'));s.on('timeout',()=>done('TIMEOUT'));s.on('error',(e)=>done('DENIED:'+e.code));`, { timeout: 10000 });
-      record('network-egress-denied', /DENIED|TIMEOUT/.test(network.stdout) && !/REACHABLE/.test(network.stdout), network.stdout.trim());
+      const network = await this.probe(probeCode(`const net=require('net');const s=net.connect(${port},'127.0.0.1');s.setTimeout(1500);const done=(v)=>{console.log(v);s.destroy();process.exit(0)};s.on('connect',()=>done('REACHABLE'));s.on('timeout',()=>done('TIMEOUT'));s.on('error',(e)=>done('DENIED:'+e.code));`), { timeout: 10000 });
+      record('network-egress-denied', ran(network) && /DENIED|TIMEOUT/.test(network.stdout) && !/REACHABLE/.test(network.stdout), network.stdout.trim());
       await new Promise((resolve) => server.close(resolve));
       server = null;
+
+      const lan = Object.values(os.networkInterfaces()).flat().find((address) => address && address.family === 'IPv4' && !address.internal);
+      if (lan) {
+        lanServer = net.createServer();
+        await new Promise((resolve) => lanServer.listen(0, '0.0.0.0', resolve));
+        const lanPort = lanServer.address().port;
+        const lanProbe = await this.probe(probeCode(`const net=require('net');const s=net.connect(${lanPort},${JSON.stringify(lan.address)});s.setTimeout(1500);const done=(v)=>{console.log(v);s.destroy();process.exit(0)};s.on('connect',()=>done('REACHABLE'));s.on('timeout',()=>done('TIMEOUT'));s.on('error',(e)=>done('DENIED:'+e.code));`), { timeout: 10000 });
+        record('lan-egress-denied', ran(lanProbe) && /DENIED|TIMEOUT/.test(lanProbe.stdout) && !/REACHABLE/.test(lanProbe.stdout), `${lan.address}:${lanPort} ${lanProbe.stdout.trim()}`);
+        await new Promise((resolve) => lanServer.close(resolve));
+        lanServer = null;
+      } else {
+        record('lan-egress-denied', true, 'no non-loopback IPv4 address; LAN egress not exercised');
+      }
 
       const previous = process.env.VG_SANDBOX_CANARY;
       process.env.VG_SANDBOX_CANARY = 'CANARY-LEAK';
       let envProbe;
       try {
-        envProbe = await this.probe("console.log('CANARY=' + String(process.env.VG_SANDBOX_CANARY))", { timeout: 10000 });
+        envProbe = await this.probe(probeCode("console.log('KEEP=' + String(process.env.VG_KEEP));console.log('CANARY=' + String(process.env.VG_SANDBOX_CANARY))"), { timeout: 10000 });
       } finally {
         if (previous === undefined) delete process.env.VG_SANDBOX_CANARY;
         else process.env.VG_SANDBOX_CANARY = previous;
       }
-      record('host-env-not-inherited', !/CANARY-LEAK/.test(envProbe.stdout), envProbe.stdout.trim());
+      record('host-env-not-inherited', ran(envProbe) && /KEEP=keep/.test(envProbe.stdout) && !/CANARY-LEAK/.test(envProbe.stdout), envProbe.stdout.trim());
 
       const timeout = await this.run('while (true) {}', { timeout: 1500 });
       record('wall-clock-timeout-killed', !timeout.success && /timed out/i.test(String(timeout.error || '')), timeout.error || 'no timeout error');
 
-      const memory = await this.probe("const b=Buffer.alloc(512*1024*1024);b[0]=1;console.log('ALLOCATED')", { timeout: 10000, memoryMb: 128 });
-      record('memory-limit-enforced', !/ALLOCATED/.test(memory.stdout), memory.error || memory.stdout.trim());
+      const memory = await this.probe(probeCode("Buffer.alloc(1024*1024);console.log('SMALL_OK');const b=Buffer.alloc(512*1024*1024);b[0]=1;console.log('ALLOCATED')"), { timeout: 10000, memoryMb: 128 });
+      record('memory-limit-enforced', ran(memory) && /SMALL_OK/.test(memory.stdout) && !/ALLOCATED/.test(memory.stdout), memory.error || memory.stdout.trim());
 
       const profilePath = this.profile ? this.profile.path : null;
       this.dispose();
       const cleaned = !profilePath || !fs.existsSync(profilePath);
-      record('profile-cleanup', cleaned, cleaned ? 'profile folder removed' : `folder remains: ${profilePath}`);
+      const deleted = this._lastDisposeDeleted !== false;
+      record('profile-cleanup', cleaned && deleted, cleaned && deleted ? 'profile folder removed and profile deleted' : `folderGone=${cleaned} profileDeleted=${deleted}${profilePath ? ` path=${profilePath}` : ''}`);
 
       const passed = evidence.every((e) => e.passed);
       this.verified = passed;
@@ -789,6 +843,7 @@ class WindowsAppContainerSandbox {
         verification: this.verification,
         verifiedAt: this.verifiedAt,
         suiteVersion: this.suiteVersion,
+        configKey: this.configKey,
         evidence,
         limitations: this.limitations,
       });
@@ -799,12 +854,14 @@ class WindowsAppContainerSandbox {
       this.verifiedAt = new Date().toISOString();
       this.evidence = evidence;
       if (server) try { server.close(); } catch { /* ignore */ }
+      if (lanServer) try { lanServer.close(); } catch { /* ignore */ }
       if (this.profile) this.dispose();
       saveVerification(this.cacheFile, this.id, {
         verified: false,
         verification: this.verification,
         verifiedAt: this.verifiedAt,
         suiteVersion: this.suiteVersion,
+        configKey: this.configKey,
         evidence,
         limitations: this.limitations,
       });
@@ -828,6 +885,7 @@ class WindowsAppContainerSandbox {
       deleted = false;
     }
     try { fs.rmSync(profile.path, { recursive: true, force: true }); } catch { /* ignore */ }
+    this._lastDisposeDeleted = deleted;
     this.profile = null;
     if (dir) {
       try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }

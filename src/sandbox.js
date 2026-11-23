@@ -152,9 +152,30 @@ try {
     console.log('__VG_RESULT__' + JSON.stringify({ ok: true, result: text }));
   };
   if (result && typeof result.then === 'function') {
-    result.then(emit, (err) => {
-      console.log('__VG_ERROR__' + JSON.stringify(err && err.message ? err.message : String(err)));
-    });
+    // Never pass a host-realm callback into the context. A thenable receives
+    // whatever function we hand to .then; passing emit let user code read
+    // emit.constructor and recover the host Function/process/require.
+    // The state and the callbacks live inside the context; the host only
+    // polls a boolean/primitive.
+    vm.runInContext('globalThis.__vg_state = { done: false, value: null, error: null };', context);
+    context.__vg_pending = result;
+    vm.runInContext(
+      '(__vg_pending.then(' +
+      'function (v) { __vg_state.value = v; __vg_state.done = true; },' +
+      'function (e) { __vg_state.error = (e && e.message) ? String(e.message) : String(e); __vg_state.done = true; }' +
+      '));',
+      context
+    );
+    const finish = () => {
+      const state = context.__vg_state;
+      if (state && state.done) {
+        if (state.error !== null && state.error !== undefined) console.log('__VG_ERROR__' + JSON.stringify(String(state.error)));
+        else emit(state.value);
+        return;
+      }
+      setTimeout(finish, 5);
+    };
+    finish();
   } else {
     emit(result);
   }
@@ -377,8 +398,9 @@ function getAuditLog() {
 
 function renderSandboxReport(result) {
   const C = { red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', dim: '\x1b[2m', bold: '\x1b[1m', reset: '\x1b[0m' };
+  const clean = (value) => String(value).replace(/\u001b/g, '\\u001b').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '?');
   const isolation = result.isolationClass === 'hardware-vm'
-    ? C.green + `${result.isolation} (hardware VM)` + C.reset
+    ? (result.verified ? C.green : C.yellow) + `${result.isolation} (${result.verified ? 'verified hardware VM' : 'unverified hardware VM; do not claim isolation'})` + C.reset
     : result.isolationClass === 'os' && result.verified
       ? C.green + `${result.isolation} (verified OS boundary)` + C.reset
       : result.isolationClass === 'os'
@@ -397,12 +419,13 @@ function renderSandboxReport(result) {
     `  Isolation: ${isolation}`,
     `  Verified:  ${result.verified ? C.green + 'yes' : C.red + 'NO (do not treat as an OS sandbox)'}${C.reset}`,
     `  Memory:   ${result.memoryEnforced ? C.green + 'enforced' : C.yellow + 'not enforced'}${C.reset} (${Math.ceil((result.memoryCap || 0) / 1024 / 1024)}MB cap)`,
-    `  Output:   ${result.success ? String(result.output).slice(0, 200) : 'N/A'}`,
+    `  Output:   ${result.success ? clean(result.output).slice(0, 200) : 'N/A'}`,
   ];
-  if (result.error) lines.push(`  Error:    ${C.red}${result.error}${C.reset}`);
-  if (result.audit.length > 0) {
+  if (result.error) lines.push(`  Error:    ${C.red}${clean(result.error)}${C.reset}`);
+  const audit = Array.isArray(result.audit) ? result.audit : [];
+  if (audit.length > 0) {
     lines.push('', `${C.bold}Audit Log${C.reset}`, '');
-    for (const entry of result.audit) {
+    for (const entry of audit) {
       if (entry.type === 'blocked_access') {
         lines.push(`  ${C.red}[BLOCKED]${C.reset} Attempted access to "${entry.global}"`);
       } else if (entry.type === 'console') {

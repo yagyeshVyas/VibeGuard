@@ -72,7 +72,7 @@ function defaultManager(opts = {}) {
   const manager = new SandboxManager();
   try {
     const { getLinuxBackend } = require('./os-sandbox');
-    const linux = getLinuxBackend();
+    const linux = getLinuxBackend(opts);
     if (linux.available()) manager.register(linux);
   } catch { /* optional platform backend */ }
   if (process.platform === 'win32') {

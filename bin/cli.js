@@ -1840,17 +1840,31 @@ async function cmdSandbox(args, flags) {
   const maxMemory = flags.memory ? Number(flags.memory) * 1024 * 1024 : undefined;
   const memoryMb = flags.memory ? Number(flags.memory) : undefined;
   const mode = String(flags.isolation || 'auto').toLowerCase();
+  if (!['auto', 'os', 'process', 'vm'].includes(mode)) {
+    process.stderr.write(`unknown isolation mode: ${mode} (expected auto|os|process|vm)\n`);
+    return 1;
+  }
   let result;
   if (mode === 'os' || mode === 'auto') {
+    let backend = null;
     try {
       const { defaultManager } = require('../src/platform/sandbox-manager');
       const { ISOLATION } = require('../src/platform/contracts');
-      const backend = defaultManager().select(ISOLATION.OS);
-      result = await backend.run(code, { timeout, memoryMb });
+      backend = defaultManager().select(ISOLATION.OS);
     } catch (err) {
       if (mode === 'os') {
         process.stderr.write(`no verified OS isolation backend: ${err.message}\n`);
         return 1;
+      }
+    }
+    if (backend) {
+      try {
+        result = await backend.run(code, { timeout, memoryMb });
+      } catch (err) {
+        process.stderr.write(`OS isolation backend failed: ${err.message}\n`);
+        return 1;
+      } finally {
+        if (typeof backend.dispose === 'function') backend.dispose();
       }
     }
   }

@@ -7,7 +7,7 @@
  * VM has no network device, the disk is opened in snapshot mode and the only
  * host path exposed is a read-only 9p share containing the program.
  *
- * The caller supplies a bootable guest image. The image contract is:
+ * The caller supplies a bootable guest image; a qcow2 backing chain is opened by QEMU as the host user and must be treated as part of the trusted image. The image contract is:
  *   - Linux guest with Node.js on PATH
  *   - its init mounts the 9p share tagged "vibeguard" at /vibeguard and runs
  *     /vibeguard/entry.sh
@@ -18,6 +18,7 @@
  * share) is the same class of boundary.
  */
 
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -27,6 +28,10 @@ const { HARNESS_SOURCE } = require('../sandbox');
 const { defaultCacheFile, loadVerification, saveVerification } = require('./verification');
 
 const SUITE_VERSION = 'macos-qemu-hvf-v1';
+const BACKEND_HASH = (() => {
+  try { return crypto.createHash('sha256').update(fs.readFileSync(__filename)).digest('hex').slice(0, 16); }
+  catch { return 'unknown'; }
+})();
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_MEMORY_MB = 512;
 
@@ -47,6 +52,22 @@ function defaultQemu() {
 
 function imageFormat(file) {
   return /\.(raw|img)$/i.test(file) ? 'raw' : 'qcow2';
+}
+
+function clampInt(value, fallback, min, max) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(number)));
+}
+
+function fileIdentity(file) {
+  if (!file) return null;
+  try {
+    const stat = fs.statSync(file);
+    return { path: file, size: stat.size, mtimeMs: stat.mtimeMs };
+  } catch {
+    return { path: file, missing: true };
+  }
 }
 
 function buildQemuArgs(opts) {
@@ -73,12 +94,12 @@ function buildQemuArgs(opts) {
   return args;
 }
 
-function parseGuestOutput(stdout) {
+function parseGuestOutput(stdout, kind = 'auto') {
   const lines = String(stdout || '').split(/\r?\n/);
-  const vmMarker = lines.find((l) => l.includes('__VG_VM_RESULT__'));
-  const harnessMarker = lines.find((l) => l.includes('__VG_RESULT__'));
-  const vmError = lines.find((l) => l.includes('__VG_VM_ERROR__'));
-  const harnessError = lines.find((l) => l.includes('__VG_ERROR__'));
+  const vmMarker = kind === 'harness' ? undefined : lines.find((l) => l.includes('__VG_VM_RESULT__'));
+  const harnessMarker = kind === 'vm' ? undefined : lines.find((l) => l.includes('__VG_RESULT__'));
+  const vmError = kind === 'harness' ? undefined : lines.find((l) => l.includes('__VG_VM_ERROR__'));
+  const harnessError = kind === 'vm' ? undefined : lines.find((l) => l.includes('__VG_ERROR__'));
   if (vmMarker) {
     try {
       const parsed = JSON.parse(vmMarker.slice(vmMarker.indexOf('__VG_VM_RESULT__') + '__VG_VM_RESULT__'.length));
@@ -134,12 +155,13 @@ class MacVMSandbox {
     this.verification = 'unverified';
     this.verifiedAt = null;
     this.evidence = [];
-    this.suiteVersion = SUITE_VERSION;
+    this.suiteVersion = `${SUITE_VERSION}:${BACKEND_HASH}`;
     this.limitations = [
       'hardware VM (QEMU/HVF); guest kernel is separate from the macOS host',
       'the guest image and guest Node.js are caller-supplied and must be trusted',
       'no network device is attached; the only host path is a read-only 9p share',
       'the disk is opened with -snapshot; guest writes are discarded',
+      'caller-supplied qcow2 images can reference host backing files; pin and verify the image and its backing chain',
       'hypervisor/kernel zero-days remain in scope',
     ];
     this.image = opts.image || process.env.VIBEGUARD_VM_IMAGE || null;
@@ -151,7 +173,18 @@ class MacVMSandbox {
     this.memoryMb = opts.memoryMb || DEFAULT_MEMORY_MB;
     this.cacheFile = opts.cacheFile === undefined ? defaultCacheFile() : opts.cacheFile;
     this._shares = new Set();
-    const cached = loadVerification(this.cacheFile, this.id, this.suiteVersion);
+    this._children = new Set();
+    this.configKey = crypto.createHash('sha256').update(JSON.stringify({
+      qemu: fileIdentity(this.qemu),
+      image: fileIdentity(this.image),
+      kernel: fileIdentity(this.kernel),
+      initrd: fileIdentity(this.initrd),
+      append: this.append || '',
+      accel: this.accel,
+      memoryMb: this.memoryMb,
+      backend: BACKEND_HASH,
+    })).digest('hex').slice(0, 24);
+    const cached = loadVerification(this.cacheFile, this.id, this.suiteVersion, { configKey: this.configKey });
     if (cached && cached.verified === true) {
       this.verified = true;
       this.verification = cached.verification || 'cached';
@@ -184,7 +217,8 @@ class MacVMSandbox {
 
   _runGuest(script, opts = {}) {
     const started = Date.now();
-    const timeout = opts.timeout || DEFAULT_TIMEOUT;
+    const timeout = clampInt(opts.timeout, DEFAULT_TIMEOUT, 500, 3600000);
+    const memoryMb = clampInt(opts.memoryMb, this.memoryMb, 128, 65536);
     const result = {
       success: false,
       output: null,
@@ -195,11 +229,16 @@ class MacVMSandbox {
       verified: this.verified,
       verification: this.verification,
       limitations: this.limitations.slice(),
-      memoryCap: (opts.memoryMb || this.memoryMb) * 1024 * 1024,
+      memoryCap: memoryMb * 1024 * 1024,
       memoryEnforced: true,
+      timedOut: false,
+      audit: [],
     };
     if (!this.available()) {
       result.error = `macOS VM backend unavailable: ${this._reasonUnavailable()}`;
+      result.verified = false;
+      result.verification = 'unavailable';
+      result.isolationApplied = false;
       result.duration = Date.now() - started;
       return Promise.resolve(result);
     }
@@ -216,13 +255,17 @@ class MacVMSandbox {
       initrd: this.initrd,
       append: this.append,
       accel: this.accel,
-      memoryMb: opts.memoryMb || this.memoryMb,
+      memoryMb,
     });
     return new Promise((resolve) => {
       const child = spawn(this.qemu, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false });
+      this._children.add(child);
+      result.isolationApplied = true;
       let stdout = '';
       let stderr = '';
+      let timedOut = false;
       const timer = setTimeout(() => {
+        timedOut = true;
         try { child.kill('SIGKILL'); } catch { /* ignore */ }
       }, timeout);
       const append = (current, chunk, cap) => (current + chunk.toString('utf8')).slice(-cap);
@@ -230,6 +273,7 @@ class MacVMSandbox {
       child.stderr.on('data', (c) => { stderr = append(stderr, c, 1024 * 1024); });
       child.once('error', (err) => {
         clearTimeout(timer);
+        this._children.delete(child);
         result.error = err.message;
         result.duration = Date.now() - started;
         this._cleanupShare(share);
@@ -237,12 +281,14 @@ class MacVMSandbox {
       });
       child.once('exit', (code, signal) => {
         clearTimeout(timer);
-        const parsed = parseGuestOutput(stdout);
+        this._children.delete(child);
+        result.timedOut = timedOut;
+        const parsed = parseGuestOutput(stdout, opts.markerKind || 'auto');
         if (parsed.matched) {
-          result.success = parsed.success;
+          result.success = parsed.success && !timedOut;
           result.output = parsed.output;
-          result.error = parsed.error;
-        } else if (signal === 'SIGKILL') {
+          result.error = timedOut ? 'VibeGuard macOS VM: execution timed out after guest output' : parsed.error;
+        } else if (timedOut || signal === 'SIGKILL') {
           result.error = 'VibeGuard macOS VM: execution timed out';
         } else {
           result.error = (stderr || stdout || `qemu exited with code ${code}`).trim().slice(-500);
@@ -263,7 +309,7 @@ class MacVMSandbox {
     // Untrusted code runs through the same harness as the process/AppContainer
     // backends: a fresh V8 context with no host-realm objects. The guest's
     // entry script executes run.js, not user.js.
-    const result = await this._runGuest(HARNESS_SOURCE, { ...opts, userCode: code });
+    const result = await this._runGuest(HARNESS_SOURCE, { ...opts, userCode: code, markerKind: 'harness' });
     if (result.success) {
       result.output = result.output === null ? null : String(result.output);
     }
@@ -299,7 +345,7 @@ class MacVMSandbox {
         "let shareWritable=false; try { fs.writeFileSync('/vibeguard/.vg-write-test','x'); shareWritable=true; } catch (e) {}",
         "console.log('__VG_VM_RESULT__'+JSON.stringify({ok:true,result:{nets,mounts,hostVisible,shareWritable}}));",
       ].join('\n');
-      const r = await this._runGuest(probe, { timeout: 60000 });
+      const r = await this._runGuest(probe, { timeout: 60000, markerKind: 'vm' });
       let parsed = null;
       if (r.output && typeof r.output === 'object') parsed = r.output;
       else try { parsed = JSON.parse(String(r.output || '')); } catch { /* below */ }
@@ -307,10 +353,16 @@ class MacVMSandbox {
       record('no-network-device', parsed && parsed.nets && !parsed.nets.some((n) => n !== 'lo'), parsed ? `interfaces=${parsed.nets.join(',')}` : 'no guest report');
       record('host-file-not-visible', parsed && parsed.hostVisible === false, parsed ? `hostVisible=${parsed.hostVisible}` : 'no guest report');
       record('share-readonly', parsed && parsed.shareWritable === false, parsed ? `shareWritable=${parsed.shareWritable}` : 'no guest report');
+      const mounts = parsed && Array.isArray(parsed.mounts) ? parsed.mounts : [];
+      const mountLine = mounts.length === 1 ? mounts[0] : '';
+      record('share-mounted-readonly', mounts.length === 1 && /vibeguard/.test(mountLine) && /(^|[ ,])ro([ ,]|$)/.test(mountLine), mountLine || `mounts=${mounts.length}`);
       const args = buildQemuArgs({ shareDir: '/tmp/vibeguard-verify', image: this.image, kernel: this.kernel, initrd: this.initrd, append: this.append, accel: this.accel, memoryMb: this.memoryMb });
       const text = args.join(' ');
+      const shares = args.filter((value, index) => index > 0 && args[index - 1] === '-virtfs');
+      const drives = args.filter((value, index) => index > 0 && args[index - 1] === '-drive');
       record('qemu-no-nic', /(^| )-nic none( |$)/.test(text), text.slice(0, 300));
-      record('qemu-readonly-share', /readonly=on/.test(text), 'virtfs is mounted read-only');
+      record('qemu-single-readonly-share', shares.length === 1 && /readonly=on/.test(shares[0]) && !args.includes('-fsdev') && !args.some((value) => /virtiofs|virtio-9p/i.test(value)), shares.join(' | ') || 'no -virtfs');
+      record('qemu-disk-surface', this.kernel ? drives.length === 0 : drives.length === 1, `drives=${drives.length} kernel=${Boolean(this.kernel)}`);
       record('qemu-snapshot-disk', /(^| )-snapshot( |$)/.test(text) || Boolean(this.kernel), 'disk writes are discarded');
       const passed = evidence.every((e) => e.passed);
       this.verified = passed;
@@ -322,6 +374,7 @@ class MacVMSandbox {
         verification: this.verification,
         verifiedAt: this.verifiedAt,
         suiteVersion: this.suiteVersion,
+        configKey: this.configKey,
         evidence,
         limitations: this.limitations,
       });
@@ -336,6 +389,7 @@ class MacVMSandbox {
         verification: this.verification,
         verifiedAt: this.verifiedAt,
         suiteVersion: this.suiteVersion,
+        configKey: this.configKey,
         evidence,
         limitations: this.limitations,
       });
@@ -346,6 +400,10 @@ class MacVMSandbox {
   }
 
   dispose() {
+    for (const child of [...this._children]) {
+      try { child.kill('SIGKILL'); } catch { /* ignore */ }
+    }
+    this._children.clear();
     for (const dir of [...this._shares]) this._cleanupShare(dir);
   }
 }

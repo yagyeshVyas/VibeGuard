@@ -11,6 +11,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -30,7 +31,7 @@ const { SandboxManager, defaultManager } = require('../src/platform/sandbox-mana
 const { ISOLATION } = require('../src/platform/contracts');
 const { WindowsAppContainerSandbox } = require('../src/platform/windows-appcontainer');
 const { MacVMSandbox, buildQemuArgs } = require('../src/platform/macos-vm');
-const { saveVerification, loadVerification } = require('../src/platform/verification');
+const { saveVerification, loadVerification, hostFingerprint } = require('../src/platform/verification');
 
 test('canonical JSON sorts keys and hashes deterministically', () => {
   assert.strictEqual(canonicalize({ b: 1, a: 'x' }), '{"a":"x","b":1}');
@@ -251,6 +252,9 @@ test('Windows AppContainer backend: verified OS isolation, no host fs/network/en
     const r = await b.run('const x = 2 + 3; x', { timeout: 15000 });
     assert.strictEqual(r.success, true, r.error);
     assert.strictEqual(String(r.output), '5');
+    const thenable = await b.run("({ then(resolve){ let esc=false; try { resolve.constructor('return process')(); esc=true; } catch(e) {} if (esc) throw new Error('ESCAPED'); resolve('SAFE'); } })", { timeout: 15000 });
+    assert.strictEqual(thenable.success, true, 'thenable host-callback escape must be blocked: ' + thenable.error);
+    assert.strictEqual(thenable.output, 'SAFE');
     assert.strictEqual(r.isolationClass, 'os');
     assert.strictEqual(r.verified, true);
     assert(r.limitations.some((x) => /kernel|WFP|AppContainer/i.test(x)), 'must disclose residual limitations');
@@ -269,10 +273,17 @@ test('sandbox manager: fails closed without verification and uses cached verific
 
   const dir = tmp();
   const cacheFile = path.join(dir, 'verification.json');
-  saveVerification(cacheFile, 'fake-os', { verified: true, verification: 'test', verifiedAt: new Date().toISOString(), suiteVersion: 'v1', evidence: [] });
-  assert.strictEqual(loadVerification(cacheFile, 'fake-os', 'v1').verified, true);
-  assert.strictEqual(loadVerification(cacheFile, 'fake-os', 'v2'), null);
-  assert.strictEqual(loadVerification(cacheFile, 'other', 'v1'), null);
+  saveVerification(cacheFile, 'fake-os', { verified: true, verification: 'test', verifiedAt: new Date().toISOString(), suiteVersion: 'v1', configKey: 'cfg-a', evidence: [{ testId: 'probe', passed: true }] });
+  assert.strictEqual(loadVerification(cacheFile, 'fake-os', 'v1', { configKey: 'cfg-a' }).verified, true);
+  assert.strictEqual(loadVerification(cacheFile, 'fake-os', 'v1', { configKey: 'cfg-b' }), null);
+  assert.strictEqual(loadVerification(cacheFile, 'fake-os', 'v2', { configKey: 'cfg-a' }), null);
+  assert.strictEqual(loadVerification(cacheFile, 'other', 'v1', { configKey: 'cfg-a' }), null);
+  saveVerification(cacheFile, 'empty-evidence', { verified: true, verification: 'test', verifiedAt: new Date().toISOString(), suiteVersion: 'v1', evidence: [] });
+  assert.strictEqual(loadVerification(cacheFile, 'empty-evidence', 'v1'), null);
+  fs.writeFileSync(cacheFile, JSON.stringify({
+    future: { verified: true, verification: 'test', verifiedAt: '2099-01-01T00:00:00.000Z', suiteVersion: 'v1', host: hostFingerprint(), evidence: [{ testId: 'probe', passed: true }] },
+  }));
+  assert.strictEqual(loadVerification(cacheFile, 'future', 'v1'), null);
 
   if (process.platform === 'win32') {
     const first = new WindowsAppContainerSandbox({ cacheFile });
@@ -318,6 +329,23 @@ test('macOS VM backend: fail-closed off macOS and no network device in VM config
   const e = parseGuestOutput('__VG_ERROR__"boom"');
   assert.strictEqual(e.matched, true);
   assert.strictEqual(e.success, false);
+});
+
+test('renderer: unverified hardware VM is labeled honestly and missing audit does not throw', () => {
+  const { renderSandboxReport } = require('../src/sandbox');
+  const text = renderSandboxReport({
+    success: true, isolation: 'hardware-vm-macos-qemu', isolationClass: 'hardware-vm',
+    verified: false, output: 'x', error: null, duration: 1, memoryEnforced: true,
+    memoryCap: 512 * 1024 * 1024,
+  });
+  assert(/unverified hardware VM/.test(text), text);
+  assert(/Verified:\s+\x1b\[31mNO/.test(text), text);
+});
+
+test('CLI: unknown isolation mode fails closed instead of downgrading', () => {
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'cli.js'), 'sandbox', '1 + 1', '--isolation', 'container'], { encoding: 'utf8', timeout: 30000 });
+  assert.notStrictEqual(result.status, 0);
+  assert(/unknown isolation mode/i.test(result.stderr), result.stderr);
 });
 
 test('macOS sandbox-exec backend when available', async () => {
@@ -623,6 +651,9 @@ test('sandbox process mode: host-object constructor escape is blocked', () => {
   const safe = runInProcess('const x = 1 + 2; x');
   assert.strictEqual(safe.success, true);
   assert.strictEqual(safe.output, '3');
+  const thenable = runInProcess("({ then(resolve){ let esc=false; try { resolve.constructor('return process')(); esc=true; } catch(e) {} if (esc) throw new Error('ESCAPED'); resolve('SAFE'); } })", { timeout: 3000 });
+  assert.strictEqual(thenable.success, true, 'thenable host-callback escape must be blocked: ' + thenable.error);
+  assert.strictEqual(thenable.output, 'SAFE');
   assert.strictEqual(safe.isolationClass, 'process');
   assert.strictEqual(safe.verified, false, 'process mode is not an OS-verified sandbox');
 });

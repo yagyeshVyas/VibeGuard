@@ -69,7 +69,9 @@ node bin/cli.js sandbox "const x = 1 + 2; x" --isolation process
 `--isolation os` uses a verified OS backend and fails closed when none has
 passed verification on this host. On Windows, `sandbox verify` creates an
 AppContainer profile, runs the live probe suite (host reads/writes, network,
-environment, timeout, memory) and caches the result for 7 days. On macOS it
+environment, timeout, memory) and caches the result for 7 days. The cache is
+host-user-writable and is a convenience, not a signature; re-run
+`sandbox verify` before trusting a reported claim. On macOS it
 verifies the QEMU/HVF hardware-VM backend; a caller-supplied guest image
 (`VIBEGUARD_VM_IMAGE` or `VIBEGUARD_VM_KERNEL`/`VIBEGUARD_VM_INITRD`) is
 required. On Linux it verifies the `unshare`/bubblewrap network/PID backend;
@@ -136,7 +138,7 @@ Exit code 3 means the proxy quarantined/killed the upstream after a blocked call
 
 ```bash
 vibeguard sandbox verify   # Windows AppContainer, macOS VM, or Linux namespaces
-vibeguard sandbox backends # show the verified class and evidence
+vibeguard sandbox backends --json # verified class and evidence
 ```
 
 Windows uses AppContainer + Job Object; macOS uses a QEMU/HVF hardware VM when
@@ -154,9 +156,9 @@ fails closed on a host where the expected backend cannot pass its probes.
    and execute `/vibeguard/entry.sh`. The backend writes the harness as
    `/vibeguard/run.js` and the program as `/vibeguard/user.js`, with no NIC,
    a read-only share and a snapshot disk.
-4. Run `vibeguard sandbox verify`. It boots the VM and checks guest boot,
-   absence of a network interface, host-file invisibility, `-nic none`,
-   read-only 9p and snapshot mode. The backend stays unverified if any probe
+4. Run `vibeguard sandbox verify`. It boots the VM and checks guest boot, absence of a network interface,
+   the host marker, the read-only 9p mount, `-nic none`, exactly one
+   read-only share, the disk surface and snapshot mode. The backend stays unverified if any probe
    fails.
 
 ## Detection corpus

@@ -20,6 +20,7 @@ const net = require('net');
 const { spawn, spawnSync } = require('child_process');
 const { ISOLATION } = require('./contracts');
 const { HARNESS_SOURCE } = require('../sandbox');
+const { defaultCacheFile, loadVerification, saveVerification } = require('./verification');
 
 const DEFAULT_TIMEOUT = 5000;
 
@@ -53,6 +54,18 @@ class LinuxNamespaceSandbox {
     this.limitations = ['filesystem is not isolated from the host', 'requires util-linux unshare and user namespaces'];
     this.nodePath = opts.nodePath || process.execPath;
     this.unshare = opts.unshare || which('unshare');
+    this.suiteVersion = 'linux-namespace-v1';
+    this.cacheFile = opts.cacheFile === undefined ? defaultCacheFile() : opts.cacheFile;
+    this.verifiedAt = null;
+    this.evidence = [];
+    this.configKey = JSON.stringify({ node: this.nodePath, unshare: this.unshare });
+    const cached = loadVerification(this.cacheFile, this.id, this.suiteVersion, { configKey: this.configKey });
+    if (cached) {
+      this.verified = true;
+      this.verification = cached.verification;
+      this.verifiedAt = cached.verifiedAt;
+      this.evidence = cached.evidence;
+    }
   }
 
   available() {
@@ -105,8 +118,11 @@ class LinuxNamespaceSandbox {
     if (!this.available()) { this.verified = false; this.verification = 'unavailable'; return false; }
     const ok = await verifyNetworkNamespace(this.unshare, this._baseArgs(), this.nodePath);
     this.verified = ok;
+    this.verifiedAt = new Date().toISOString();
+    this.evidence = [{ testId: 'network-and-pid-namespace', passed: ok }];
     this.verification = ok ? 'network-namespace-verified' : 'verification-failed';
     if (ok) this.limitations = ['filesystem is not isolated from the host', 'network/PID namespaces verified by local probe'];
+    saveVerification(this.cacheFile, this.id, { verified: ok, verification: this.verification, verifiedAt: this.verifiedAt, suiteVersion: this.suiteVersion, configKey: this.configKey, evidence: this.evidence, limitations: this.limitations });
     return ok;
   }
 }
@@ -120,6 +136,18 @@ class LinuxBubblewrapSandbox {
     this.limitations = ['user/mount/net/PID namespaces; not a VM/hardware boundary'];
     this.nodePath = opts.nodePath || process.execPath;
     this.bwrap = opts.bwrap || which('bwrap');
+    this.suiteVersion = 'linux-bubblewrap-v1';
+    this.cacheFile = opts.cacheFile === undefined ? defaultCacheFile() : opts.cacheFile;
+    this.verifiedAt = null;
+    this.evidence = [];
+    this.configKey = JSON.stringify({ node: this.nodePath, bwrap: this.bwrap });
+    const cached = loadVerification(this.cacheFile, this.id, this.suiteVersion, { configKey: this.configKey });
+    if (cached) {
+      this.verified = true;
+      this.verification = cached.verification;
+      this.verifiedAt = cached.verifiedAt;
+      this.evidence = cached.evidence;
+    }
   }
 
   available() {
@@ -187,8 +215,11 @@ class LinuxBubblewrapSandbox {
     const network = await verifyNetworkNamespace(this.bwrap, ['--die-with-parent', '--unshare-all', '--ro-bind', '/usr', '/usr', '--ro-bind', '/lib', '/lib', '--ro-bind', '/lib64', '/lib64', '--ro-bind', '/bin', '/bin', '--ro-bind', nodeRoot, '/node'], '/node/' + nodeRel);
     const filesystem = await verifyFilesystemIsolation(this.bwrap, this.nodePath);
     this.verified = network && filesystem;
+    this.verifiedAt = new Date().toISOString();
+    this.evidence = [{ testId: 'network-namespace', passed: network }, { testId: 'filesystem-isolation', passed: filesystem }];
     this.verification = this.verified ? 'network-and-filesystem-isolation-verified' : `verification-failed(network=${network},filesystem=${filesystem})`;
     if (this.verified) this.limitations = ['user/mount/net/PID namespaces; not a VM/hardware boundary', 'minimal read-only system root; /tmp isolated'];
+    saveVerification(this.cacheFile, this.id, { verified: this.verified, verification: this.verification, verifiedAt: this.verifiedAt, suiteVersion: this.suiteVersion, configKey: this.configKey, evidence: this.evidence, limitations: this.limitations });
     return this.verified;
   }
 }
