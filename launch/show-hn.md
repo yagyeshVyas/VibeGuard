@@ -24,7 +24,7 @@ at.
   response inspection and kill-on-block.
 - Reproducible external benchmark pinned to an OWASP Juice Shop commit; a small
   curated label set, not a representative precision/recall study.
-- 651 tests, 50/50 platform tests, independent in-session security audit in the
+- 653 tests, 50/50 platform tests, independent in-session security audit in the
   repository.
 
 **What it does not do**

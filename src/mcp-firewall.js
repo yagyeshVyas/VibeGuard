@@ -175,13 +175,20 @@ function createEngine(opts = {}) {
     ? { policy: mergePolicy({ ...DEFAULT_POLICY, projectRoot }, opts.policy), source: null, error: null }
     : loadPolicy(projectRoot, opts.policyPath);
   const policy = loaded.policy;
-  if (opts.strict === true) {
+  if (opts.allowUnknown === true) {
+    // Explicit, visible compatibility opt-out. This must never be inferred
+    // from a missing policy or a typo; unknown tools are otherwise denied.
+    policy.mode = 'compat';
+    policy.defaultAction = 'allow';
+    policy.failClosed = false;
+  } else if (opts.strict === true || policy.mode === 'strict') {
     policy.mode = 'strict';
     policy.defaultAction = 'block';
     policy.failClosed = true;
   }
+  const signedAudit = opts.signedAudit === true || ((opts.strict === true || policy.mode === 'strict') && opts.signedAudit !== false);
   const logger = opts.logger || (
-    opts.signedAudit === true
+    signedAudit
       ? createSignedLogger(
         opts.signedAuditFile
           ? path.resolve(projectRoot, opts.signedAuditFile)
@@ -691,12 +698,13 @@ function startProxy(opts = {}) {
     policy: opts.policy,
     policyPath: opts.policyPath,
     auditFile: opts.auditFile || DEFAULT_AUDIT_FILE,
-    signedAudit: opts.signedAudit === true || (opts.strict === true && opts.signedAudit !== false),
+    signedAudit: opts.signedAudit,
     signedAuditFile: opts.signedAuditFile,
     auditKeyFile: opts.auditKeyFile,
     anchorFile: opts.anchorFile,
     logger: opts.logger,
     strict: opts.strict === true,
+    allowUnknown: opts.allowUnknown === true,
   });
 
   const child = spawn(serverDef.command, serverDef.args, {
@@ -877,7 +885,7 @@ function startProxy(opts = {}) {
 
 function runSelfTest() {
   const root = process.cwd();
-  const engine = createEngine({ root, policy: { ...DEFAULT_POLICY, projectRoot: root }, logger: createLogger(null), auditFile: null });
+  const engine = createEngine({ root, policy: { ...DEFAULT_POLICY, projectRoot: root, allowTools: ['read_file', 'echo', 'send_data', 'execute', 'fetch'] }, logger: createLogger(null), auditFile: null });
   const scenarios = [];
 
   function scenario(name, fn, expect) {
@@ -895,7 +903,8 @@ function runSelfTest() {
   scenario('cloud metadata URL is blocked', () => engine.checkToolCall('test', 'fetch', { url: 'http://169.254.169.254/latest/meta-data/' }), 'block');
   scenario('destructive shell command is blocked', () => engine.checkToolCall('test', 'execute', { command: 'rm -rf /' }), 'block');
   scenario('safe file read is allowed', () => engine.checkToolCall('test', 'read_file', { path: 'src/index.js' }), 'allow');
-  scenario('safe echo is allowed', () => engine.checkToolCall('test', 'echo', { text: 'hello' }), 'allow');
+  scenario('safe echo is allowed when explicitly allowlisted', () => engine.checkToolCall('test', 'echo', { text: 'hello' }), 'allow');
+  scenario('unknown tool is denied by strict default', () => engine.checkToolCall('test', 'unknown_tool', {}), 'block');
 
   const poisoned = engine.inspectToolList('test', [{
     name: 'innocent_echo',

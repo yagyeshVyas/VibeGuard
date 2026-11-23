@@ -57,7 +57,7 @@ function cmdMcpFirewall(args, flags) {
     const { projectRoot: _projectRoot, ...defaults } = DEFAULT_POLICY;
     fs.writeFileSync(target, JSON.stringify(defaults, null, 2) + '\n', 'utf8');
     out(`Wrote default MCP firewall policy to ${target}`);
-    out('Review deniedPaths / allowedHosts / tool rules, then start the proxy with --server <name>.');
+    out('Strict default-deny is active. Review deniedPaths / allowedHosts / tool rules, then add explicit allowTools for the tools you need.');
     return 0;
   }
 
@@ -137,7 +137,7 @@ function cmdMcpFirewall(args, flags) {
     process.stderr.write(
       'Usage:\n' +
       '  vibeguard mcp-firewall --server <name> [--dir .] [--policy file]\n' +
-      '  vibeguard mcp-firewall --exec "<command>" [--strict] [--signed-audit] [--kill-on-block]\n' +
+      '  vibeguard mcp-firewall --exec "<command>" [--strict] [--allow-unknown] [--signed-audit] [--kill-on-block]\n' +
       '  vibeguard mcp-firewall --exec "<command>" --token <VGAT> --token-pub key.pem --token-key-id k\n' +
       '  vibeguard mcp-firewall --exec "<command>" --approval-token <VGAPPROVAL> --approval-pub key.pem --approval-key-id a\n' +
       '  vibeguard mcp-firewall --exec "<command>" --token <VGAT> --token-pub key.pem\n' +
@@ -157,6 +157,7 @@ function cmdMcpFirewall(args, flags) {
     return 2;
   }
 
+  if (flags['allow-unknown'] === true) process.stderr.write('WARNING: unknown tools are explicitly allowed (--allow-unknown). Strict default-deny is disabled.\n');
   process.stderr.write(
     `VibeGuard MCP firewall — proxying "${serverDef.name}"\n` +
     `  command: ${serverDef.command} ${serverDef.args.join(' ')}\n` +
@@ -170,6 +171,7 @@ function cmdMcpFirewall(args, flags) {
     policyPath: flags.policy,
     auditFile: flags.audit || undefined,
     strict: flags.strict === true,
+    allowUnknown: flags['allow-unknown'] === true,
     signedAudit: flags['signed-audit'] === true ? true : undefined,
     signedAuditFile: flags.audit || undefined,
     killOnBlock: flags['kill-on-block'] === true,

@@ -14,8 +14,7 @@
  * It is deliberately boring: no model, no network, no heuristics that need a
  * GPU. Deterministic rules an operator can read and diff.
  *
- * Default policy is "safe but usable": unknown tools are allowed, but
- * credential stores are denied, cloud metadata is denied, secrets in arguments
+ * Default policy is strict: unknown tools are denied, credential stores are denied, cloud metadata is denied, secrets in arguments
  * are blocked, shell commands go through the shell guard, writes outside the
  * project are blocked, and calls are rate-limited.
  *
@@ -35,9 +34,10 @@ const POLICY_FILES = ['.vibeguard-mcp.json', '.vibeguard/mcp-policy.json', 'vibe
 
 const DEFAULT_POLICY = {
   version: 1,
-  // Unknown tools are allowed by default so enabling the firewall does not
-  // silently break a working agent. Tighten with defaultAction: "block".
-  defaultAction: 'allow',
+  // Strict by default. Unknown tools are denied unless an explicit allow rule
+  // or an explicit --allow-unknown opt-out is present.
+  mode: 'strict',
+  defaultAction: 'block',
   // Explicit tool rules: [{ match: "mcp__filesystem__write_*", action: "block", reason: "..." }]
   toolRules: [],
   // Tool name globs that always win, regardless of toolRules.
@@ -97,7 +97,7 @@ const DEFAULT_POLICY = {
   logAllowedCalls: true,
   // If the policy file itself cannot be parsed, fail closed instead of running
   // with defaults. Configuring this to true is strongly recommended in CI.
-  failClosed: false,
+  failClosed: true,
 };
 
 const CAPABILITY_PATTERNS = [
