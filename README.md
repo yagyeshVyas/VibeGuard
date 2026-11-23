@@ -21,7 +21,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 > **Independent feedback wanted.** If you did not build VibeGuard, run the
 > [10-minute evaluation](docs/ADOPTION.md) on your own repository and send a
 > reproducible result through the [feedback form](https://github.com/yagyeshVyas/VibeGuard/issues/new?template=independent-feedback.yml)
-> or the pinned discussion. We do not pay for reviews or publish invented
+> or the [feedback discussion](https://github.com/yagyeshVyas/VibeGuard/discussions/23). We do not pay for reviews or publish invented
 > testimonials.
 
 <p>

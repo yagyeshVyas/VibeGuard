@@ -4,7 +4,7 @@
 
 If you are evaluating VibeGuard without contributing code, use the
 [independent feedback form](https://github.com/yagyeshVyas/VibeGuard/issues/new?template=independent-feedback.yml)
-or the pinned discussion. The process, quotation policy and adoption metrics
+or the [feedback discussion](https://github.com/yagyeshVyas/VibeGuard/discussions/23). The process, quotation policy and adoption metrics
 are documented in [docs/ADOPTION.md](docs/ADOPTION.md).
 
 

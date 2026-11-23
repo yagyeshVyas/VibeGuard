@@ -23,7 +23,7 @@ mass-posting is not performed.
 |---|---|---|
 | Hacker News (Show HN) | `show-hn.md` | Drafted — requires maintainer account |
 | Reddit r/vibecoding | `reddit-post.md` | Drafted — requires maintainer account |
-| GitHub Discussion | Created from the feedback body | Open |
+| GitHub Discussion | [Independent developer feedback wanted](https://github.com/yagyeshVyas/VibeGuard/discussions/23) | Open |
 | GitHub issue form | `.github/ISSUE_TEMPLATE/independent-feedback.yml` | Open |
 | MCP directories / awesome lists | Not submitted | Evaluate each list's contribution rules first |
 | Dev.to / blog | Not drafted | Optional |

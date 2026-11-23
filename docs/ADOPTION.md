@@ -32,7 +32,7 @@ Report:
    you observed.
 5. The documentation or CLI step that was most confusing.
 
-Open the **independent feedback** issue form or reply to the pinned GitHub
+Open the **independent feedback** issue form or reply to the GitHub
 Discussion. Do not send live secrets; redact before posting.
 
 ## What counts as independent
@@ -60,7 +60,7 @@ public issue.
 
 ## Channels
 
-- **GitHub Discussion** — pinned “Independent developer feedback wanted”.
+- **GitHub Discussion** — [Independent developer feedback wanted](https://github.com/yagyeshVyas/VibeGuard/discussions/23).
 - **Issue form** — `.github/ISSUE_TEMPLATE/independent-feedback.yml`.
 - **Security** — private advisory per `SECURITY.md`.
 - **Package** — `@yagyeshvyas/vibeguard` on npm.
