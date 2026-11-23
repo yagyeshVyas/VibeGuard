@@ -38,7 +38,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-653%20passed-blue?style=flat-square" alt="653 tests pass" />
+  <img src="https://img.shields.io/badge/tests-654%20passed-blue?style=flat-square" alt="654 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -98,7 +98,7 @@ production-ready; it is the verified internal-testing build described in
   `sandbox verify`.
 - Memory provenance and multi-agent delegation guards; labeled detection corpus;
   AISVS-style readiness mapping.
-- **653 tests, 0 failures** and **50/50 platform tests** on the audit host;
+- **654 tests, 0 failures** and **50/50 platform tests** on the audit host;
   Windows AppContainer verification: all 11 evidence classes pass.
 
 Install note: v1.14.0 is distributed as `@yagyeshvyas/vibeguard@1.14.0`. If a
@@ -148,7 +148,7 @@ the code plane: the MCP channel between an agent and its tools.
   `--isolation auto` prefers a verified OS backend. The lower
   `--isolation process` mode remains a separate Node process under the
   permission model; it is explicitly not an OS boundary.
-- **Tests:** 653 passing, 0 failures, including a live stdio proxy test that
+- **Tests:** 654 passing, 0 failures, including a live stdio proxy test that
   spawns the CLI and a fixture MCP server. **Offline by default, zero telemetry,
   Windows 11 supported.**
 

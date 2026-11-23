@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-11-23T02:43:01.456Z",
+  "generatedAt": "2026-11-23T02:48:36.838Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "764f02ee6d4a1dc95939642f120ac7c233f66aee2794dd71efa15f5690fc43b0",
@@ -32,7 +32,7 @@
     "agent-risk.js": "b571f0b27cc93a8ec292fe83910b06b5e20794c6ffd0cf2643b9ed60f38f215e",
     "agent-monitor.js": "99d86bdb6bfc8aa696b9ce3274555562bd627c47b38837508913e09704493018",
     "audit-trail.js": "8fd3bd76a69a95b8257a6159b91fa13274b1442209227f063ca000e1eac869b9",
-    "sandbox.js": "b1e0f42444c71a89f6eb2703ff1ee7710356ff1703834126e891174167ef015a",
+    "sandbox.js": "c62d232f0ce35ecff63950be7d717990b24f278a45d336cba941a866da72d191",
     "platform/contracts.js": "43e3e1a47afb8f1ac3525aea1814dcea225995c10ee703a05db35c0637abed2b",
     "platform/canonical.js": "a354597d9f81278ea14c76cbb726207ca228c2652876517838708769f70156e3",
     "platform/identity.js": "a0641f062d6972accb6d25ffeb96ba5c7272b7811d516aadec657b0c3b941fd2",

@@ -10,7 +10,7 @@
 
 | Command | Result | Notes |
 |---|---|---|
-| `node test/run.js` | **653 passed, 0 failed** | full suite on the Windows audit host |
+| `node test/run.js` | **654 passed, 0 failed** | full suite on the Windows audit host |
 | `node test/run-platform.js` | **50 passed, 0 failed** | focused v2 security suite |
 | `node bin/cli.js sandbox verify` | **11/11 evidence classes** | Windows AppContainer live suite |
 | `node bin/cli.js mcp-firewall --selftest` | **12/12 passed** | firewall scenarios, including strict-default denial |

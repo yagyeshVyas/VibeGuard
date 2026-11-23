@@ -219,7 +219,7 @@ function runInProcess(code, opts = {}) {
 
   let dir = null;
   try {
-    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vg-sbx-'));
+    dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'vg-sbx-')));
     const harness = path.join(dir, 'harness.js');
     const userFile = path.join(dir, 'user.js');
     fs.writeFileSync(harness, HARNESS_SOURCE, 'utf8');

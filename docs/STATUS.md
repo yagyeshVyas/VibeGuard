@@ -14,7 +14,7 @@ current status. `package.json` is the authoritative version number.
 | Languages | **18** |
 | Compliance frameworks | **10** |
 | Defense layers | **13** |
-| Full test suite on the Windows audit host | **653 passed, 0 failed** |
+| Full test suite on the Windows audit host | **654 passed, 0 failed** |
 | Platform security suite | **50 passed, 0 failed** |
 | npm package | `@yagyeshvyas/vibeguard@1.14.0` |
 | Telemetry | none |

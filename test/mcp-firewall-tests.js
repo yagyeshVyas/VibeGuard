@@ -445,6 +445,17 @@ test('cli: mcp-firewall --check returns 2 for a blocked call', () => {
   assert(res.stdout.includes('BLOCK'));
 });
 
+test('cli: mcp-firewall --check enforces default-deny and honors --allow-unknown', () => {
+  const call = JSON.stringify({ tool: 'unlisted_tool', args: {} });
+  const blocked = spawnSync(process.execPath, [CLI, 'mcp-firewall', '--check', call], { cwd: ROOT, encoding: 'utf8' });
+  assert.strictEqual(blocked.status, 2, blocked.stdout + blocked.stderr);
+  assert(blocked.stdout.includes('BLOCK'));
+  const allowed = spawnSync(process.execPath, [CLI, 'mcp-firewall', '--check', call, '--allow-unknown'], { cwd: ROOT, encoding: 'utf8' });
+  assert.strictEqual(allowed.status, 0, allowed.stdout + allowed.stderr);
+  assert(allowed.stdout.includes('ALLOW'));
+  assert(/explicitly allowed/.test(allowed.stderr), allowed.stderr);
+});
+
 test('cli: sandbox --isolation process blocks fs and reports isolation', () => {
   const { processIsolationSupported } = require('../src/sandbox');
   if (!processIsolationSupported()) return; // Node 18: process mode is not available

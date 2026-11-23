@@ -31,16 +31,17 @@ node bin/cli.js policy validate docs/security-policy.strict.example.json \
   --pub docs/security-policy.strict.example.pub.pem
 ```
 
-2. Use a signed policy with the legacy strict gateway:
+2. Start the gateway (strict default-deny is already active):
 
 ```bash
-node bin/cli.js mcp-firewall --server <name> --strict
+node bin/cli.js mcp-firewall --server <name>
 ```
 
-This mode uses the legacy policy engine with strict default-deny after an
-explicit allow list. The signed policy-v2 engine is available as a library and
-via `policy validate/sign`; wiring it to a production upstream bridge is not
-complete.
+The legacy policy engine denies unknown tools by default after an explicit
+`allowTools` list; `--strict` asserts the same mode, and `--allow-unknown` is
+the deliberate compatibility opt-out. The signed policy-v2 engine is available
+as a library and via `policy validate/sign`; wiring it to a production upstream
+bridge is not complete.
 
 3. Audit:
 
