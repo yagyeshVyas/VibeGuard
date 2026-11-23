@@ -16,7 +16,7 @@ Scan AI-generated code for leaked keys, SQLi, prompt injection, and uncapped age
 Offline by default · Zero telemetry · No paid APIs · Free forever.
 </p>
 
-<p><strong>Security status: INTERNAL TESTING.</strong> Windows AppContainer isolation is implemented and passes its live verification suite on Windows; the macOS hardware-VM backend requires a caller-supplied guest image and is verified only on macOS. Linux network/PID namespace isolation is available. The linked release gate predates the Windows/macOS backends and remains a historical snapshot. Verification is cached per host; run `vibeguard sandbox verify` before trusting the cached claim.</p>
+<p><strong>Security status: INTERNAL TESTING.</strong> Windows AppContainer isolation is implemented and passes its live verification suite on Windows; the macOS hardware-VM backend requires a caller-supplied guest image and is verified only on macOS. Linux network/PID namespace isolation is available. The linked release gate predates the Windows/macOS backends and remains a historical snapshot. Verification is cached per host; run `vibeguard sandbox verify` before trusting the cached claim. Independent in-session audit: <a href="reports/independent-security-audit-2026-11-23.md">2026-11-23 report</a>.</p>
 
 <p>
   <a href="https://www.npmjs.com/package/@yagyeshvyas/vibeguard"><img src="https://img.shields.io/npm/v/@yagyeshvyas/vibeguard?style=for-the-badge&logo=npm&logoColor=white" alt="npm version" /></a>
@@ -136,7 +136,7 @@ the code plane: the MCP channel between an agent and its tools.
   `--isolation auto` prefers a verified OS backend. The lower
   `--isolation process` mode remains a separate Node process under the
   permission model; it is explicitly not an OS boundary.
-- **Tests:** 632+ passing, 0 failures, including a live stdio proxy test that
+- **Tests:** 634 passing, 0 failures, including a live stdio proxy test that
   spawns the CLI and a fixture MCP server. **Offline by default, zero telemetry,
   Windows 11 supported.**
 

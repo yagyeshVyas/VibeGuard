@@ -5,6 +5,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Security
+
+- Independent in-session audit (`reports/independent-security-audit-2026-11-23.md`) found and fixed a thenable host-callback escape in `HARNESS_SOURCE`, plus cache, verification-evidence, profile-lifecycle and renderer defects. The verification cache remains host-user-writable and is documented as a convenience, not a signature.
+
 ### Added
 
 - **Windows AppContainer isolation** (`src/platform/windows-appcontainer.js`, backend id `windows-appcontainer`). Creates a per-backend AppContainer profile (the CLI/MCP dispose it after each run), copies the runtime into `GetAppContainerFolderPath`, launches a suspended `CreateProcessW` with `PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES`, assigns the child to a Job Object (memory, process count, UI restrictions, kill-on-close) and resumes it. No capability SIDs are attached, so network egress is denied by the OS. A live suite verifies host-file reads, a home marker, host writes, loopback and LAN egress, environment inheritance, wall-clock timeout, memory limits and profile deletion. Verification is host-specific, bound to the backend configuration and cached for 7 days. The cache is host-user-writable; it is a convenience and not a cryptographic trust anchor.
