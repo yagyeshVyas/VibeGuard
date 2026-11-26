@@ -183,7 +183,7 @@ export default function Hero() {
           transition={{ delay: 1.2 }}
           className="mt-14 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-xs text-[#4a6b7e]"
         >
-          {["861 RULES", "95 MCP TOOLS", "664 TESTS", "18 LANGUAGES", "0 TELEMETRY"].map((t, i) => (
+          {["861 RULES", "95 MCP TOOLS", "674 TESTS", "18 LANGUAGES", "0 TELEMETRY"].map((t, i) => (
             <span key={t} className="flex items-center gap-6">
               {i > 0 && <span className="text-[#0a2030]">/</span>}
               <span className="hover:text-[#00f0ff] transition-colors">{t}</span>

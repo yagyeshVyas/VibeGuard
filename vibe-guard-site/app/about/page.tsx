@@ -8,13 +8,14 @@ import ArcReactor from "@/components/ArcReactor";
 const stats = [
   { num: "861", label: "Detection Rules" },
   { num: "95", label: "MCP Tools" },
-  { num: "664", label: "Tests Passing" },
+  { num: "674", label: "Tests Passing" },
   { num: "96.8%", label: "AI-Safety F1" },
   { num: "18", label: "Languages" },
   { num: "$0", label: "Cost Forever" },
 ];
 
 const timeline = [
+  { phase: "v1.16.0", title: "Live checks, LLM red-team, measured field comparison", desc: "674 tests. Safe active web checks (webscan): HTTPS redirect, CORS, cookie flags, exposed files, directory listing, stack traces, TLS. OWASP LLM01/02/06/07 red-team probes with canary/injection/exfiltration detectors. Skill rug-pull pinning, GitHub inline annotations + PR workflow, 11-provider key verification, digest-pinned compliance evidence, bundled agent audit skill. docs/COMPETITORS.md compares 12 tools with REA artifact analysis." },
   { phase: "v1.15.1", title: "Piped-output exit-path fix", desc: "664 tests green on Windows, Linux and macOS. Every CLI exit drains stdout/stderr before leaving, so a piped --json report larger than the 64 KiB pipe buffer arrives complete instead of as an unterminated string; a closed reader (| head) exits clean instead of throwing EPIPE; new piped-output regression suite asserts payload and exit code separately. Benchmark corpus drops the generated gcp-key sample (rule keeps unit coverage)." },
   { phase: "v1.15.0", title: "Strict default and red-team hardening", desc: "659 tests green on Windows, Linux and macOS. Strict MCP default-deny, signed audit by default, canonical URL deny checks, secret scrubbing across definitions/errors/notifications, sensitive resource-URI blocks, verified AppContainer package cleanup. Independent in-session red-team review." },
   { phase: "v1.14.0", title: "Verified OS isolation", desc: "Windows AppContainer + Job Object live verification (11/11 evidence classes), macOS QEMU/HVF VM behind a guest-image gate, Linux bubblewrap/unshare backend, authenticated approval service, signed approvals and deployment assets." },

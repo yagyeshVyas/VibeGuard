@@ -1,0 +1,79 @@
+# VibeGuard PR gate — deterministic findings on the changed lines.
+#
+# Copy to .github/workflows/vibeguard-pr.yml. No API key, no network DB, no
+# telemetry: the scan runs on the runner against the checkout.
+#
+# What you get:
+#   - inline annotations on the PR diff (::error / ::warning via --github)
+#   - SARIF upload so findings appear in GitHub code scanning
+#   - a sticky comment with the summary (optional step below)
+#   - the step fails only when the diff adds a critical/high finding
+#
+# Customise: VIBEGUARD_VERSION can pin an exact release; --base compares the
+# branch against origin/main instead of the working tree.
+
+name: VibeGuard PR security
+
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  vibeguard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Annotate changed lines
+        id: prscan
+        continue-on-error: true
+        run: |
+          npx -y @yagyeshvyas/vibeguard@1.16.0 pr-scan . --base origin/${{ github.base_ref }} --github \
+            | tee annotations.txt
+          test ${PIPESTATUS[0]} -eq 0
+
+      - name: SARIF report (for code scanning)
+        if: always()
+        run: |
+          npx -y @yagyeshvyas/vibeguard@1.16.0 pr-scan . --base origin/${{ github.base_ref }} --json > pr-scan.json || true
+          npx -y @yagyeshvyas/vibeguard@1.16.0 scan . --sarif > vibeguard.sarif || true
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: vibeguard.sarif
+          category: vibeguard
+
+      - name: Comment summary
+        if: always() && steps.prscan.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const annotations = fs.existsSync('annotations.txt') ? fs.readFileSync('annotations.txt', 'utf8') : '';
+            const lines = annotations.split('\n').filter(Boolean).slice(0, 40).map((l) => {
+              const m = l.match(/^::(\w+) file=([^,]+),line=(\d+).*?::(.*)$/);
+              return m ? `- **${m[1]}** \`${m[2]}:${m[3]}\` — ${m[4]}` : l;
+            });
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `### VibeGuard PR scan\n\n${lines.join('\n') || 'No annotations.'}\n\n_Deterministic scan — no model, no code leaves the runner._`,
+            });
+
+      - name: Fail on critical/high in the diff
+        if: steps.prscan.outcome == 'failure'
+        run: exit 1

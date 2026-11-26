@@ -114,6 +114,19 @@ async function cmdPrScan(args, flags) {
     return result.findings.length > 0 ? 2 : 0;
   }
 
+  if (f.github) {
+    // GitHub Actions annotations: rendered inline on the PR diff. High/critical
+    // fail the step (::error); medium warns; low is a notice.
+    for (const fnd of result.findings) {
+      const level = fnd.severity === 'critical' || fnd.severity === 'high' ? 'error'
+        : fnd.severity === 'medium' ? 'warning' : 'notice';
+      const title = `[${fnd.ruleId}] ${fnd.title || ''}`.replace(/%/g, '%25').replace(/,/g, '%2C').replace(/:/g, '%3A');
+      const message = String(fnd.message || fnd.title || '').replace(/%/g, '%25').replace(/\r?\n/g, ' ');
+      process.stdout.write(`::${level} file=${String(fnd.file).replace(/\\/g, '/')},line=${fnd.line || 1},column=${fnd.column || 1},title=${title}::${message}\n`);
+    }
+    return result.findings.length > 0 ? 2 : 0;
+  }
+
   process.stdout.write(`\n${C.bold}VibeGuard PR scan${C.reset} — ${dir}\n`);
   process.stdout.write(`${C.dim}${result.stats.scannedFiles} changed file(s), ${result.stats.addedLines} added line(s)${C.reset}\n\n`);
   if (result.findings.length === 0) {

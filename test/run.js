@@ -4671,6 +4671,8 @@ const platformSecuritySuite = require('./platform-security-tests');
 for (const t of platformSecuritySuite.tests) test('platform: ' + t.name, t.fn);
 const cliOutputSuite = require('./cli-output-tests');
 for (const t of cliOutputSuite.tests) test('cli-output: ' + t.name, t);
+const v116Suite = require('./v116-tests');
+for (const t of v116Suite.tests) test('v116: ' + t.name, t);
 
 (async function runAll() {
   for (const t of _tests) {

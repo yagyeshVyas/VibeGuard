@@ -3,6 +3,23 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.16.0] - 2026-11-26
+
+### Added
+
+- **`vibeguard webscan <url>` — safe active web checks.** Fixed, non-destructive GET/OPTIONS probes against the deployed surface: HTTPS redirect, CSP/HSTS/XCTO/XFO/Referrer-Policy, CORS wildcard-plus-credentials, cookie flags and SameSite, TRACE advertisement, exposed `/.env` / `/.git/config` / `/.DS_Store` / `server-status` / `phpinfo.php` / actuator / debug-vars (signature-matched, not a bare 200), directory listing, framework stack-trace leakage, TLS expiry/legacy version. Private and metadata targets are refused unless `--allow-private`. Every request is capped by count, size and timeout.
+- **`vibeguard redteam` — OWASP LLM01/02/06/07 red-team probes.** Nine versioned single-turn probes with deterministic detectors: planted-canary system-prompt leak, injection-token obedience, key-shaped exfiltration, harmful compliance, unexpected tool calls. Offline it prints the `vibeguard/redteam@1` suite (PyRIT/Garak/CI can consume it); live it targets any OpenAI-compatible endpoint with `--endpoint`.
+- **Skill pinning (`skill-scan --pin`)** — hash-pins reviewed agent skills; any later change to a pinned file is reported as `skill.rug-pull` (critical) and a vanished pinned file as `skill.pinned-file-missing` (medium). Solves the reviewed-skill-silently-changes attack class.
+- **GitHub-native CI output** — `scan`/`url`/`webscan`/`redteam` accept `--github`, and `pr-scan --github` emits inline `::error`/`::warning` annotations for the PR diff. New `ci-templates/github-actions-vibeguard-pr.yml` wires annotations + SARIF upload + a sticky summary comment.
+- **`compliance --export <file>`** — writes a `vibeguard.compliance-evidence@1` pack (findings, rule ids, framework coverage) with a SHA-256 evidence digest so two reports can be compared.
+- **`--verify-keys` now covers 11 providers** — added GitHub, GitLab, Slack, SendGrid, Mailgun, npm, Telegram, DigitalOcean and Heroku to OpenAI and Stripe. Verification remains opt-in and sends a key only to its own provider.
+- **`vibeguard install-skill`** — installs the bundled `skills/vibeguard-security-audit/SKILL.md` into `.claude`, `.cursor` or `.codex`, giving any coding agent a phased audit workflow (scan → history → skills → web/redteam → fix → re-scan) backed by real commands.
+- **`docs/COMPETITORS.md`** — evidence-based comparison of the 12-tool 2026 field (Strix, Cloudflare Security Audit Skill, Trivy, Nuclei, Infisical, TruffleHog, SkillSpector, Semgrep, Codex Security, Claude Code Security Review, PyRIT, Comp AI), including REA reverse-engineering of shipped artifacts (Trivy/Nuclei/TruffleHog/Infisical Go binaries, `@openai/codex-security` JS graph, Semgrep/PyRIT wheels).
+
+### Fixed
+
+- **Windows crash on quick exit after active checks.** `webscan`/`redteam` initially used `fetch()`; a CLI that exits immediately afterwards could trip `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` in libuv while undici tore down its keep-alive socket. Both now use core `http`/`https` with `agent:false` and one fully-closed socket per request — verified with a spawn-and-exit regression test.
+
 ## [1.15.1] - 2026-11-25
 
 ### Fixed

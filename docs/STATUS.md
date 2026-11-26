@@ -6,17 +6,17 @@ current status. `package.json` is the authoritative version number.
 
 | Field | Value |
 |---|---|
-| Release version | **1.15.1** (`package.json`; published as `@yagyeshvyas/vibeguard@1.15.1`) |
-| Repository state | Released 1.15.1; see `CHANGELOG.md` |
+| Release version | **1.16.0** (`package.json`; published as `@yagyeshvyas/vibeguard@1.16.0`) |
+| Repository state | Released 1.16.0; see `CHANGELOG.md` |
 | Security status | **INTERNAL TESTING** — not beta, not production-ready |
 | Rules | **861** (live `node scripts/counts.js`) |
 | MCP tools | **95** (live count, duplicate names rejected by tests) |
 | Languages | **18** |
 | Compliance frameworks | **10** |
 | Defense layers | **13** |
-| Full test suite on the Windows audit host | **664 passed, 0 failed** |
+| Full test suite on the Windows audit host | **674 passed, 0 failed** |
 | Platform security suite | **50 passed, 0 failed** |
-| npm package | `@yagyeshvyas/vibeguard@1.15.1` |
+| npm package | `@yagyeshvyas/vibeguard@1.16.0` |
 | Telemetry | none |
 
 ## OS isolation

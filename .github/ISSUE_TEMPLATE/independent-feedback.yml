@@ -35,7 +35,7 @@ body:
     id: version
     attributes:
       label: VibeGuard version / install method
-      placeholder: 1.15.1 via npx (or npm -g, Docker image)
+      placeholder: 1.16.0 via npx (or npm -g, Docker image)
     validations:
       required: true
   - type: textarea

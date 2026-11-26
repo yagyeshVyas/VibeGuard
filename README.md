@@ -38,14 +38,14 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-664%20passed-blue?style=flat-square" alt="664 tests pass" />
+  <img src="https://img.shields.io/badge/tests-674%20passed-blue?style=flat-square" alt="674 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
-<img src="website/demo.gif" alt="VibeGuard v1.15.1 scanning a test project: 7 critical findings, Grade F" width="800" />
+<img src="website/demo.gif" alt="VibeGuard v1.16.0 scanning a test project: 7 critical findings, Grade F" width="800" />
 
 <br/>
-<sub>Real scan of a test project with a planted <code>sk_live</code> Stripe key — VibeGuard v1.15.1, 861 rules. Findings are collapsed in the animation; the counts are the run's real totals.</sub>
+<sub>Real scan of a test project with a planted <code>sk_live</code> Stripe key — VibeGuard v1.16.0, 861 rules. Findings are collapsed in the animation; the counts are the run's real totals.</sub>
 
 <br/><br/>
 
@@ -71,6 +71,39 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 </div>
 
 ---
+
+## 🆕 What's New — v1.16.0
+
+**v1.16.0 — the breadth release: live checks, LLM red-team, PR annotations, and a
+measured answer to every major 2026 security tool.** Still no model, no API key,
+no network by default, no telemetry.
+
+- **`vibeguard webscan <url>`** — safe active probes of the deployed surface:
+  HTTPS redirect, CORS misconfig, cookie flags, exposed `.env`/`.git`/`phpinfo`/
+  actuator, directory listing, stack-trace leakage, TLS expiry. GET/OPTIONS only,
+  bounded by count/size/timeout, private targets refused unless `--allow-private`.
+- **`vibeguard redteam`** — OWASP LLM01/02/06/07 probe suite with deterministic
+  detectors (canary leak, injection obedience, key exfiltration, harmful
+  compliance, unexpected tool calls). Prints the versioned suite offline; runs
+  live against any OpenAI-compatible endpoint with `--endpoint`.
+- **`skill-scan --pin`** — reviewed agent skills are hash-pinned; a later change
+  is reported as `skill.rug-pull`. The reviewed-skill-silently-changes attack now
+  fails loudly.
+- **`--github` on `scan` / `pr-scan`** — inline GitHub Actions annotations, plus
+  `ci-templates/github-actions-vibeguard-pr.yml` (annotations + SARIF upload +
+  sticky PR comment).
+- **`compliance --export`** — a digest-pinned evidence pack auditors can diff.
+- **`--verify-keys` covers 11 providers** (adds GitHub, GitLab, Slack, SendGrid,
+  Mailgun, npm, Telegram, DigitalOcean, Heroku).
+- **`vibeguard install-skill`** — installs the bundled phased security-audit
+  skill for Claude Code / Cursor / Codex.
+- **[docs/COMPETITORS.md](docs/COMPETITORS.md)** — how VibeGuard compares with
+  Strix, Cloudflare's audit skill, Trivy, Nuclei, Infisical, TruffleHog,
+  SkillSpector, Semgrep, Codex Security, Claude Code Security Review, PyRIT and
+  Comp AI — including REA reverse-engineering of their shipped artifacts.
+
+Install note: v1.16.0 is distributed as `@yagyeshvyas/vibeguard@1.16.0`
+([GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.16.0)).
 
 ## 🆕 What's New — v1.15.1
 
@@ -211,9 +244,9 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — release 1.15.1 status (internal testing)
+## Security baseline v2 — release 1.16.0 status (internal testing)
 
-This repository contains the v1.15.1 security foundation. It is **not** a
+This repository contains the v1.16.0 security foundation. It is **not** a
 production-ready agent security platform. Current counts, test evidence and
 isolation claims live in [docs/STATUS.md](docs/STATUS.md); release notes keep
 their historical counts.

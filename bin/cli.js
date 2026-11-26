@@ -22,9 +22,8 @@ const {
   C,
 } = require('../src/report');
 const { exitWhenFlushed } = require('../src/cli-exit');
-
 // Flags that take a value (support both --flag=value and --flag value).
-const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'host', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id', 'approval-used', 'audit-key', 'from', 'to', 'label', 'anchor', 'max-rss', 'url', 'users', 'store', 'signing-keys', 'identity-key', 'principal', 'capabilities', 'ttl', 'action', 'reason', 'required', 'ticket', 'proof', 'used', 'admin', 'session-ttl', 'password', 'issuer', 'tenant', 'approval-key-id']);
+const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'host', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id', 'approval-used', 'audit-key', 'from', 'to', 'label', 'anchor', 'max-rss', 'url', 'users', 'store', 'signing-keys', 'identity-key', 'principal', 'capabilities', 'ttl', 'action', 'reason', 'required', 'ticket', 'proof', 'used', 'admin', 'session-ttl', 'password', 'issuer', 'tenant', 'approval-key-id', 'endpoint', 'suite', 'canary', 'system-prompt-file', 'export', 'max-requests', 'probes', 'target']);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -76,6 +75,9 @@ Advanced:
   vibeguard watch [dir]             Re-scan on file change (live).
   vibeguard history [dir]           Scan git history for secrets.
   vibeguard url <url>               Scan a live site's HTTP headers.
+  vibeguard webscan <url>           Safe active web checks: HTTPS redirect, CORS, cookies, exposed files, stack traces, TLS.
+  vibeguard redteam [--endpoint U]  LLM red-team probes (OWASP LLM01/02/06/07); prints the suite when offline.
+  vibeguard install-skill [--target claude|cursor|codex]  Install the ready-made security-audit agent skill.
   vibeguard badge [dir]             Award badge SVG (zero critical+high).
   vibeguard init-ci [dir]           Write GitHub Actions workflow.
   vibeguard mcp-audit [dir]         Audit configured MCP servers (injection, rug-pull, secrets). --pin to re-baseline.
@@ -177,6 +179,13 @@ misconfig) and helps you fix them. It does NOT prove an app is safe.
 }
 
 function outputResult(result, flags) {
+  // --github: GitHub Actions annotation stream for PR gates. One annotation per
+  // finding (critical/high -> error, medium -> warning, low -> notice), which the
+  // Actions UI renders inline on the changed lines.
+  if (flags.github) {
+    process.stdout.write(renderGithubAnnotations(result.findings || [], result.root));
+    return;
+  }
   // --lean: the dialect written for an AI agent's context window rather than a
   // human terminal. Snapshot persistence lives in src/tokenlean.js so the CLI
   // and the MCP server share one notion of "already reported".
@@ -648,6 +657,116 @@ async function cmdUrl(target, flags) {
   return findings.length > 0 ? 1 : 0;
 }
 
+// GitHub Actions annotations: one line per finding. Actions renders these inline
+// in the PR "Files changed" view and fails the step on ::error. Values are
+// escaped per Actions' command syntax (%25 , %0A , %3A).
+function renderGithubAnnotations(findings, root) {
+  const out = [];
+  for (const f of findings) {
+    const level = (f.severity === 'critical' || f.severity === 'high') ? 'error'
+      : f.severity === 'medium' ? 'warning' : 'notice';
+    const file = String(f.file || root || '').replace(/\\/g, '/');
+    const message = String(f.message || f.title || '').replace(/%/g, '%25').replace(/\r?\n/g, ' ');
+    const title = `[${f.ruleId}] ${f.title || ''}`.replace(/%/g, '%25').replace(/,/g, '%2C').replace(/:/g, '%3A');
+    out.push(`::${level} file=${file},line=${f.line || 1},column=${f.column || 1},title=${title}::${message}`);
+  }
+  return out.length ? out.join('\n') + '\n' : '';
+}
+
+async function cmdWebscan(target, flags) {
+  if (!target || target === '.') {
+    process.stderr.write('usage: vibeguard webscan <https://your-site.com> [--json] [--allow-private] [--max-requests N]\n');
+    process.stderr.write('  safe GET/OPTIONS probes only: HTTPS redirect, CORS, cookie flags, exposed files, directory listing, stack traces, TLS.\n');
+    return 2;
+  }
+  const { scanWeb } = require('../src/webchecks');
+  let res;
+  try {
+    res = await scanWeb(target, {
+      allowPrivate: flags['allow-private'] === true,
+      maxRequests: Number(flags['max-requests'] || 16) || 16,
+      timeoutMs: Number(flags.timeout || 8000) || 8000,
+    });
+  } catch (err) {
+    process.stderr.write(`vibeguard webscan error: ${err.message}\n`);
+    return 2;
+  }
+  const findings = sortFindings(res.findings);
+  const { grade, counts } = computeGrade(findings);
+  const result = {
+    root: res.root,
+    scannedFiles: res.requests,
+    requests: res.requests,
+    durationMs: res.durationMs,
+    findings, grade, counts,
+    generatedAt: new Date().toISOString(),
+  };
+  outputResult(result, flags);
+  return findings.length > 0 ? 1 : 0;
+}
+
+async function cmdRedteam(flags) {
+  const { runRedteam, PROBES } = require('../src/redteam');
+  if (!flags.endpoint) {
+    // Offline default: emit the versioned probe suite so PyRIT/Garak/CI can run it.
+    process.stdout.write(JSON.stringify({ suite: 'vibeguard-redteam', schema: 'vibeguard/redteam@1', probes: PROBES }, null, 2) + '\n');
+    process.stderr.write('redteam: suite printed (offline). Pass --endpoint <openai-compatible base URL> [--model MODEL] to run it live.\n');
+    return 0;
+  }
+  const report = await runRedteam({
+    endpoint: flags.endpoint,
+    model: flags.model || 'gpt-4o-mini',
+    apiKey: flags['api-key'] || process.env.OPENAI_API_KEY || '',
+    canary: flags.canary,
+    maxProbes: flags.probes,
+    timeoutMs: Number(flags.timeout || 30000) || 30000,
+  });
+  if (flags.json) {
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+  } else if (flags.github) {
+    process.stdout.write(renderGithubAnnotations(report.findings, report.endpoint));
+  } else {
+    process.stdout.write(`\n${C.bold}${C.cyan}VibeGuard red-team${C.reset} ${C.dim}${report.endpoint}${C.reset}\n\n`);
+    for (const p of report.probes) {
+      const mark = p.verdict === 'pass' ? `${C.green}PASS${C.reset}` : p.verdict === 'fail' ? `${C.red}FAIL${C.reset}` : `${C.yellow}ERR ${C.reset}`;
+      process.stdout.write(`  ${mark} ${p.owasp.padEnd(6)} ${p.id.padEnd(9)} ${p.category} — ${p.evidence || ''}\n`);
+    }
+    process.stdout.write(`\n${C.bold}Score: ${report.score}%${C.reset} (${report.counts.passed}/${report.counts.total} passed, ${report.counts.failed} failed, ${report.counts.errors} errors)\n`);
+    if (report.findings.length) {
+      process.stdout.write(`\n${C.red}${C.bold}${report.findings.length} red-team finding(s):${C.reset}\n`);
+      for (const f of report.findings) {
+        process.stdout.write(`  ${C.red}${f.severity.toUpperCase()}${C.reset} ${f.ruleId}\n    ${f.message}\n`);
+      }
+    }
+    process.stdout.write('\n');
+  }
+  if (report.counts.errors && !report.counts.failed) return 2;
+  if (report.findings.some((f) => f.severity === 'critical')) return 2;
+  return report.findings.length > 0 ? 1 : 0;
+}
+
+function cmdInstallSkill(flags) {
+  const fsx = require('fs');
+  const target = String(flags.target || 'claude');
+  const paths = {
+    claude: path.join('.claude', 'skills', 'vibeguard-security-audit', 'SKILL.md'),
+    cursor: path.join('.cursor', 'skills', 'vibeguard-security-audit', 'SKILL.md'),
+    codex: path.join('.codex', 'skills', 'vibeguard-security-audit', 'SKILL.md'),
+  };
+  const rel = flags.out ? String(flags.out) : (paths[target] || paths.claude);
+  const dest = path.resolve(process.cwd(), rel);
+  const src = path.join(__dirname, '..', 'skills', 'vibeguard-security-audit', 'SKILL.md');
+  if (!fsx.existsSync(src)) {
+    process.stderr.write(`install-skill: bundled skill missing (${src})\n`);
+    return 2;
+  }
+  fsx.mkdirSync(path.dirname(dest), { recursive: true });
+  fsx.copyFileSync(src, dest);
+  process.stdout.write(`${C.green}Installed security-audit skill${C.reset} -> ${dest}\n`);
+  process.stdout.write(`${C.dim}Your coding agent now auto-loads a multi-phase VibeGuard audit (scan -> verify -> fix -> re-scan).${C.reset}\n`);
+  return 0;
+}
+
 function cmdRules(flags) {
   const { allRules } = require('../src/rules');
   const rules = allRules().sort((a, b) => (a.category + a.id).localeCompare(b.category + b.id));
@@ -966,7 +1085,7 @@ async function main() {
   const cmd = args._[0] || 'scan';
   const dir = args._[1] || '.';
 
-  const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall', 'policy', 'audit', 'approval', 'aisvs']);
+  const noDirCmds = new Set(['url', 'webscan', 'redteam', 'install-skill', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall', 'policy', 'audit', 'approval', 'aisvs']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
     return exitWhenFlushed(2);
@@ -1073,6 +1192,9 @@ async function main() {
     else if (cmd === 'trace') code = cmdTrace(dir, flags);
     else if (cmd === 'repl') code = await cmdRepl(dir, flags);
     else if (cmd === 'auth-coverage') code = cmdAuthCoverage(dir, flags);
+    else if (cmd === 'webscan') code = await cmdWebscan(args._[1], flags);
+    else if (cmd === 'redteam') code = await cmdRedteam(flags);
+    else if (cmd === 'install-skill') code = cmdInstallSkill(flags);
     else if (cmd === 'attack-surface' || cmd === 'surface') code = cmdAttackSurface(dir, flags);
     else if (cmd === 'bundle-scan') code = cmdBundleScan(dir, flags);
     else if (cmd === 'diff') code = cmdDiff(dir, flags);
@@ -1182,6 +1304,40 @@ function cmdCompliance(dir, flags) {
   const result = scan(dir);
   const { generateComplianceReport } = require('../src/compliance');
   const report = generateComplianceReport(result.findings, flags.framework);
+
+  // --export: an auditable evidence pack (Comp-AI-style, but local). It pins the
+  // exact findings, the rule ids and a digest of the evidence so a reviewer can
+  // tell whether two reports describe the same state.
+  if (flags.export) {
+    const crypto = require('crypto');
+    const fsx = require('fs');
+    const pathx = require('path');
+    const findings = result.findings.map((f) => ({
+      ruleId: f.ruleId, severity: f.severity, file: f.file, line: f.line,
+      fingerprint: f.fingerprint || null, title: f.title,
+    }));
+    const payload = {
+      schema: 'vibeguard.compliance-evidence@1',
+      tool: 'vibeguard',
+      version: require('../package.json').version,
+      generatedAt: new Date().toISOString(),
+      root: pathx.resolve(dir),
+      framework: flags.framework || 'all',
+      grade: result.grade,
+      counts: result.counts,
+      findings,
+      coverage: report,
+    };
+    const digest = crypto.createHash('sha256')
+      .update(JSON.stringify({ findings, coverage: report, grade: result.grade, counts: result.counts }))
+      .digest('hex');
+    const pack = Object.assign({ evidenceDigest: `sha256:${digest}` }, payload);
+    const outPath = pathx.resolve(String(flags.export));
+    fsx.mkdirSync(pathx.dirname(outPath), { recursive: true });
+    fsx.writeFileSync(outPath, JSON.stringify(pack, null, 2) + '\n');
+    process.stderr.write(`compliance evidence -> ${outPath} (sha256:${digest.slice(0, 16)}…)\n`);
+  }
+
   process.stdout.write(JSON.stringify(report, null, 2) + '\n');
   return 0;
 }

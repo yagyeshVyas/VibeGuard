@@ -10,16 +10,16 @@ feedback is real, attributable and useful.
 Use a repository you own and did not build VibeGuard for.
 
 ```bash
-npx -y @yagyeshvyas/vibeguard@1.15.1 scan .
-npx -y @yagyeshvyas/vibeguard@1.15.1 scan . --json
+npx -y @yagyeshvyas/vibeguard@1.16.0 scan .
+npx -y @yagyeshvyas/vibeguard@1.16.0 scan . --json
 ```
 
 Then try one of:
 
 ```bash
-npx -y @yagyeshvyas/vibeguard@1.15.1 sandbox verify
-npx -y @yagyeshvyas/vibeguard@1.15.1 approval serve --help
-npx -y @yagyeshvyas/vibeguard@1.15.1 sandbox "const x = 1 + 1; x" --isolation os
+npx -y @yagyeshvyas/vibeguard@1.16.0 sandbox verify
+npx -y @yagyeshvyas/vibeguard@1.16.0 approval serve --help
+npx -y @yagyeshvyas/vibeguard@1.16.0 sandbox "const x = 1 + 1; x" --isolation os
 ```
 
 Report:
