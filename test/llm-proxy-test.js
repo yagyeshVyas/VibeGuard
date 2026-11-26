@@ -113,7 +113,12 @@ function createMockUpstream() {
           } catch {
             /* socket already destroyed by the guard */
           }
-        }, 30);
+        // 250 ms, not 30: the guard's first-chunk scan + abort is asynchronous,
+        // and a loaded Windows CI runner occasionally let this second chunk out
+        // first, which made `destroyedEarly` (asserted in testStreamingBlock)
+        // race. The assertion is about the guard aborting the upstream stream,
+        // not about the runner's scheduling speed.
+        }, 250);
         return;
       }
       if (state.mode === 'leak') {
