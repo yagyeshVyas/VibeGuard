@@ -14,6 +14,10 @@ name: Publish
 # release steps are SKIPPED with a warning instead of failing the run. A
 # missing credential is a setup state, not a broken build; failing every tag
 # push sends noise and hides the real signal. An INVALID token still fails.
+#
+# Already-published behavior: if package.json's version is already on npm the
+# publish step exits 0 with a notice, so re-running this workflow (a manual
+# re-dispatch, a retried tag) cannot produce a false-red 403 publish conflict.
 
 on:
   push:
@@ -49,7 +53,17 @@ jobs:
 
       - name: npm publish
         if: env.NODE_AUTH_TOKEN != ''
-        run: npm publish --provenance --access public
+        # Idempotent: a version already on the registry is a successful no-op,
+        # not a 403 that turns a retry/double-dispatch into a red run. Re-runs
+        # then only refresh the release notes below.
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "::notice title=npm publish skipped::$NAME@$VERSION is already on the registry; nothing republished."
+            exit 0
+          fi
+          npm publish --provenance --access public
 
       - name: Create GitHub Release
         if: env.NODE_AUTH_TOKEN != ''
