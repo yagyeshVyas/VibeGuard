@@ -4,7 +4,7 @@
       "command": "npx",
       "args": [
         "-y",
-        "vibeguard",
+        "@yagyeshvyas/vibeguard@1.15.1",
         "mcp"
       ]
     }

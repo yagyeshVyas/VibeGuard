@@ -8,11 +8,11 @@
 | Category | TP | FP | FN | Precision | Recall | F1 |
 |----------|----|----|----|-----------|--------|----|
 | injection | 57 | 5 | 0 | 91.9% | 100.0% | 95.8% |
-| secrets | 20 | 1 | 0 | 95.2% | 100.0% | 97.6% |
+| secrets | 19 | 1 | 0 | 95.0% | 100.0% | 97.4% |
 | xss | 17 | 1 | 0 | 94.4% | 100.0% | 97.1% |
 | path-traversal | 10 | 0 | 0 | 100.0% | 100.0% | 100.0% |
 | ai-safety | 15 | 10 | 0 | 60.0% | 100.0% | 75.0% |
-| **OVERALL** | **119** | **17** | **0** | **87.5%** | **100.0%** | **93.3%** |
+| **OVERALL** | **118** | **17** | **0** | **87.4%** | **100.0%** | **93.3%** |
 
 ## Per-Category Details
 
@@ -97,7 +97,6 @@
 | gitlab-token.js | `secret.gitlab-token` | TP |
 | sendgrid-key.js | `secret.sendgrid-key` | TP |
 | npm-token.js | `secret.npm-token` | TP |
-| gcp-key.js | `secret.gcp-api-key` | TP |
 | private-key.js | `secret.private-key` | TP |
 | private-key.js | `secret2026.private-key-block` | FP |
 | aws-key.js | `secret.aws-access-key` | TP |

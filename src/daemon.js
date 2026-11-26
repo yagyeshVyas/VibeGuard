@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn, execSync } = require('child_process');
+const { exitWhenFlushed } = require('./cli-exit');
 
 const DAEMON_FILE = '.vibeguard-daemon.json';
 const DAEMON_LOG = '.vibeguard-daemon.log';
@@ -197,14 +198,14 @@ function runDaemon(rootDir, opts) {
     log('daemon stopping (SIGTERM)');
     if (watcher) watcher.close();
     try { fs.unlinkSync(path.join(rootDir, DAEMON_FILE)); } catch {}
-    process.exit(0);
+    exitWhenFlushed(0);
   });
 
   process.on('SIGINT', () => {
     log('daemon stopping (SIGINT)');
     if (watcher) watcher.close();
     try { fs.unlinkSync(path.join(rootDir, DAEMON_FILE)); } catch {}
-    process.exit(0);
+    exitWhenFlushed(0);
   });
 
   // Heartbeat — update PID file every 30s to prove we're alive

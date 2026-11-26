@@ -1,6 +1,6 @@
 {
   "tool": "vibeguard",
-  "generatedAt": "2026-11-23T03:04:49.905Z",
+  "generatedAt": "2026-11-26T03:41:33.484Z",
   "algo": "sha256",
   "hashes": {
     "action-guard.js": "4810d8ea080394844854a09a6a7e2bc80b56b7254bc1d1c54df05c424862f913",
@@ -25,7 +25,7 @@
     "bundles.js": "7c6535e4be4566edd2aec0d9d63c58e200813b621e503ad1d51a5a4840a1b359",
     "agentic.js": "4b7130e1e15f603df8ceb7ef8284db8d1784e8dd450a8ed332873271f7cec4ee",
     "suppress.js": "3c34ebbdabb0338fe3bf00d399aaa9ab04fb796067fe33a4a4b52884eb5c4fda",
-    "mcp-firewall.js": "50e537b63a149ddef71764f60483b79e3eeb4cac8015b6d31457a1d5070375e1",
+    "mcp-firewall.js": "0f1846d2f6aefb78d6375682edec19d7b7f18efb8e1b1661daa9ba17bf179e43",
     "agent-policy.js": "0a0b1f5c3d19694b8df79109aca439eec7d62f7531720065a0ed8d7c99526cfd",
     "skill-scan.js": "b172529a94333f8fb07098df518ecce3be9cf93242830e140ade48c2742f50e0",
     "owasp-agentic.js": "7ca8dca83b633ae62607b2ab24696bdfbf34b4a7b96c3b26ba1035b9b05e9a99",

@@ -21,6 +21,7 @@ const {
   renderFixPrompt,
   C,
 } = require('../src/report');
+const { exitWhenFlushed } = require('../src/cli-exit');
 
 // Flags that take a value (support both --flag=value and --flag value).
 const VALUE_FLAGS = new Set(['fail-on', 'scope', 'focus', 'model', 'since', 'base', 'o', 'output', 'file', 'types', 'min-confidence', 'trust', 'allow', 'save', 'max-blobs', 'max-commits', 'port', 'host', 'upstream', 'mode', 'api-key', 'token', 'token-header', 'timeout', 'pentest-url', 'pentest-verify-ssrf', 'budget', 'server', 'exec', 'command', 'policy', 'audit', 'check', 'tool', 'args', 'isolation', 'frameworks', 'framework', 'interval', 'dir', 'memory', 'pub', 'key', 'key-id', 'out', 'max-blocks', 'token-pub', 'token-issuer', 'token-tenant', 'token-key-id', 'approval-token', 'approval-pub', 'approval-issuer', 'approval-tenant', 'approval-key-id', 'approval-used', 'audit-key', 'from', 'to', 'label', 'anchor', 'max-rss', 'url', 'users', 'store', 'signing-keys', 'identity-key', 'principal', 'capabilities', 'ttl', 'action', 'reason', 'required', 'ticket', 'proof', 'used', 'admin', 'session-ttl', 'password', 'issuer', 'tenant', 'approval-key-id']);
@@ -954,12 +955,12 @@ async function main() {
     } catch {
       process.stdout.write('unknown\n');
     }
-    process.exit(0);
+    return exitWhenFlushed(0);
   }
 
   if (flags.help || flags.h || args._[0] === 'help') {
     printHelp();
-    process.exit(0);
+    return exitWhenFlushed(0);
   }
 
   const cmd = args._[0] || 'scan';
@@ -968,7 +969,7 @@ async function main() {
   const noDirCmds = new Set(['url', 'rules', 'explain', 'secure-prompt', 'redact', 'detect-pii', 'firewall', 'exfil-check', 'dep-firewall', 'sandbox', 'output-guard', 'vault', 'audit-trail', 'why', 'guard', 'guard-action', 'install-shell-hook', 'uninstall-shell-hook', 'auto-start', 'auto-stop', 'auto-status', 'auto', 'container-scan', 'proxy-start', 'proxy-stop', 'proxy-status', 'sbom-diff', 'gif', 'git-scan', 'llm-proxy', 'pentest', 'pr-scan', 'mcp-firewall', 'policy', 'audit', 'approval', 'aisvs']);
   if (!noDirCmds.has(cmd) && !fs.existsSync(dir)) {
     process.stderr.write(`error: directory not found: ${dir}\n`);
-    process.exit(2);
+    return exitWhenFlushed(2);
   }
 
   // MCP server mode: hand off to the server (it runs until stdin closes).
@@ -999,10 +1000,10 @@ async function main() {
       result.grade = g.grade;
       result.counts = g.counts;
       outputResult(result, flags);
-      process.exit(result.counts.critical > 0 ? 2 : result.findings.length > 0 ? 1 : 0);
+      return exitWhenFlushed(result.counts.critical > 0 ? 2 : result.findings.length > 0 ? 1 : 0);
     })().catch((err) => {
       process.stderr.write(`vibeguard error: ${err.message}\n`);
-      process.exit(2);
+      exitWhenFlushed(2);
     });
     return;
   }
@@ -1011,7 +1012,7 @@ async function main() {
   if (cmd === 'watch') {
     Promise.resolve(cmdWatch(dir, flags)).catch((err) => {
       process.stderr.write(`vibeguard error: ${err && err.message ? err.message : err}\n`);
-      process.exit(2);
+      exitWhenFlushed(2);
     });
     return;
   }
@@ -1021,7 +1022,7 @@ async function main() {
   if (cmd === 'mcp-firewall') {
     const { cmdMcpFirewall } = require('./cmd-mcp-firewall');
     const code = cmdMcpFirewall(args, flags);
-    if (typeof code === 'number') process.exit(code);
+    if (typeof code === 'number') return exitWhenFlushed(code);
     return;
   }
 
@@ -1035,10 +1036,10 @@ async function main() {
   // Async command: live URL scan.
   if (cmd === 'url') {
     cmdUrl(args._[1], flags)
-      .then((c) => process.exit(c))
+      .then((c) => exitWhenFlushed(c))
       .catch((err) => {
         process.stderr.write(`vibeguard error: ${err && err.message ? err.message : err}\n`);
-        process.exit(2);
+        exitWhenFlushed(2);
       });
     return;
   }
@@ -1155,7 +1156,9 @@ async function main() {
     process.stderr.write(`vibeguard error: ${err && err.message ? err.message : err}\n`);
     code = 2;
   }
-  process.exit(code);
+  // Drain stdout/stderr before leaving: process.exit() drops queued pipe writes
+  // and would truncate a --json report bigger than the pipe buffer.
+  return exitWhenFlushed(code);
 }
 
 function generatePatch(findings) {
@@ -2780,5 +2783,5 @@ function cmdAutoStatus(dir, flags) {
 
 main().catch((err) => {
   process.stderr.write(`vibeguard error: ${err && err.message ? err.message : err}\n`);
-  process.exit(2);
+  exitWhenFlushed(2);
 });

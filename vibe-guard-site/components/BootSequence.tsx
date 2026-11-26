@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
  * Skip: any user interaction (click / key / scroll / touch). === */
 
 const bootLines = [
-  { text: "> INITIALIZING VIBEGUARD OS v1.15.0", delay: 30, cls: "" },
+  { text: "> INITIALIZING VIBEGUARD OS v1.15.1", delay: 30, cls: "" },
   { text: "> Loading security kernel...", delay: 130, cls: "" },
   { text: "> [OK] AST taint analysis engine", delay: 240, cls: "ok" },
   { text: "> [OK] Secret detection module (50+ types)", delay: 320, cls: "ok" },

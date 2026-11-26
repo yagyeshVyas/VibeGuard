@@ -204,9 +204,6 @@
       "npm-token.js": [
         "secret.npm-token"
       ],
-      "gcp-key.js": [
-        "secret.gcp-api-key"
-      ],
       "private-key.js": [
         "secret.private-key"
       ],

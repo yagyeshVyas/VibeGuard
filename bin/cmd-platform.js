@@ -20,6 +20,7 @@ const { ApprovalBroker } = require('../src/platform/approval');
 const { actionDigest } = require('../src/platform/canonical');
 const { createApprovalService, hashPassword } = require('../src/platform/approval-service');
 const { createBackup, verifyBackup, restoreBackup } = require('../src/platform/backup');
+const { exitWhenFlushed } = require('../src/cli-exit');
 
 function out(text) { process.stdout.write(text + '\n'); }
 function err(text) { process.stderr.write(text + '\n'); }
@@ -283,12 +284,11 @@ async function cmdApproval(args, flags) {
       audit: auditFile,
       note: 'Keep private keys out of the agent runtime. Use approval issue to mint short-lived agent tokens.',
     }, null, 2));
-    const shutdown = () => { service.close().finally(() => process.exit(0)); };
+    const shutdown = () => { service.close().finally(() => exitWhenFlushed(0)); };
     process.once('SIGINT', shutdown);
     process.once('SIGTERM', shutdown);
-    // Keep the CLI process alive while the HTTP service is running; main()
-    // calls process.exit() after the command returns, so return a pending
-    // promise and let the signal handler shut the service down.
+    // Keep the CLI process alive while the HTTP service is running; the signal
+    // handler drains stdout/stderr and exits, so return a pending promise.
     return new Promise(() => {});
   }
 

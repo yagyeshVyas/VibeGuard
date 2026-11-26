@@ -16,6 +16,7 @@ const fs = require('fs');
 // args. SIGINT/SIGTERM trigger a clean shutdown.
 
 const { createGuardProxy, DEFAULT_PORT, DEFAULT_UPSTREAM, MODES } = require('../src/llm-proxy');
+const { exitWhenFlushed } = require('../src/cli-exit');
 
 const USAGE = [
   'usage: vibeguard llm-proxy [--port <port>] [--upstream <base-url>] [--mode block|redact|report] [--api-key <key>]',
@@ -116,7 +117,7 @@ async function cmdLlmProxy(args, flags) {
   });
   gp.server.on('error', (err) => {
     process.stderr.write(`llm-proxy: ${err && err.message ? err.message : err}\n`);
-    process.exit(2);
+    exitWhenFlushed(2);
   });
 
   let shuttingDown = false;
@@ -124,8 +125,8 @@ async function cmdLlmProxy(args, flags) {
     if (shuttingDown) return;
     shuttingDown = true;
     gp.close()
-      .then(() => process.exit(0))
-      .catch(() => process.exit(0));
+      .then(() => exitWhenFlushed(0))
+      .catch(() => exitWhenFlushed(0));
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
@@ -157,7 +158,7 @@ if (require.main === module) {
     }
   }
   cmdLlmProxy({ _: positional }, flags).then((code) => {
-    if (code !== 0) process.exit(code);
+    if (code !== 0) exitWhenFlushed(code);
   });
 }
 

@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile
-    image: vibeguard-approval:1.15.0
+    image: vibeguard-approval:1.15.1
     restart: unless-stopped
     read_only: true
     tmpfs:

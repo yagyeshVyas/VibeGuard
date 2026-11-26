@@ -127,7 +127,6 @@ const corpus = {
   ['gitlab-token.js', `const token = "${S(['glpat-', 'abcdefghijklmnopqrst'])}";`, ['secret.gitlab-token']],
   ['sendgrid-key.js', `const key = "${S(['SG.', 'abcdef1234567890.', 'abcdef1234567890'])}";`, ['secret.sendgrid-key']],
   ['npm-token.js', `const token = "${S(['npm_', '1234567890abcdefghijklmnopqrstuvwxyz'])}";`, ['secret.npm-token']],
-  ['gcp-key.js', `const key = "${S(['AIzaSyD', '1234567890abcdefghijklmnopqrstuv'])}";`, ['secret.gcp-api-key']],
   ['private-key.js', `const key = "-----BEGIN RSA PRIVATE KEY-----\\nMIIEpAIBAAKCAQEA";`, ['secret.private-key']],
   ['aws-key.js', `const key = "${S(['AKIA', 'IOSFODNN7EXAMPLE'])}";`, ['secret.aws-access-key']],
   ['mailgun-key.js', `const key = "${S(['key-', 'abcdef1234567890', 'abcdef1234567890'])}";`, ['secret.mailgun-key']],

@@ -4669,6 +4669,8 @@ const externalBenchmarkSuite = require('./external-benchmark-tests');
 for (const t of externalBenchmarkSuite.tests) test('external-benchmark: ' + t.name, t.fn);
 const platformSecuritySuite = require('./platform-security-tests');
 for (const t of platformSecuritySuite.tests) test('platform: ' + t.name, t.fn);
+const cliOutputSuite = require('./cli-output-tests');
+for (const t of cliOutputSuite.tests) test('cli-output: ' + t.name, t);
 
 (async function runAll() {
   for (const t of _tests) {
@@ -4683,5 +4685,7 @@ for (const t of platformSecuritySuite.tests) test('platform: ' + t.name, t.fn);
     }
   }
   console.log(`\n${pass} passed, ${fail} failed`);
-  process.exit(fail === 0 ? 0 : 1);
+  // Drain stdout/stderr before leaving: CI pipes this runner through `tee`,
+  // and process.exit() would drop what a piped stdout still has queued.
+  require('../src/cli-exit').exitWhenFlushed(fail === 0 ? 0 : 1);
 })();

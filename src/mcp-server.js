@@ -35,6 +35,7 @@ const { generateComplianceReport } = require('./compliance');
 const { analyzePrompt } = require('./secure-prompt');
 const { scanSlopsquat } = require('./slopsquat');
 const { trace } = require('./trace');
+const { exitWhenFlushed } = require('./cli-exit');
 const { buildAuthCoverage, getChangedFiles, analyzePythonTaint } = require('./engine');
 const { scanCVEs } = require('./cve-intel');
 const { allRules } = require('./rules');
@@ -2576,5 +2577,5 @@ async function main() {
 
 main().catch((err) => {
   process.stderr.write(`fatal: ${err && err.stack ? err.stack : err}\n`);
-  process.exit(1);
+  exitWhenFlushed(1);
 });

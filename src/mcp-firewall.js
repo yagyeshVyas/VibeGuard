@@ -50,6 +50,7 @@ const { SECRET_PATTERNS } = require('./shell-guard');
 const { redactText } = require('./pii');
 const { scanTextForInjection } = require('./mcp-audit');
 const { inspectPrompt } = require('./firewall');
+const { exitWhenFlushed } = require('./cli-exit');
 
 const DEFAULT_AUDIT_FILE = path.join('.vibeguard', 'audit', 'mcp-firewall.jsonl');
 const { fileURLToPath } = require('url');
@@ -781,7 +782,9 @@ function startProxy(opts = {}) {
     closed = true;
     try { child.kill(); } catch { /* ignore */ }
     process.exitCode = 3;
-    setTimeout(() => process.exit(3), 25).unref();
+    // Drain stdout before leaving: a queued JSON-RPC response on a piped stdout
+    // would otherwise be dropped by a bare process.exit().
+    exitWhenFlushed(3);
   }
 
   function engineFailure(reason) {
@@ -790,7 +793,7 @@ function startProxy(opts = {}) {
     closed = true;
     try { child.kill(); } catch { /* ignore */ }
     process.exitCode = 2;
-    setTimeout(() => process.exit(2), 10).unref();
+    exitWhenFlushed(2);
   }
 
   let resourceMonitor = null;
@@ -890,7 +893,7 @@ function startProxy(opts = {}) {
   child.on('error', (err) => {
     engine.logger.log('mcp_server_error', { server: serverName, error: err.message });
     try { process.stderr.write(`vibeguard mcp-firewall: cannot start MCP server: ${err.message}\n`); } catch { /* ignore */ }
-    if (opts.exitOnError !== false) process.exit(2);
+    if (opts.exitOnError !== false) { exitWhenFlushed(2); return; }
     process.exitCode = 2;
   });
 
@@ -899,7 +902,7 @@ function startProxy(opts = {}) {
     closed = true;
     engine.logger.log('mcp_firewall_stop', { server: serverName, stats: engine.getStats() });
     try { child.kill(); } catch { /* already gone */ }
-    setTimeout(() => process.exit(code == null ? 0 : code), 10).unref();
+    exitWhenFlushed(code == null ? 0 : code);
   }
 
   child.on('exit', (code, signal) => {
@@ -908,7 +911,7 @@ function startProxy(opts = {}) {
     if (!closed) {
       closed = true;
       process.exitCode = code == null ? 0 : code;
-      setTimeout(() => process.exit(process.exitCode), 10).unref();
+      exitWhenFlushed(code == null ? 0 : code);
     }
   });
 

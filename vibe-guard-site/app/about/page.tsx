@@ -8,13 +8,14 @@ import ArcReactor from "@/components/ArcReactor";
 const stats = [
   { num: "861", label: "Detection Rules" },
   { num: "95", label: "MCP Tools" },
-  { num: "659", label: "Tests Passing" },
+  { num: "664", label: "Tests Passing" },
   { num: "96.8%", label: "AI-Safety F1" },
   { num: "18", label: "Languages" },
   { num: "$0", label: "Cost Forever" },
 ];
 
 const timeline = [
+  { phase: "v1.15.1", title: "Piped-output exit-path fix", desc: "664 tests green on Windows, Linux and macOS. Every CLI exit drains stdout/stderr before leaving, so a piped --json report larger than the 64 KiB pipe buffer arrives complete instead of as an unterminated string; a closed reader (| head) exits clean instead of throwing EPIPE; new piped-output regression suite asserts payload and exit code separately. Benchmark corpus drops the generated gcp-key sample (rule keeps unit coverage)." },
   { phase: "v1.15.0", title: "Strict default and red-team hardening", desc: "659 tests green on Windows, Linux and macOS. Strict MCP default-deny, signed audit by default, canonical URL deny checks, secret scrubbing across definitions/errors/notifications, sensitive resource-URI blocks, verified AppContainer package cleanup. Independent in-session red-team review." },
   { phase: "v1.14.0", title: "Verified OS isolation", desc: "Windows AppContainer + Job Object live verification (11/11 evidence classes), macOS QEMU/HVF VM behind a guest-image gate, Linux bubblewrap/unshare backend, authenticated approval service, signed approvals and deployment assets." },
   { phase: "v1.13.0", title: "Security foundation v2 (internal testing)", desc: "629 tests at the time. Signed policy v2, Ed25519 identity and approver proofs, signed gateway audit, authenticated HTTP+SSE bridge, stdio token/approval checks, kill-on-block. AppContainer and macOS VM arrived in 1.14.0; macOS guest-image verification, WFP and external human audit remain pending." },

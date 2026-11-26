@@ -3,6 +3,22 @@
 All notable changes to VibeGuard are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [1.15.1] - 2026-11-25
+
+### Fixed
+
+- **Piped `--json` reports are no longer truncated at 64 KiB.** `process.exit()` tore the process down while libuv still had writes queued. Redirecting to a file hid that (file writes complete synchronously), but a piped stdout is non-blocking on Linux and macOS, so everything past the ~64 KiB pipe buffer was dropped: `vibeguard scan . --json | jq` received an unterminated JSON string while the exit code still reported the scan result — the scanner looked broken instead of the exit path. Every CLI exit now drains stdout/stderr through `src/cli-exit.js` (`exitWhenFlushed`) before leaving, covering `scan` (and `--verify-keys`), `--version`/`--help`, the missing-directory error, `url`, `watch` failures, the MCP server fatal path, one-shot `mcp-firewall` and its quarantine/engine-failure/shutdown paths, `agent-monitor` stop, the llm-proxy startup error and shutdown, `approval serve` shutdown, and the guard daemon's SIGINT/SIGTERM handlers. The hard exit is kept after the flush, so a command that leaves a timer or child handle behind still terminates.
+- The CLI now exits cleanly when its reader closes early (`vibeguard scan . --json | head`), instead of printing an unhandled EPIPE stack trace over the result.
+- `node test/run.js` (and the full-suite CI job that pipes it through `tee`) drains its report before exiting, for the same reason.
+
+### Added
+
+- `test/cli-output-tests.js`: a piped `--json` report larger than one pipe buffer must `JSON.parse`, must match the regular-file redirect byte for byte, and its exit code is asserted separately from its payload; plus a direct `exitWhenFlushed` 300 KiB payload test and a small clean-report pipe test. These run in the main suite as `cli-output:` and would have caught the truncation on Linux/macOS CI.
+
+### Removed
+
+- The generated `gcp-key.js` corpus sample (and its hand-curated manifest entry) is no longer produced by `test/benchmark/generate-corpus.js`. The `secret.gcp-api-key` rule keeps its unit coverage in `test/run.js` ("gap batch 1: extra secret types fire"); the benchmark gate still passes at P 87.4% / R 100% / F1 93.3%. Corpus files were already gitignored and never shipped — this only stops that one key-shaped fixture from being regenerated.
+
 ## [1.15.0] - 2026-11-23
 
 ### Security

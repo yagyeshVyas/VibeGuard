@@ -38,7 +38,7 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
   <img src="https://img.shields.io/badge/compliance-10%20frameworks-orange?style=flat-square" alt="10 compliance frameworks" />
   <img src="https://img.shields.io/badge/AI--safety%20F1-96.8%25-brightgreen?style=flat-square" alt="AI-safety F1 96.8%" />
   <img src="https://img.shields.io/badge/telemetry-zero-brightgreen?style=flat-square" alt="Zero telemetry" />
-  <img src="https://img.shields.io/badge/tests-659%20passed-blue?style=flat-square" alt="659 tests pass" />
+  <img src="https://img.shields.io/badge/tests-664%20passed-blue?style=flat-square" alt="664 tests pass" />
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
@@ -71,6 +71,30 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
 </div>
 
 ---
+
+## 🆕 What's New — v1.15.1
+
+**v1.15.1 — piped `--json` reports no longer truncate at 64 KiB.** `process.exit()`
+used to tear the process down while libuv still had writes queued: redirecting to a file
+looked fine, but a piped stdout is non-blocking on Linux and macOS, so everything past
+the ~64 KiB pipe buffer was dropped and `vibeguard scan . --json | jq` received an
+unterminated string while the exit code still reported the scan. Every CLI exit now
+drains stdout/stderr first (`src/cli-exit.js`), the reader-closed EPIPE case exits clean,
+and a piped-output regression suite fails loudly if it ever comes back.
+
+- Piped-output exit-path fix across `scan`, `--version`/`--help`, `url`, `watch`,
+  `mcp-firewall`, the MCP server, the daemon, `agent-monitor`, the llm-proxy and
+  `approval serve` shutdown.
+- Reader-closed pipes (`vibeguard scan . --json | head`) exit cleanly instead of printing
+  an unhandled EPIPE stack trace.
+- `test/cli-output-tests.js`: a >64 KiB piped report must parse, must match a
+  file-redirect byte for byte, and its exit code is asserted separately.
+- Benchmark corpus no longer regenerates the `gcp-key.js` sample; the rule keeps unit
+  coverage. Benchmark gate: P 87.4% / R 100% / F1 93.3%.
+- **664 tests, 0 failures** and **50/50 platform tests** on the audit host.
+
+Install note: v1.15.1 is distributed as `@yagyeshvyas/vibeguard@1.15.1`
+([GitHub release tarball](https://github.com/yagyeshVyas/VibeGuard/releases/tag/v1.15.1)).
 
 ## 🆕 What's New — v1.15.0
 
@@ -187,9 +211,9 @@ Full details, policy schema and honest limits: [MCP-FIREWALL.md](MCP-FIREWALL.md
 
 ---
 
-## Security baseline v2 — release 1.15.0 status (internal testing)
+## Security baseline v2 — release 1.15.1 status (internal testing)
 
-This repository contains the v1.15.0 security foundation. It is **not** a
+This repository contains the v1.15.1 security foundation. It is **not** a
 production-ready agent security platform. Current counts, test evidence and
 isolation claims live in [docs/STATUS.md](docs/STATUS.md); release notes keep
 their historical counts.

@@ -12,6 +12,7 @@
 
 const path = require('path');
 const { analyzeMonitorLog, renderMonitor, watchAudit, formatEvent } = require('../src/agent-monitor');
+const { exitWhenFlushed } = require('../src/cli-exit');
 
 function cmdAgentMonitor(args, flags) {
   const root = path.resolve(flags.dir || args._[1] || '.');
@@ -36,7 +37,9 @@ function cmdAgentMonitor(args, flags) {
       else process.stdout.write(formatEvent(entry) + '\n');
     },
   });
-  const stop = () => { watcher.stop(); process.exit(0); };
+  // Drain the streamed events before leaving: process.exit() would drop what a
+  // piped stdout still has queued.
+  const stop = () => { watcher.stop(); exitWhenFlushed(0); };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
   return null; // keep running
