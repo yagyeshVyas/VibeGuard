@@ -42,10 +42,10 @@ Offline by default · Zero telemetry · No paid APIs · Free forever.
   <img src="https://img.shields.io/badge/self--scan-Grade%20A-brightgreen?style=flat-square" alt="Self-scan Grade A" />
 </p>
 
-<img src="website/demo.gif" alt="VibeGuard scan demo" width="640" />
+<img src="website/demo.gif" alt="VibeGuard v1.15.1 scanning a test project: 7 critical findings, Grade F" width="800" />
 
 <br/>
-<sub>Captured against a test project with a planted <code>sk_live</code> Stripe key.</sub>
+<sub>Real scan of a test project with a planted <code>sk_live</code> Stripe key — VibeGuard v1.15.1, 861 rules. Findings are collapsed in the animation; the counts are the run's real totals.</sub>
 
 <br/><br/>
 
