@@ -1,0 +1,6 @@
+# Local VibeGuard runtime state must never ship inside the package.
+# (Root `files: ["src"]` always includes this directory, so the exclusion has to
+# live here; a publish from a self-scanned working tree would otherwise carry
+# snapshots, the baseline and mcp pin/cache state.)
+.vibeguard/
+.vibeguard-baseline.json
