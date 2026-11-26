@@ -206,9 +206,13 @@ tests.push({
 tests.push({
   name: 'scan --github: emits Actions annotations with rule id, file and line',
   async fn() {
-    const out = runCli(['scan', path.join(ROOT, 'test-project'), '--github']);
-    assert.strictEqual(out.status, 1, 'findings still exit 1');
-    assert(/::error file=\.env,line=/.test(out.stdout), 'error annotation:\n' + out.stdout.slice(0, 400));
+    // Self-contained fixture: test-project/ is a local-only fixture and is not
+    // in the CI checkout.
+    const dir = tmpdir('vg-gha-');
+    fs.writeFileSync(path.join(dir, 'app.js'), 'const stripe = "sk_live_FAKEKEY1234567890ABCDEF";\n');
+    const out = runCli(['scan', dir, '--github']);
+    assert.strictEqual(out.status, 1, 'findings still exit 1: ' + out.stderr);
+    assert(/::error file=app\.js,line=1/.test(out.stdout), 'error annotation:\n' + out.stdout.slice(0, 400));
     assert(/secret\.stripe-live-key/.test(out.stdout), 'rule id in annotation title');
     assert(!/VibeGuard security scan/.test(out.stdout), 'human output suppressed');
   },
@@ -217,9 +221,11 @@ tests.push({
 tests.push({
   name: 'compliance --export: writes a digest-pinned evidence pack',
   async fn() {
+    const fixture = tmpdir('vg-ev-src-');
+    fs.writeFileSync(path.join(fixture, 'app.js'), 'const stripe = "sk_live_FAKEKEY1234567890ABCDEF";\n');
     const dir = tmpdir('vg-ev-');
     const outPath = path.join(dir, 'evidence.json');
-    const out = runCli(['compliance', path.join(ROOT, 'test-project'), '--export', outPath]);
+    const out = runCli(['compliance', fixture, '--export', outPath]);
     assert.strictEqual(out.status, 0, out.stderr);
     const pack = JSON.parse(fs.readFileSync(outPath, 'utf8'));
     assert.strictEqual(pack.schema, 'vibeguard.compliance-evidence@1');
