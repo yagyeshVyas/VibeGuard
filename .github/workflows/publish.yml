@@ -65,8 +65,17 @@ jobs:
           fi
           npm publish --provenance --access public
 
+      - name: Read package version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      # Tag the release from package.json instead of the triggering ref: a
+      # workflow_dispatch on master has no tag in refs/** and softprops fails
+      # with "GitHub Releases requires a tag". On a tag run this resolves to the
+      # same v<version> tag, and an existing release is updated in place.
       - name: Create GitHub Release
         if: env.NODE_AUTH_TOKEN != ''
         uses: softprops/action-gh-release@v3
         with:
+          tag_name: v${{ steps.pkg.outputs.version }}
           generate_release_notes: true
